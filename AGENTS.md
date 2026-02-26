@@ -1,4 +1,4 @@
-# skill-token-burden
+# pi-token-burden
 
 > Initialized with `init-ts-project` on 2026-02-26 using the `factory-extension` profile.
 
@@ -94,16 +94,16 @@ Install the extension for all projects:
 
 ```bash
 # Symlink into global extensions
-ln -s "$(pwd)" ~/.pi/agent/extensions/skill-token-burden
+ln -s "$(pwd)" ~/.pi/agent/extensions/pi-token-burden
 
 # Or add to settings.json
-# "extensions": ["/path/to/skill-token-burden/src/index.ts"]
+# "extensions": ["/path/to/pi-token-burden/src/index.ts"]
 ```
 
 For project-local use:
 
 ```bash
-ln -s "$(pwd)" /path/to/project/.pi/extensions/skill-token-burden
+ln -s "$(pwd)" /path/to/project/.pi/extensions/pi-token-burden
 ```
 
 ## Pre-commit
