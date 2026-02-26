@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.0...main
+
+[compare changes](https://github.com/Whamp/pi-token-burden/compare/v0.1.0...main)
+
+### 🏡 Chore
+
+- Add changelog with changelogen automation ([733e203](https://github.com/Whamp/pi-token-burden/commit/733e203))
+
+### ❤️ Contributors
+
+- Will Hampson <will@ggl.slmail.me>
+
 ## v0.1.0
 
 ### 🚀 Enhancements
