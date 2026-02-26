@@ -1,0 +1,3 @@
+[allowlist]
+description = "Global allowlist"
+paths = ["node_modules", "dist", "pnpm-lock.yaml"]

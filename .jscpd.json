@@ -1,0 +1,9 @@
+{
+  "threshold": 1,
+  "reporters": ["console"],
+  "ignore": ["node_modules", "dist", "vendor", "**/*.test.ts"],
+  "maxLines": 500,
+  "maxSize": "50kb",
+  "minLines": 5,
+  "minTokens": 50
+}

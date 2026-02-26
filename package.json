@@ -1,0 +1,44 @@
+{
+  "name": "skill-token-burden",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "oxlint -c .oxlintrc.json",
+    "lint:fix": "oxlint -c .oxlintrc.json --fix",
+    "format": "oxfmt --config .oxfmtrc.jsonc",
+    "format:check": "oxfmt --config .oxfmtrc.jsonc --check",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "deadcode": "knip",
+    "duplicates": "jscpd src/",
+    "secrets": "gitleaks detect --source . --no-git",
+    "check": "bash scripts/check.sh",
+    "fix": "bash scripts/fix.sh",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@mariozechner/pi-coding-agent": "^0.55.1",
+    "@types/node": "^25.3.2",
+    "gitleaks": "^1.0.0",
+    "husky": "^9.1.7",
+    "jscpd": "^4.0.8",
+    "knip": "^5.85.0",
+    "lint-staged": "^16.2.7",
+    "oxfmt": "^0.35.0",
+    "oxlint": "^1.50.0",
+    "typescript": "^5.9.3",
+    "ultracite": "^7.2.4",
+    "vitest": "^4.0.18"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  }
+}
