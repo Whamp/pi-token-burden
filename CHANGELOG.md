@@ -1,6 +1,19 @@
 # Changelog
 
 
+## v0.1.1...main
+
+[compare changes](https://github.com/Whamp/pi-token-burden/compare/v0.1.1...main)
+
+### 📖 Documentation
+
+- Document changelog workflow in AGENTS.md and README.md ([b07eb9a](https://github.com/Whamp/pi-token-burden/commit/b07eb9a))
+- Improve README structure, add badges and contributing section ([d64d5db](https://github.com/Whamp/pi-token-burden/commit/d64d5db))
+
+### ❤️ Contributors
+
+- Will Hampson <will@ggl.slmail.me>
+
 ## v0.1.0...main
 
 [compare changes](https://github.com/Whamp/pi-token-burden/compare/v0.1.0...main)
