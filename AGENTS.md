@@ -1,6 +1,8 @@
 # pi-token-burden
 
-> Initialized with `init-ts-project` on 2026-02-26 using the `factory-extension` profile.
+A pi extension that parses the assembled system prompt and shows a token-budget
+breakdown via the `/token-burden` slash command. Uses a TUI overlay with
+stacked bar visualization, drill-down table, and fuzzy search.
 
 ## Rules
 
@@ -20,27 +22,61 @@
 
 ## Commands
 
-| Command                 | Description                       |
-| ----------------------- | --------------------------------- |
-| `pnpm run lint`         | Run oxlint linter                 |
-| `pnpm run lint:fix`     | Run oxlint with auto-fix          |
-| `pnpm run format`       | Format code with oxfmt            |
-| `pnpm run format:check` | Check formatting without writing  |
-| `pnpm run typecheck`    | TypeScript type checking          |
-| `pnpm run test`         | Run Vitest tests                  |
-| `pnpm run deadcode`     | Detect dead code with knip        |
-| `pnpm run duplicates`   | Detect duplicate code with jscpd  |
-| `pnpm run secrets`      | Scan for secrets with gitleaks    |
-| `pnpm run check`        | Run all checks and report summary |
-| `pnpm run fix`          | Auto-fix lint and formatting      |
+| Command                 | Description                       | ~Time |
+| ----------------------- | --------------------------------- | ----- |
+| `pnpm run test`         | Run Vitest tests (21 tests)       | <1s   |
+| `pnpm run typecheck`    | TypeScript type checking          | ~2s   |
+| `pnpm run lint`         | Run oxlint linter                 | <1s   |
+| `pnpm run lint:fix`     | Run oxlint with auto-fix          | <1s   |
+| `pnpm run format`       | Format code with oxfmt            | <1s   |
+| `pnpm run format:check` | Check formatting without writing  | <1s   |
+| `pnpm run deadcode`     | Detect dead code with knip        | ~2s   |
+| `pnpm run duplicates`   | Detect duplicate code with jscpd  | ~1s   |
+| `pnpm run secrets`      | Scan for secrets with gitleaks    | <1s   |
+| `pnpm run check`        | Run all checks and report summary | ~8s   |
+| `pnpm run fix`          | Auto-fix lint and formatting      | <1s   |
 
 ## File Map
 
-| Path           | Purpose                                          |
-| -------------- | ------------------------------------------------ |
-| `src/index.ts` | Extension entry point (exports default function) |
-| `src/`         | Extension source code                            |
-| `scripts/`     | Shell scripts (check.sh, fix.sh)                 |
+| Path                 | Purpose                                                        |
+| -------------------- | -------------------------------------------------------------- |
+| `src/index.ts`       | Extension entry: registers `/token-burden` command             |
+| `src/parser.ts`      | Parses system prompt into sections (base, AGENTS, skills, etc) |
+| `src/report-view.ts` | TUI overlay: `BudgetOverlay` class, ANSI rendering, input      |
+| `src/utils.ts`       | `fuzzyFilter()` for search, `buildBarSegments()` for bar chart |
+| `src/types.ts`       | Shared types: `ParsedPrompt`, `TableItem`, `PromptSection`     |
+| `src/*.test.ts`      | Colocated tests (4 files, 21 tests total)                      |
+| `scripts/`           | Shell scripts (`check.sh`, `fix.sh`)                           |
+| `docs/plans/`        | Implementation plans                                           |
+
+## Architecture
+
+```
+index.ts ──→ parser.ts ──→ types.ts
+   │              │
+   └──→ report-view.ts ──→ utils.ts ──→ types.ts
+```
+
+**Data flow:** `ctx.getSystemPrompt()` → `parseSystemPrompt()` → `ParsedPrompt`
+→ `BudgetOverlay` (TUI overlay with `ctx.ui.custom()`).
+
+The parser identifies sections by structural markers in the assembled prompt:
+`# Project Context`, `<available_skills>`, `Current date and time:`, and
+pi-docs terminal markers. Token estimation uses `ceil(chars / 4)`.
+
+**Key classes:**
+
+- `BudgetOverlay` (`report-view.ts`) — stateful TUI component handling keyboard
+  navigation, drill-down into children (AGENTS files, individual skills), and
+  fuzzy search via `/`.
+
+## Utilities
+
+| Need                       | Use                  | Location        |
+| -------------------------- | -------------------- | --------------- |
+| Fuzzy-match filter items   | `fuzzyFilter()`      | `src/utils.ts`  |
+| Proportional bar segments  | `buildBarSegments()` | `src/utils.ts`  |
+| Estimate tokens from chars | `estimateTokens()`   | `src/parser.ts` |
 
 ## Tooling
 
@@ -56,54 +92,24 @@
 | gitleaks            | `.gitleaks.toml`                          | Secret scanning                         |
 | GitHub Actions      | `.github/workflows/check.yml`             | CI pipeline                             |
 
-## Architecture
-
-This is a pi-coding-agent extension. The entry point is `src/index.ts`, which
-exports a default function receiving `ExtensionAPI`.
-
-Key extension capabilities:
-
-- **Custom tools** — `pi.registerTool()` with TypeBox schemas
-- **Event handlers** — `pi.on()` for lifecycle events (session, tool, agent)
-- **Commands** — `pi.registerCommand()` for `/slash` commands
-- **Shortcuts** — `pi.registerShortcut()` for keyboard shortcuts
-- **UI** — `ctx.ui` for notifications, dialogs, widgets, and custom components
-
-Available imports:
-
-- `@mariozechner/pi-coding-agent` — Extension types (`ExtensionAPI`, events)
-- `@sinclair/typebox` — Schema definitions for tool parameters
-- `@mariozechner/pi-ai` — AI utilities (`StringEnum` for Google-compatible enums)
-- `@mariozechner/pi-tui` — TUI components for custom rendering
-
 ## Testing
-
-Test with the `-e` flag:
-
-```bash
-pi -e ./src/index.ts
-```
 
 - Framework: Vitest
 - File naming: `*.test.ts` colocated with source files
 - Run: `pnpm run test`
+- Manual: `pi -e ./src/index.ts` then type `/token-burden`
 
 ## Deployment
 
-Install the extension for all projects:
-
 ```bash
-# Symlink into global extensions
+# Install globally
+pi install git:github.com/Whamp/pi-token-burden
+
+# Or try for a single session
+pi -e git:github.com/Whamp/pi-token-burden
+
+# Local dev: symlink into global extensions
 ln -s "$(pwd)" ~/.pi/agent/extensions/pi-token-burden
-
-# Or add to settings.json
-# "extensions": ["/path/to/pi-token-burden/src/index.ts"]
-```
-
-For project-local use:
-
-```bash
-ln -s "$(pwd)" /path/to/project/.pi/extensions/pi-token-burden
 ```
 
 ## Pre-commit
@@ -115,12 +121,8 @@ On every commit, husky runs:
 
 ## CI
 
-The GitHub Actions workflow (`.github/workflows/check.yml`) runs `pnpm run check`
-on push to `main` and on pull requests.
-
-## Installed Skills
-
-- `agents` (netresearch/agents-skill)
+`.github/workflows/check.yml` runs `pnpm run check` on push to `main` and on
+pull requests.
 
 ## Boundaries
 

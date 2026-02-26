@@ -9,7 +9,7 @@
 // - Arrow Parentheses: Always include
 {
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
-  "ignore": ["docs/", "dist/", "node_modules/"],
+  "ignorePatterns": [".gcc/**", "docs/**", "dist/**"],
   "printWidth": 80,
   "tabWidth": 2,
   "useTabs": false,
