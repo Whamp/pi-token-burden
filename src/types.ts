@@ -12,6 +12,16 @@ export interface AgentsFileEntry {
   tokens: number;
 }
 
+export interface FilterItem {
+  label: string;
+  tokens: number;
+}
+
+export interface BarSegment {
+  label: string;
+  width: number;
+}
+
 export interface PromptSection {
   label: string;
   chars: number;
@@ -26,7 +36,15 @@ export interface ParsedPrompt {
   skills: SkillEntry[];
 }
 
-export interface ReportLine {
-  kind: "header" | "separator" | "section" | "child";
-  text: string;
+/** Item displayed in the interactive table (section or child). */
+export interface TableItem {
+  label: string;
+  tokens: number;
+  chars: number;
+  /** Percentage of total system prompt tokens. */
+  pct: number;
+  /** Whether this item can be drilled into (has children). */
+  drillable: boolean;
+  /** Children shown when drilling down. */
+  children?: TableItem[];
 }

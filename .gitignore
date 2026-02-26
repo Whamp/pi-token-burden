@@ -6,3 +6,5 @@ dist/
 *.log
 .DS_Store
 coverage/
+
+.gcc/branches/*/log.md

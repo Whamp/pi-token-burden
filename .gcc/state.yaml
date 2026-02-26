@@ -1,0 +1,11 @@
+active_branch: main
+initialized: "2026-02-26T21:46:02Z"
+last_commit:
+  branch: main
+  hash: 9848829a
+  timestamp: "2026-02-26T21:47:18.744Z"
+  summary: "GCC initialized. Authored roadmap based on project inspection — v0.1.0 extension with /context-budget command, parser/formatter/report-view architecture, full test coverage and CI tooling in place."
+sessions:
+  - file: "/home/will/.pi/agent/sessions/--home-will-projects-pi-token-burden--/2026-02-26T21-45-50-232Z_43e18b9a-a463-42f5-a332-c6c9a28718fd.jsonl"
+    branch: main
+    started: "2026-02-26T21:46:48.684Z"
