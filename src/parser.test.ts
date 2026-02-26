@@ -1,7 +1,7 @@
 import { estimateTokens, parseSystemPrompt } from "./parser.js";
 import type { ParsedPrompt } from "./parser.js";
 
-describe(estimateTokens, () => {
+describe("estimateTokens()", () => {
   it("returns ceil(chars / 4)", () => {
     expect(estimateTokens("")).toBe(0);
     expect(estimateTokens("abcd")).toBe(1);
@@ -10,7 +10,7 @@ describe(estimateTokens, () => {
   });
 });
 
-describe(parseSystemPrompt, () => {
+describe("parseSystemPrompt()", () => {
   const basePrompt = [
     "You are an expert coding assistant operating inside pi.",
     "",

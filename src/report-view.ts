@@ -14,7 +14,7 @@ export async function showReport(
 ): Promise<void> {
   const lines = formatReport(parsed, contextWindow);
 
-  await ctx.ui.custom((_tui, theme, _kb, done) => {
+  await ctx.ui.custom<null>((_tui, theme, _kb, done) => {
     const container = new Container();
     const border = new DynamicBorder((s: string) => theme.fg("accent", s));
 
@@ -69,7 +69,7 @@ export async function showReport(
       invalidate: () => container.invalidate(),
       handleInput: (data: string) => {
         if (matchesKey(data, "enter") || matchesKey(data, "escape")) {
-          done();
+          done(null);
         }
       },
     };

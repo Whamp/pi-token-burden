@@ -16,7 +16,7 @@ import type {
   SkillEntry,
 } from "./types.js";
 
-export type { AgentsFileEntry, ParsedPrompt, PromptSection, SkillEntry };
+export type { ParsedPrompt };
 
 /** Token estimate using pi's built-in heuristic: ceil(chars / 4). */
 export function estimateTokens(text: string): number {
@@ -227,7 +227,7 @@ export function parseSystemPrompt(prompt: string): ParsedPrompt {
 
   // 5. Detect SYSTEM.md / APPEND_SYSTEM.md gap
   const nextSectionStart =
-    projectCtxIdx !== -1 ? projectCtxIdx : skillsPreambleIdx;
+    projectCtxIdx === -1 ? skillsPreambleIdx : projectCtxIdx;
 
   if (baseEnd >= 0 && nextSectionStart >= 0 && nextSectionStart > baseEnd) {
     const gap = prompt.slice(baseEnd, nextSectionStart);

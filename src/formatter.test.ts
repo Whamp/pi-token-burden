@@ -1,7 +1,7 @@
 import { formatReport } from "./formatter.js";
 import type { ParsedPrompt } from "./types.js";
 
-describe(formatReport, () => {
+describe("formatReport()", () => {
   const parsed: ParsedPrompt = {
     totalChars: 10_000,
     totalTokens: 2500,

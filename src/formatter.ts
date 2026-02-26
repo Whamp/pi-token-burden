@@ -1,7 +1,5 @@
 import type { ParsedPrompt, ReportLine } from "./types.js";
 
-export type { ReportLine };
-
 function fmt(n: number): string {
   return n.toLocaleString("en-US");
 }
