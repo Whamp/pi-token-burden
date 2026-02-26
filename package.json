@@ -1,7 +1,18 @@
 {
   "name": "pi-token-burden",
   "version": "0.1.0",
+  "description": "Pi extension that shows a token-budget breakdown of the assembled system prompt",
+  "keywords": [
+    "pi-extension",
+    "pi-package",
+    "token-budget"
+  ],
   "license": "MIT",
+  "files": [
+    "src/",
+    "LICENSE",
+    "README.md"
+  ],
   "type": "module",
   "scripts": {
     "lint": "oxlint -c .oxlintrc.json",
