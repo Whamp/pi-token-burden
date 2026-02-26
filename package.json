@@ -15,7 +15,7 @@
     "secrets": "gitleaks detect --source . --no-git",
     "check": "bash scripts/check.sh",
     "fix": "bash scripts/fix.sh",
-    "prepare": "husky || true"
+    "prepare": "husky 2>/dev/null || true"
   },
   "devDependencies": {
     "@types/node": "^25.3.2",
