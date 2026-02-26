@@ -14,8 +14,7 @@
     "duplicates": "jscpd src/",
     "secrets": "gitleaks detect --source . --no-git",
     "check": "bash scripts/check.sh",
-    "fix": "bash scripts/fix.sh",
-    "prepare": "husky 2>/dev/null || true"
+    "fix": "bash scripts/fix.sh"
   },
   "devDependencies": {
     "@types/node": "^25.3.2",
