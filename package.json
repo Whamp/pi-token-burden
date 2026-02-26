@@ -10,6 +10,7 @@
   "license": "MIT",
   "files": [
     "src/",
+    "CHANGELOG.md",
     "LICENSE",
     "README.md"
   ],
@@ -25,10 +26,13 @@
     "duplicates": "jscpd src/",
     "secrets": "gitleaks detect --source . --no-git",
     "check": "bash scripts/check.sh",
-    "fix": "bash scripts/fix.sh"
+    "fix": "bash scripts/fix.sh",
+    "version": "changelogen --no-bump --output CHANGELOG.md && git add CHANGELOG.md",
+    "changelog": "changelogen --no-bump --output CHANGELOG.md"
   },
   "devDependencies": {
     "@types/node": "^25.3.2",
+    "changelogen": "^0.6.2",
     "gitleaks": "^1.0.0",
     "husky": "^9.1.7",
     "jscpd": "^4.0.8",
