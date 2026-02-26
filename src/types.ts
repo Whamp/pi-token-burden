@@ -25,3 +25,8 @@ export interface ParsedPrompt {
   totalTokens: number;
   skills: SkillEntry[];
 }
+
+export interface ReportLine {
+  kind: "header" | "separator" | "section" | "child";
+  text: string;
+}
