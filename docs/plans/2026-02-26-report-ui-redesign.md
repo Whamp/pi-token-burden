@@ -12,13 +12,13 @@ drill-down table with fuzzy search. Inspired by
 
 ## Layout
 
-The `/context-budget` command opens a centered overlay (`anchor: "center"`,
+The `/token-burden` command opens a centered overlay (`anchor: "center"`,
 width ~80) with Unicode box-drawing borders (`╭╮╰╯│─├┤`).
 
 Three vertical zones:
 
 ```
-╭──────────────── Context Budget ─────────────────╮
+╭──────────────── Token Burden ─────────────────╮
 │                                                  │
 │  Zone 1: Context window usage bar + label        │
 │  ─────────────────────────────────────────────── │

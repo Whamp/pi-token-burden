@@ -1,10 +1,10 @@
-# Context Budget Analyzer — Implementation Plan
+# Token Burden Analyzer — Implementation Plan
 
 > **REQUIRED SUB-SKILL:** Use the executing-plans skill to implement this plan task-by-task.
 
-**Goal:** Build a pi extension that parses the assembled system prompt into sections and displays a token-budget breakdown via a `/context-budget` command with a TUI table.
+**Goal:** Build a pi extension that parses the assembled system prompt into sections and displays a token-budget breakdown via a `/token-burden` command with a TUI table.
 
-**Architecture:** A parser module splits the concatenated system prompt string into sections (base prompt, AGENTS.md files, skills frontmatter, SYSTEM.md overrides, metadata) using regex for major boundaries and XML matching for per-skill detail. A formatter module renders the parsed data into a table. The extension entry point registers a `/context-budget` command that calls `ctx.getSystemPrompt()`, parses it, and displays the report via `ctx.ui.custom()`.
+**Architecture:** A parser module splits the concatenated system prompt string into sections (base prompt, AGENTS.md files, skills frontmatter, SYSTEM.md overrides, metadata) using regex for major boundaries and XML matching for per-skill detail. A formatter module renders the parsed data into a table. The extension entry point registers a `/token-burden` command that calls `ctx.getSystemPrompt()`, parses it, and displays the report via `ctx.ui.custom()`.
 
 **Tech Stack:** TypeScript, `@mariozechner/pi-coding-agent` (ExtensionAPI, DynamicBorder), `@mariozechner/pi-tui` (Container, Text, matchesKey)
 
@@ -381,12 +381,12 @@ Keyboard: Enter or Escape calls `done(undefined)`.
 
 ```bash
 git add src/report-view.ts
-git commit -m "feat: add TUI report view component for context budget"
+git commit -m "feat: add TUI report view component for token burden"
 ```
 
 ---
 
-### Task 4: Extension entry point — `/context-budget` command
+### Task 4: Extension entry point — `/token-burden` command
 
 **TDD scenario:** Modifying tested code — run existing test first.
 
@@ -424,7 +424,7 @@ import { parseSystemPrompt } from "./parser.js";
 import { showReport } from "./report-view.js";
 
 export default function (pi: ExtensionAPI) {
-  pi.registerCommand("context-budget", {
+  pi.registerCommand("token-burden", {
     description: "Show token budget breakdown of the system prompt",
     handler: async (_args, ctx) => {
       const prompt = ctx.getSystemPrompt();
@@ -453,7 +453,7 @@ Expected: PASS
 
 ```bash
 git add src/index.ts src/index.test.ts
-git commit -m "feat: register /context-budget command"
+git commit -m "feat: register /token-burden command"
 ```
 
 ---
@@ -476,7 +476,7 @@ Fix lint, format, or typecheck errors. Re-run `pnpm run check` until clean.
 **Step 3: Manual test**
 
 Run: `pi -e ./src/index.ts`
-Then type: `/context-budget`
+Then type: `/token-burden`
 Expected: TUI table showing system prompt breakdown by section.
 
 **Step 4: Final commit**

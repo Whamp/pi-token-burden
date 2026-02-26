@@ -4,7 +4,7 @@ import { parseSystemPrompt } from "./parser.js";
 import { showReport } from "./report-view.js";
 
 const extension: ExtensionFactory = (pi) => {
-  pi.registerCommand("context-budget", {
+  pi.registerCommand("token-burden", {
     description: "Show token budget breakdown of the system prompt",
     handler: async (_args, ctx) => {
       const prompt = ctx.getSystemPrompt();

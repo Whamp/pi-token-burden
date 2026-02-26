@@ -163,7 +163,7 @@ function makeCenterRow(innerW: number): (content: string) => string {
 // ---------------------------------------------------------------------------
 
 function renderTitleBorder(innerW: number): string {
-  const titleText = " Context Budget ";
+  const titleText = " Token Burden ";
   const borderLen = innerW - visibleWidth(titleText);
   const leftBorder = Math.floor(borderLen / 2);
   const rightBorder = borderLen - leftBorder;

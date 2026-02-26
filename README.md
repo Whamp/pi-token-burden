@@ -2,7 +2,7 @@
 
 See where your system prompt tokens go.
 
-A [pi](https://github.com/mariozechner/pi) extension that parses the assembled system prompt and shows a token-budget breakdown by section. Run `/context-budget` to see how much of your context window is consumed by the base prompt, AGENTS.md files, skills, SYSTEM.md overrides, and metadata.
+A [pi](https://github.com/mariozechner/pi) extension that parses the assembled system prompt and shows a token-budget breakdown by section. Run `/token-burden` to see how much of your context window is consumed by the base prompt, AGENTS.md files, skills, SYSTEM.md overrides, and metadata.
 
 ## Install
 
@@ -18,10 +18,10 @@ pi -e git:github.com/Whamp/pi-token-burden
 
 ## Usage
 
-Once installed, type `/context-budget` in any pi session. A TUI panel shows:
+Once installed, type `/token-burden` in any pi session. A TUI panel shows:
 
 ```
- Context Budget
+ Token Burden
 System Prompt: 12,450 tokens (49,798 chars) — 6.2% of 200,000 context window
 
 Base prompt                 1,250 tokens   10.0%
