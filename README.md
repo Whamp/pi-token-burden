@@ -7,13 +7,19 @@ A [pi](https://github.com/mariozechner/pi) extension that parses the assembled s
 ## Install
 
 ```bash
+pi install npm:pi-token-burden
+```
+
+Or from git:
+
+```bash
 pi install git:github.com/Whamp/pi-token-burden
 ```
 
 Or try it for a single session:
 
 ```bash
-pi -e git:github.com/Whamp/pi-token-burden
+pi -e npm:pi-token-burden
 ```
 
 ## Usage
@@ -64,7 +70,7 @@ Tokens are estimated as `ceil(chars / 4)` — the same heuristic pi uses interna
 git clone https://github.com/Whamp/pi-token-burden.git
 cd pi-token-burden
 pnpm install
-pnpm run test     # 15 tests
+pnpm run test     # 21 tests
 pnpm run check    # lint, typecheck, format, dead code, duplicates, secrets, tests
 ```
 
@@ -73,6 +79,11 @@ Test locally without installing:
 ```bash
 pi -e ./src/index.ts
 ```
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for release history. Generated automatically
+from conventional commits via [changelogen](https://github.com/unjs/changelogen).
 
 ## License
 

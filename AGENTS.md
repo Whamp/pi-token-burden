@@ -35,6 +35,7 @@ stacked bar visualization, drill-down table, and fuzzy search.
 | `pnpm run secrets`      | Scan for secrets with gitleaks    | <1s   |
 | `pnpm run check`        | Run all checks and report summary | ~8s   |
 | `pnpm run fix`          | Auto-fix lint and formatting      | <1s   |
+| `pnpm run changelog`    | Regenerate CHANGELOG.md           | <1s   |
 
 ## File Map
 
@@ -46,6 +47,7 @@ stacked bar visualization, drill-down table, and fuzzy search.
 | `src/utils.ts`       | `fuzzyFilter()` for search, `buildBarSegments()` for bar chart |
 | `src/types.ts`       | Shared types: `ParsedPrompt`, `TableItem`, `PromptSection`     |
 | `src/*.test.ts`      | Colocated tests (4 files, 21 tests total)                      |
+| `CHANGELOG.md`       | Auto-generated changelog (do not edit manually)                |
 | `scripts/`           | Shell scripts (`check.sh`, `fix.sh`)                           |
 | `docs/plans/`        | Implementation plans                                           |
 
@@ -90,6 +92,7 @@ pi-docs terminal markers. Token estimation uses `ceil(chars / 4)`.
 | knip                | `knip.json`                               | Dead code detection                     |
 | jscpd               | `.jscpd.json`                             | Duplicate code detection (1% threshold) |
 | gitleaks            | `.gitleaks.toml`                          | Secret scanning                         |
+| changelogen         | `package.json` (`version` script)         | Changelog generation from commits       |
 | GitHub Actions      | `.github/workflows/check.yml`             | CI pipeline                             |
 
 ## Testing
@@ -102,7 +105,10 @@ pi-docs terminal markers. Token estimation uses `ceil(chars / 4)`.
 ## Deployment
 
 ```bash
-# Install globally
+# Install from npm
+pi install npm:pi-token-burden
+
+# Install from git
 pi install git:github.com/Whamp/pi-token-burden
 
 # Or try for a single session
@@ -111,6 +117,17 @@ pi -e git:github.com/Whamp/pi-token-burden
 # Local dev: symlink into global extensions
 ln -s "$(pwd)" ~/.pi/agent/extensions/pi-token-burden
 ```
+
+## Releasing
+
+```bash
+npm version patch   # bumps version, updates CHANGELOG.md, commits, tags
+git push --tags && git push
+npm publish
+```
+
+The `version` script runs changelogen automatically to update `CHANGELOG.md`
+before the version commit. Use `patch`, `minor`, or `major` as appropriate.
 
 ## Pre-commit
 
