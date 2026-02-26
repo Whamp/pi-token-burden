@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.2...main
+
+[compare changes](https://github.com/Whamp/pi-token-burden/compare/v0.1.2...main)
+
+### 📖 Documentation
+
+- Add banner image to README ([e6205c0](https://github.com/Whamp/pi-token-burden/commit/e6205c0))
+
+### ❤️ Contributors
+
+- Will Hampson <will@ggl.slmail.me>
+
 ## v0.1.1...main
 
 [compare changes](https://github.com/Whamp/pi-token-burden/compare/v0.1.1...main)
