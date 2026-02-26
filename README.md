@@ -11,6 +11,12 @@ system prompt and shows a token-budget breakdown by section. Run `/token-burden`
 to see how much of your context window is consumed by the base prompt, AGENTS.md
 files, skills, SYSTEM.md overrides, and metadata.
 
+
+
+https://github.com/user-attachments/assets/54408cd9-e24b-4e19-a289-b3e68b2068b9
+
+
+
 ## Install
 
 ```bash
