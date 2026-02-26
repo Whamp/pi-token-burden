@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./banner.png" alt="pi-token-burden banner" width="720" />
+</p>
+
 # pi-token-burden
 
 [![npm version](https://img.shields.io/npm/v/pi-token-burden)](https://www.npmjs.com/package/pi-token-burden)
