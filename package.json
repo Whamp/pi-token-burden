@@ -15,12 +15,9 @@
     "secrets": "gitleaks detect --source . --no-git",
     "check": "bash scripts/check.sh",
     "fix": "bash scripts/fix.sh",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "devDependencies": {
-    "@mariozechner/pi-coding-agent": "^0.55.1",
-    "@mariozechner/pi-tui": "^0.55.1",
-    "@sinclair/typebox": "^0.34.48",
     "@types/node": "^25.3.2",
     "gitleaks": "^1.0.0",
     "husky": "^9.1.7",
