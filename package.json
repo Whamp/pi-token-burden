@@ -28,7 +28,11 @@
     "check": "bash scripts/check.sh",
     "fix": "bash scripts/fix.sh",
     "version": "changelogen --no-bump --output CHANGELOG.md && git add CHANGELOG.md",
-    "changelog": "changelogen --no-bump --output CHANGELOG.md"
+    "changelog": "changelogen --no-bump --output CHANGELOG.md",
+    "compare-tokenizers": "tsx scripts/compare-tokenizers.ts"
+  },
+  "dependencies": {
+    "gpt-tokenizer": "^3.4.0"
   },
   "devDependencies": {
     "@types/node": "^25.3.2",
@@ -40,6 +44,7 @@
     "lint-staged": "^16.2.7",
     "oxfmt": "^0.35.0",
     "oxlint": "^1.50.0",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "ultracite": "^7.2.4",
     "vitest": "^4.0.18"
