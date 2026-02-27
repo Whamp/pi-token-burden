@@ -1,6 +1,6 @@
 {
   "name": "pi-token-burden",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "Pi extension that shows a token-budget breakdown of the assembled system prompt",
   "keywords": [
     "pi-extension",

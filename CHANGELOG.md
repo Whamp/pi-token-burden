@@ -1,6 +1,33 @@
 # Changelog
 
 
+## v0.1.3...main
+
+[compare changes](https://github.com/Whamp/pi-token-burden/compare/v0.1.3...main)
+
+### 🚀 Enhancements
+
+- Replace heuristic with BPE tokenization via gpt-tokenizer ([6366044](https://github.com/Whamp/pi-token-burden/commit/6366044))
+- Replace heuristic with BPE tokenization via gpt-tokenizer ([#1](https://github.com/Whamp/pi-token-burden/pull/1))
+
+### 🩹 Fixes
+
+- **ci:** Specify pnpm version in package.json and ignore scripts dir ([1237674](https://github.com/Whamp/pi-token-burden/commit/1237674))
+- **ci:** Ignore gpt-tokenizer in knip and fix gitleaks path ([8b32b66](https://github.com/Whamp/pi-token-burden/commit/8b32b66))
+
+### 📦 Build
+
+- Move gpt-tokenizer to dependencies ([f1120e5](https://github.com/Whamp/pi-token-burden/commit/f1120e5))
+
+### ✅ Tests
+
+- Update estimateTokens tests for BPE tokenization ([0d861fc](https://github.com/Whamp/pi-token-burden/commit/0d861fc))
+- Relax totalTokens assertion to work with BPE ([974756b](https://github.com/Whamp/pi-token-burden/commit/974756b))
+
+### ❤️ Contributors
+
+- Will Hampson <will@ggl.slmail.me>
+
 ## v0.1.2...main
 
 [compare changes](https://github.com/Whamp/pi-token-burden/compare/v0.1.2...main)
