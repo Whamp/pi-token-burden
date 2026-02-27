@@ -15,11 +15,9 @@ system prompt and shows a token-budget breakdown by section. Run `/token-burden`
 to see how much of your context window is consumed by the base prompt, AGENTS.md
 files, skills, SYSTEM.md overrides, and metadata.
 
-
-
-https://github.com/user-attachments/assets/54408cd9-e24b-4e19-a289-b3e68b2068b9
-
-
+<p align="center">
+  <img src="./screenshot.png" alt="pi-token-burden TUI screenshot" width="720" />
+</p>
 
 ## Install
 
@@ -45,25 +43,32 @@ Type `/token-burden` in any pi session. An overlay appears with a stacked bar
 and a drill-down table:
 
 ```
- Token Burden
-System Prompt: 12,450 tokens (49,798 chars) — 6.2% of 200,000 context window
-
-Base prompt                 1,250 tokens   10.0%
-SYSTEM.md / APPEND_SYSTEM.md  340 tokens    2.7%
-AGENTS.md files             2,860 tokens   23.0%
-  ~/.pi/agent/AGENTS.md               1,100 tokens    8.8%
-  /home/user/project/AGENTS.md        1,760 tokens   14.1%
-Skills (42)                 7,800 tokens   62.6%
-  brainstorming               180 tokens    1.4%
-  tdd                         165 tokens    1.3%
-  ...
-Metadata (date/time, cwd)     200 tokens    1.6%
-
- Press Enter or Esc to close
+╭─────────────────────────────── Token Burden ────────────────────────────────╮
+│                                                                              │
+│ 9,734 / 200,000 tokens (4.9%)                                                │
+│ ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │
+│                                                                              │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│ ████████████████████████████████████████████████████████████████████████████ │
+│ ■ Base 4.8%  ■ AGENTS 28.9%  ■ Skills 65.9%  ■ Meta 0.3%                     │
+│                                                                              │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│ ▸ Skills (59)                                           6,414 tokens   65.9% │
+│ · AGENTS.md files                                       2,817 tokens   28.9% │
+│ · Base prompt                                             469 tokens    4.8% │
+│ · Metadata (date/time, cwd)                                33 tokens    0.3% │
+│                                                                              │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│             ↑↓ navigate  enter drill-in  / search  esc close                 │
+╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
-Sections exceeding 10% of the system prompt are highlighted. Use arrow keys to
-navigate, Enter to drill down into children, and `/` to fuzzy-search.
+The table is sorted by token count (descending). Use arrow keys to navigate,
+Enter to drill down into children (e.g., individual skills or AGENTS.md files),
+and `/` to fuzzy-search items.
 
 ### What each section measures
 

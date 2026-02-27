@@ -54,6 +54,7 @@
     "@mariozechner/pi-tui": "*",
     "@sinclair/typebox": "*"
   },
+  "packageManager": "pnpm@10.3.0",
   "pnpm": {
     "onlyBuiltDependencies": [
       "esbuild"
