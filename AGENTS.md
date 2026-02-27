@@ -64,7 +64,7 @@ index.ts ──→ parser.ts ──→ types.ts
 
 The parser identifies sections by structural markers in the assembled prompt:
 `# Project Context`, `<available_skills>`, `Current date and time:`, and
-pi-docs terminal markers. Token estimation uses `ceil(chars / 4)`.
+pi-docs terminal markers. Token estimation uses BPE tokenization via `gpt-tokenizer` (`o200k_base` encoding).
 
 **Key classes:**
 
@@ -74,11 +74,11 @@ pi-docs terminal markers. Token estimation uses `ceil(chars / 4)`.
 
 ## Utilities
 
-| Need                       | Use                  | Location        |
-| -------------------------- | -------------------- | --------------- |
-| Fuzzy-match filter items   | `fuzzyFilter()`      | `src/utils.ts`  |
-| Proportional bar segments  | `buildBarSegments()` | `src/utils.ts`  |
-| Estimate tokens from chars | `estimateTokens()`   | `src/parser.ts` |
+| Need                         | Use                  | Location        |
+| ---------------------------- | -------------------- | --------------- |
+| Fuzzy-match filter items     | `fuzzyFilter()`      | `src/utils.ts`  |
+| Proportional bar segments    | `buildBarSegments()` | `src/utils.ts`  |
+| BPE token count (o200k_base) | `estimateTokens()`   | `src/parser.ts` |
 
 ## Tooling
 
