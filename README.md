@@ -15,10 +15,6 @@ system prompt and shows a token-budget breakdown by section. Run `/token-burden`
 to see how much of your context window is consumed by the base prompt, AGENTS.md
 files, skills, SYSTEM.md overrides, and metadata.
 
-<p align="center">
-  <img src="./screenshot.png" alt="pi-token-burden TUI screenshot" width="720" />
-</p>
-
 ## Install
 
 ```bash
@@ -42,30 +38,9 @@ To try it for a single session without installing, use `pi -e npm:pi-token-burde
 Type `/token-burden` in any pi session. An overlay appears with a stacked bar
 and a drill-down table:
 
-```
-╭─────────────────────────────── Token Burden ────────────────────────────────╮
-│                                                                              │
-│ 9,734 / 200,000 tokens (4.9%)                                                │
-│ ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │
-│                                                                              │
-├──────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│ ████████████████████████████████████████████████████████████████████████████ │
-│ ■ Base 4.8%  ■ AGENTS 28.9%  ■ Skills 65.9%  ■ Meta 0.3%                     │
-│                                                                              │
-├──────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│ ▸ Skills (59)                                           6,414 tokens   65.9% │
-│ · AGENTS.md files                                       2,817 tokens   28.9% │
-│ · Base prompt                                             469 tokens    4.8% │
-│ · Metadata (date/time, cwd)                                33 tokens    0.3% │
-│                                                                              │
-├──────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│             ↑↓ navigate  enter drill-in  / search  esc close                 │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
+<p align="center">
+  <img src="./screenshot.png" alt="pi-token-burden TUI screenshot" width="720" />
+</p>
 The table is sorted by token count (descending). Use arrow keys to navigate,
 Enter to drill down into children (e.g., individual skills or AGENTS.md files),
 and `/` to fuzzy-search items.
