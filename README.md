@@ -82,8 +82,9 @@ and `/` to fuzzy-search items.
 
 ### Token estimation
 
-Tokens are estimated as `ceil(chars / 4)` — the same heuristic pi uses
-internally. This is a rough approximation, not a tokenizer count.
+Tokens are counted using [gpt-tokenizer](https://github.com/niieani/gpt-tokenizer)
+with the `o200k_base` encoding (used by GPT-4o, o1, o3, and other modern models).
+This gives exact BPE token counts rather than a character-based approximation.
 
 ## Development
 
@@ -92,7 +93,7 @@ git clone https://github.com/Whamp/pi-token-burden.git
 cd pi-token-burden
 pnpm install
 pnpm run test     # 21 tests
-pnpm run check    # lint, typecheck, format, dead code, duplicates, secrets, tests
+pnpm run check    # lint, typecheck, format, dead code, duplicates, tests
 ```
 
 Test locally: `pi -e ./src/index.ts`, then type `/token-burden`.

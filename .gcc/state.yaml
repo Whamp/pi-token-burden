@@ -24,3 +24,15 @@ sessions:
   - file: "/home/will/.pi/agent/sessions/--home-will-projects-pi-token-burden--/2026-02-26T22-06-42-560Z_11e0d29e-c807-4d2f-9841-9bd951bfea26.jsonl"
     branch: main
     started: "2026-02-26T22:06:42.576Z"
+  - file: "/home/will/.pi/agent/sessions/--home-will-projects-pi-token-burden--/2026-02-26T22-35-47-475Z_6b976a21-7bd1-4be5-a9b7-f4e4b4b74a34.jsonl"
+    branch: main
+    started: "2026-02-26T22:35:47.490Z"
+  - file: "/home/will/.pi/agent/sessions/--home-will-projects-pi-token-burden--/2026-02-26T22-43-47-411Z_c18bb54a-6491-413c-81c9-a6352d0a97eb.jsonl"
+    branch: main
+    started: "2026-02-26T22:43:47.426Z"
+  - file: "/home/will/.pi/agent/sessions/--home-will-projects-pi-token-burden--/2026-02-27T05-14-39-227Z_45d2b439-02ee-4054-bb8c-1cfdedea4341.jsonl"
+    branch: main
+    started: "2026-02-27T05:14:39.266Z"
+  - file: "/home/will/.pi/agent/sessions/--home-will-projects-pi-token-burden--/2026-02-27T05-19-02-158Z_5f86a6c5-3a30-4bdc-a6b0-d4f70b262fdc.jsonl"
+    branch: main
+    started: "2026-02-27T05:19:02.174Z"
