@@ -9,6 +9,7 @@
  *   5. Date/time + cwd metadata
  */
 
+import { encode } from "gpt-tokenizer/encoding/o200k_base";
 import type {
   AgentsFileEntry,
   ParsedPrompt,
@@ -18,9 +19,9 @@ import type {
 
 export type { ParsedPrompt };
 
-/** Token estimate using pi's built-in heuristic: ceil(chars / 4). */
+/** Token count using BPE tokenization (o200k_base encoding). */
 export function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4);
+  return encode(text).length;
 }
 
 // ---------------------------------------------------------------------------
