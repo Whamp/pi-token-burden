@@ -2,11 +2,20 @@ import { estimateTokens, parseSystemPrompt } from "./parser.js";
 import type { ParsedPrompt } from "./parser.js";
 
 describe("estimateTokens()", () => {
-  it("returns ceil(chars / 4)", () => {
+  it("returns 0 for empty string", () => {
     expect(estimateTokens("")).toBe(0);
-    expect(estimateTokens("abcd")).toBe(1);
-    expect(estimateTokens("abcde")).toBe(2);
-    expect(estimateTokens("a")).toBe(1);
+  });
+
+  it("returns real BPE token count for English text", () => {
+    // "Read files before editing." is 5 tokens in o200k_base, but ceil(26/4) = 7
+    const tokens = estimateTokens("Read files before editing.");
+    expect(tokens).toBe(5);
+  });
+
+  it("returns real BPE token count for code", () => {
+    const code = "const x = 42;\nconsole.log(x);";
+    const tokens = estimateTokens(code);
+    expect(tokens).toBe(10);
   });
 });
 
