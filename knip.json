@@ -2,6 +2,6 @@
   "$schema": "https://unpkg.com/knip@latest/schema.json",
   "entry": ["src/index.ts"],
   "project": ["src/**/*.ts"],
-  "ignoreDependencies": ["gitleaks", "husky", "ultracite"],
-  "ignoreBinaries": ["gitleaks"]
+  "ignoreDependencies": ["husky", "ultracite"],
+  "ignoreBinaries": []
 }

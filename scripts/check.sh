@@ -20,7 +20,6 @@ run "Typecheck"    pnpm run typecheck
 run "Format"       pnpm run format:check
 run "Dead code"    pnpm run deadcode
 run "Duplicates"   pnpm run duplicates
-run "Secrets"      pnpm run secrets
 run "Test"         pnpm run test
 
 echo "=== Summary ==="

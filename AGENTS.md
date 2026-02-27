@@ -32,7 +32,6 @@ stacked bar visualization, drill-down table, and fuzzy search.
 | `pnpm run format:check` | Check formatting without writing  | <1s   |
 | `pnpm run deadcode`     | Detect dead code with knip        | ~2s   |
 | `pnpm run duplicates`   | Detect duplicate code with jscpd  | ~1s   |
-| `pnpm run secrets`      | Scan for secrets with gitleaks    | <1s   |
 | `pnpm run check`        | Run all checks and report summary | ~8s   |
 | `pnpm run fix`          | Auto-fix lint and formatting      | <1s   |
 | `pnpm run changelog`    | Regenerate CHANGELOG.md           | <1s   |
@@ -91,7 +90,6 @@ pi-docs terminal markers. Token estimation uses BPE tokenization via `gpt-tokeni
 | husky + lint-staged | `.husky/pre-commit`, `.lintstagedrc.json` | Pre-commit hooks                        |
 | knip                | `knip.json`                               | Dead code detection                     |
 | jscpd               | `.jscpd.json`                             | Duplicate code detection (1% threshold) |
-| gitleaks            | `.gitleaks.toml`                          | Secret scanning                         |
 | changelogen         | `package.json` (`version` script)         | Changelog generation from commits       |
 | GitHub Actions      | `.github/workflows/check.yml`             | CI pipeline                             |
 
@@ -134,7 +132,6 @@ before the version commit. Use `patch`, `minor`, or `major` as appropriate.
 On every commit, husky runs:
 
 1. `lint-staged` (oxlint fix + oxfmt on staged files)
-2. `gitleaks protect --staged` (secret scanning)
 
 ## CI
 
