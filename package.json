@@ -34,8 +34,10 @@
     "gpt-tokenizer": "^3.4.0"
   },
   "devDependencies": {
+    "@fast-check/vitest": "^0.2.4",
     "@types/node": "^25.3.2",
     "changelogen": "^0.6.2",
+    "fast-check": "^4.5.3",
     "husky": "^9.1.7",
     "jscpd": "^4.0.8",
     "knip": "^5.85.0",

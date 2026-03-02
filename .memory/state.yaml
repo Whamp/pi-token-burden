@@ -2,9 +2,9 @@ active_branch: main
 initialized: "2026-02-26T21:46:02Z"
 last_commit:
   branch: main
-  hash: 0dc586f6
-  timestamp: "2026-03-02T04:46:30.524Z"
-  summary: "Corrected stale roadmap: renamed /context-budget to /token-burden, removed phantom formatter.ts reference, updated token estimation description from char heuristic to BPE tokenization. Massive log accumulation from prior sessions with no commits — this is a housekeeping distillation."
+  hash: 074e7ea0
+  timestamp: "2026-03-02T06:02:16.792Z"
+  summary: "Completed brainstorming and planning for skill-toggle integration. Design decisions: merged overlay (toggle in drill-down only), all 3 states (enabled/hidden/disabled), update in place, hybrid data (prompt parsing + filesystem discovery), match pi's actual scan directories, coherent duplicate handling. Plan saved to docs/plans/2026-03-01-skill-toggle-integration.md with 8 tasks across 2 phases. Key finding: disable-model-invocation removes skills from prompt entirely (not just hiding from model)."
 sessions:
   - file: "/home/will/.pi/agent/sessions/--home-will-projects-pi-token-burden--/2026-02-26T21-45-50-232Z_43e18b9a-a463-42f5-a332-c6c9a28718fd.jsonl"
     branch: main
@@ -54,3 +54,6 @@ sessions:
   - file: "/home/will/.pi/agent/sessions/--home-will-projects-pi-token-burden--/2026-03-02T04-46-45-395Z_a1d0a20a-bce1-44bd-b791-e22d606e68f7.jsonl"
     branch: main
     started: "2026-03-02T04:46:45.396Z"
+  - file: "/home/will/.pi/agent/sessions/--home-will-projects-pi-token-burden--/2026-03-02T06-03-14-121Z_00164db8-bbc4-407a-80a4-5692e44f7abd.jsonl"
+    branch: main
+    started: "2026-03-02T06:03:14.138Z"

@@ -1,3 +1,5 @@
+import type { DisableMode } from "./enums.js";
+
 export interface SkillEntry {
   name: string;
   description: string;
@@ -47,4 +49,32 @@ export interface TableItem {
   drillable: boolean;
   /** Children shown when drilling down. */
   children?: TableItem[];
+}
+
+// ---------------------------------------------------------------------------
+// Skill toggle types
+// ---------------------------------------------------------------------------
+
+// DisableMode enum is in enums.ts per factory rules
+export type { DisableMode } from "./enums.js";
+
+export interface SkillInfo {
+  name: string;
+  description: string;
+  filePath: string;
+  allPaths: string[];
+  mode: DisableMode;
+  tokens: number;
+  hasDuplicates: boolean;
+}
+
+export interface Settings {
+  skills?: string[];
+  packages?: unknown[];
+  [key: string]: unknown;
+}
+
+export interface SkillToggleResult {
+  applied: boolean;
+  changes: Map<string, DisableMode>;
 }
