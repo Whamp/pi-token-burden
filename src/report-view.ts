@@ -300,8 +300,8 @@ class BudgetOverlay {
 
   private tableItems: TableItem[];
   private parsed: ParsedPrompt;
-  private readonly originalParsed: ParsedPrompt;
-  private readonly originalTotalTokens: number;
+  private originalParsed: ParsedPrompt;
+  private originalTotalTokens: number;
   private adjustedTotalTokens: number;
   private contextWindow: number | undefined;
   private readonly discoveredSkills: SkillInfo[];
@@ -668,6 +668,23 @@ class BudgetOverlay {
       }) ?? true;
 
     if (success) {
+      // Update discoveredSkills to reflect the persisted state so the
+      // UI doesn't snap back to stale modes after clearing pendingChanges.
+      for (const [name, newMode] of this.state.pendingChanges) {
+        const skill = this.discoveredSkills.find((s) => s.name === name);
+        if (skill) {
+          skill.mode = newMode;
+        }
+      }
+
+      // Rebase the "original" token counts so subsequent toggles compute
+      // deltas against the newly persisted state, not the initial load.
+      this.originalTotalTokens = this.adjustedTotalTokens;
+      this.originalParsed = {
+        ...this.parsed,
+        sections: this.parsed.sections.map((s) => ({ ...s })),
+      };
+
       this.state.pendingChanges = new Map();
       this.state.confirmingDiscard = false;
     }

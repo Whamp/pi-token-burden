@@ -64,3 +64,25 @@ Initialized the project and established a v0.1.0 foundation with a decoupled arc
 - Aligned skill discovery logic with `pi`'s actual directory scan order (project-local → ancestor → user-global) and implemented coherent duplicate handling where all copies of a named skill toggle together.
 - Specified an "update-in-place" UI behavior where toggling skills immediately recalculates the budget and redraws the bar chart before saving.
 - Authored a comprehensive 8-task implementation plan across two phases (Discovery/Persistence and UI Integration) with a rigorous TDD and property-based testing strategy using `fast-check`.
+
+---
+
+## Commit 28d807d9 | 2026-03-02T17:53:20.208Z
+
+### Branch Purpose
+
+Refine and extend the `pi-token-burden` extension to include skill management (enable/hide/disable) directly within the token-budget visualization.
+
+### Previous Progress Summary
+
+Initialized the `pi-token-burden` extension with a decoupled architecture for analyzing the `pi` system prompt using BPE tokenization (`o200k_base`) and an interactive TUI overlay. Brainstormed and planned the integration of `pi-skill-toggle` functionality, defining a three-state model (Enabled/Hidden/Disabled) and a merged-overlay architecture where skill management is handled within the "Skills" drill-down view. Designed a hybrid data-sourcing strategy combining prompt parsing with filesystem discovery to allow management of skills not currently in the prompt.
+
+### This Commit's Contribution
+
+- Implemented the full skill-management lifecycle, including filesystem discovery (matching `pi`'s scan order), state persistence to `settings.json`, and dynamic path resolution via `PI_CODING_AGENT_DIR`.
+- Integrated a specialized "Skill Toggle" mode into the `BudgetOverlay` TUI with keyboard-driven state cycling, fuzzy search support, and an "Unsaved Changes" indicator.
+- Established a robust persistence flow with "Ctrl+S" saving and a confirmation prompt for discarding unsaved changes, ensuring user intent is preserved.
+- Refined the UI rendering with a new legend for skill states (Enabled/Hidden/Disabled) and immediate budget recalculation upon state changes.
+- Fixed a critical navigation bounds bug where the drill-down view used section counts instead of skill counts, and improved error handling by returning success/failure status from the toggle callback.
+- Expanded the test suite to 67 passing tests, incorporating unit tests for discovery and persistence, and integration tests for the interactive UI components.
+- Validated `pi`'s actual skill discovery behavior, ensuring `scanSkillDir` correctly identifies root-level `.md` files as skills to match the core agent's resource loader.
