@@ -386,6 +386,11 @@ class BudgetOverlay {
       return;
     }
 
+    if (data === "e" && this.state.mode === "drilldown") {
+      this.openDrilldownItemInEditor();
+      return;
+    }
+
     if (data === "/") {
       this.state.searchActive = true;
       this.state.searchQuery = "";
@@ -715,13 +720,27 @@ class BudgetOverlay {
       return;
     }
 
+    this.launchEditor(skill.filePath);
+  }
+
+  private openDrilldownItemInEditor(): void {
+    const items = this.getVisibleItems();
+    const item = items[this.state.selectedIndex];
+    if (!item?.label.startsWith("/")) {
+      return;
+    }
+
+    this.launchEditor(item.label);
+  }
+
+  private launchEditor(filePath: string): void {
     const editorCmd = getEditor();
     const [editor, ...editorArgs] = editorCmd.split(" ");
 
     this.tui.stop();
 
     try {
-      spawnSync(editor, [...editorArgs, skill.filePath], {
+      spawnSync(editor, [...editorArgs, filePath], {
         stdio: "inherit",
       });
     } finally {
@@ -910,7 +929,12 @@ class BudgetOverlay {
     if (this.state.mode === "skill-toggle") {
       hints = `${italic("↑↓")} navigate  ${italic("enter")} cycle state  ${italic("e")} edit  ${italic("/")} search  ${italic("ctrl+s")} save  ${italic("esc")} back`;
     } else if (this.state.mode === "drilldown") {
-      hints = `${italic("↑↓")} navigate  ${italic("/")} search  ${italic("esc")} back`;
+      const hasEditableItems = this.state.drilldownSection?.children?.some(
+        (c) => c.label.startsWith("/")
+      );
+      hints = hasEditableItems
+        ? `${italic("↑↓")} navigate  ${italic("e")} edit  ${italic("/")} search  ${italic("esc")} back`
+        : `${italic("↑↓")} navigate  ${italic("/")} search  ${italic("esc")} back`;
     } else {
       hints = `${italic("↑↓")} navigate  ${italic("enter")} drill-in  ${italic("/")} search  ${italic("esc")} close`;
     }

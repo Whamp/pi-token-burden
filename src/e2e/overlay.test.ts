@@ -88,3 +88,64 @@ describe("overlay rendering", () => {
     expect(stillOpen).toBeFalsy();
   });
 });
+
+describe("overlay — open in editor", () => {
+  let harness: TmuxHarness;
+
+  beforeEach(() => {
+    harness = new TmuxHarness({
+      sessionName: "e2e-overlay-edit",
+      env: { VISUAL: "", EDITOR: "true" },
+    });
+    harness.start();
+    harness.waitFor("pi-token-burden", 15_000);
+    harness.sendKeys("/token-burden", "Enter");
+    harness.waitFor("Token Burden", 10_000);
+  });
+
+  afterEach(() => {
+    harness.stop();
+  });
+
+  it("should show 'e edit' hint when drilled into AGENTS.md files", () => {
+    // Navigate to AGENTS.md section and drill in
+    for (let i = 0; i < 5; i++) {
+      const lines = harness.capture();
+      const cursorLine = lines.find((l) => l.includes("▸"));
+      if (cursorLine?.includes("AGENTS")) {
+        break;
+      }
+      harness.sendKeys("Down");
+    }
+    harness.sendKeys("Enter");
+    harness.waitFor("esc to go back", 5000);
+
+    const text = harness.capture().join("\n");
+    expect(text).toContain("edit");
+    expect(text).toContain("AGENTS");
+  });
+
+  it("should open editor and recover overlay on 'e' in AGENTS drilldown", () => {
+    // Navigate to AGENTS.md section and drill in
+    for (let i = 0; i < 5; i++) {
+      const lines = harness.capture();
+      const cursorLine = lines.find((l) => l.includes("▸"));
+      if (cursorLine?.includes("AGENTS")) {
+        break;
+      }
+      harness.sendKeys("Down");
+    }
+    harness.sendKeys("Enter");
+    harness.waitFor("esc to go back", 5000);
+
+    // Press e — fake editor exits immediately
+    harness.sendKeys("e");
+    sleepMs(1500);
+
+    // Overlay should recover
+    const afterLines = harness.waitFor("Token Burden", 10_000);
+    const afterText = afterLines.join("\n");
+    expect(afterText).toContain("AGENTS");
+    expect(afterText).toContain("esc to go back");
+  });
+});
