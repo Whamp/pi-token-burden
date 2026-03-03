@@ -47,6 +47,7 @@ describe("skill-toggle mode", () => {
     harness = new TmuxHarness({
       sessionName: "e2e-skill-toggle",
       agentDir,
+      env: { VISUAL: "", EDITOR: "true" },
     });
     harness.start();
     harness.waitFor("pi-token-burden", 15_000);
@@ -163,5 +164,31 @@ describe("skill-toggle mode", () => {
 
     const text = harness.capture().join("\n");
     expect(text).toContain(skillName);
+  });
+
+  it("should show 'e edit' hint in skill-toggle footer", () => {
+    const text = harness.capture().join("\n");
+    expect(text).toContain("edit");
+  });
+
+  it("should open editor and recover overlay on 'e' press", () => {
+    // Capture the skill name under cursor before pressing e
+    const beforeLines = harness.capture();
+    const cursorLine = beforeLines.find((l) => l.includes("▸"));
+    expect(cursorLine).toBeDefined();
+
+    // Press e — fake editor (true) exits immediately
+    harness.sendKeys("e");
+    sleepMs(1500);
+
+    // Overlay should still be visible after editor exits
+    const afterLines = harness.waitFor("Token Burden", 10_000);
+    const afterText = afterLines.join("\n");
+    expect(afterText).toContain("cycle state");
+    expect(afterText).toContain("edit");
+
+    // Cursor should still be on the same skill
+    const afterCursorLine = afterLines.find((l) => l.includes("▸"));
+    expect(afterCursorLine).toBeDefined();
   });
 });
