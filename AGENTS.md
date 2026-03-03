@@ -24,7 +24,8 @@ stacked bar visualization, drill-down table, and fuzzy search.
 
 | Command                 | Description                       | ~Time |
 | ----------------------- | --------------------------------- | ----- |
-| `pnpm run test`         | Run Vitest tests (21 tests)       | <1s   |
+| `pnpm run test`         | Run Vitest unit tests (67 tests)  | <1s   |
+| `pnpm run test:e2e`     | Run e2e TUI tests (requires tmux) | ~30s  |
 | `pnpm run typecheck`    | TypeScript type checking          | ~2s   |
 | `pnpm run lint`         | Run oxlint linter                 | <1s   |
 | `pnpm run lint:fix`     | Run oxlint with auto-fix          | <1s   |
@@ -38,17 +39,20 @@ stacked bar visualization, drill-down table, and fuzzy search.
 
 ## File Map
 
-| Path                 | Purpose                                                        |
-| -------------------- | -------------------------------------------------------------- |
-| `src/index.ts`       | Extension entry: registers `/token-burden` command             |
-| `src/parser.ts`      | Parses system prompt into sections (base, AGENTS, skills, etc) |
-| `src/report-view.ts` | TUI overlay: `BudgetOverlay` class, ANSI rendering, input      |
-| `src/utils.ts`       | `fuzzyFilter()` for search, `buildBarSegments()` for bar chart |
-| `src/types.ts`       | Shared types: `ParsedPrompt`, `TableItem`, `PromptSection`     |
-| `src/*.test.ts`      | Colocated tests (4 files, 21 tests total)                      |
-| `CHANGELOG.md`       | Auto-generated changelog (do not edit manually)                |
-| `scripts/`           | Shell scripts (`check.sh`, `fix.sh`)                           |
-| `docs/plans/`        | Implementation plans                                           |
+| Path                      | Purpose                                                        |
+| ------------------------- | -------------------------------------------------------------- |
+| `src/index.ts`            | Extension entry: registers `/token-burden` command             |
+| `src/parser.ts`           | Parses system prompt into sections (base, AGENTS, skills, etc) |
+| `src/report-view.ts`      | TUI overlay: `BudgetOverlay` class, ANSI rendering, input      |
+| `src/utils.ts`            | `fuzzyFilter()` for search, `buildBarSegments()` for bar chart |
+| `src/types.ts`            | Shared types: `ParsedPrompt`, `TableItem`, `PromptSection`     |
+| `src/*.test.ts`           | Colocated unit tests (6 files, 67 tests total)                 |
+| `src/e2e/tmux-harness.ts` | Tmux session helper for e2e TUI testing                        |
+| `src/e2e/*.test.ts`       | E2e TUI tests (overlay, skill-toggle)                          |
+| `vitest.config.e2e.ts`    | Vitest config for e2e tests (30s timeout)                      |
+| `CHANGELOG.md`            | Auto-generated changelog (do not edit manually)                |
+| `scripts/`                | Shell scripts (`check.sh`, `fix.sh`)                           |
+| `docs/plans/`             | Implementation plans                                           |
 
 ## Architecture
 
@@ -96,8 +100,9 @@ pi-docs terminal markers. Token estimation uses BPE tokenization via `gpt-tokeni
 ## Testing
 
 - Framework: Vitest
-- File naming: `*.test.ts` colocated with source files
-- Run: `pnpm run test`
+- Unit tests: `*.test.ts` colocated with source files, run with `pnpm run test`
+- E2e tests: `src/e2e/*.test.ts`, run with `pnpm run test:e2e` (requires tmux)
+- E2e harness: `TmuxHarness` class manages tmux sessions, sendKeys, capture, waitFor
 - Manual: `pi -e ./src/index.ts` then type `/token-burden`
 
 ## Deployment
