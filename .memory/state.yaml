@@ -4,19 +4,7 @@ last_commit:
   branch: main
   hash: 27268839
   timestamp: "2026-03-03T04:42:25.053Z"
-  summary: "Implemented e2e TUI tests via tmux (plan: docs/plans/2026-03-02-e2e-tui-tests.md). 5 tasks completed:
-
-1. TmuxHarness module (src/e2e/tmux-harness.ts) — wraps tmux lifecycle with start, sendKeys, capture, waitFor, stop
-2. Separate vitest config (vitest.config.e2e.ts, 30s timeout) + pnpm run test:e2e script; main tests exclude e2e
-3. Overlay rendering tests (5 tests) — title, cursor, navigation wrapping, drill-down, close
-4. Skill-toggle tests (9 tests) — settings isolation via PI_CODING_AGENT_DIR, state cycling, pending changes, save, discard confirm, fuzzy search
-5. Updated AGENTS.md with e2e commands and file map
-
-Key adaptations from plan:
-- Removed lint for test files (.oxlintrc.json ignorePatterns) since ultracite's jest rules conflicted
-- Section navigation uses search loop (not positional index) since sort order varies with settings
-- Search test dynamically reads first skill name instead of hardcoding
-- Total: 67 unit tests + 15 e2e tests, all passing"
+  summary: ""Implemented e2e TUI tests via tmux (plan: docs/plans/2026-03-02-e2e-tui-tests.md). 5 tasks completed:"
 sessions:
   - file: "/home/will/.pi/agent/sessions/--home-will-projects-pi-token-burden--/2026-02-26T21-45-50-232Z_43e18b9a-a463-42f5-a332-c6c9a28718fd.jsonl"
     branch: main
@@ -93,3 +81,6 @@ sessions:
   - file: "/home/will/.pi/agent/sessions/--home-will-projects-pi-token-burden--/2026-03-03T04-28-37-551Z_92dc732b-8a4c-42e2-a3e7-0a4aa391e5e2.jsonl"
     branch: main
     started: "2026-03-03T04:28:37.569Z"
+  - file: "/home/will/.pi/agent/sessions/--home-will-projects-pi-token-burden--/2026-03-03T05-04-29-588Z_83798057-9258-46c7-97cb-45917103676a.jsonl"
+    branch: main
+    started: "2026-03-03T05:04:29.606Z"
