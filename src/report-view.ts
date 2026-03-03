@@ -5,7 +5,13 @@ import {
   visibleWidth,
 } from "@mariozechner/pi-tui";
 
-import type { ParsedPrompt, TableItem } from "./types.js";
+import { DisableMode } from "./enums.js";
+import type {
+  ParsedPrompt,
+  SkillInfo,
+  SkillToggleResult,
+  TableItem,
+} from "./types.js";
 import { buildBarSegments, fuzzyFilter } from "./utils.js";
 
 // ---------------------------------------------------------------------------
@@ -95,7 +101,7 @@ function shortenLabel(label: string): string {
 // ---------------------------------------------------------------------------
 
 /** Convert ParsedPrompt sections into TableItems sorted by tokens desc. */
-function buildTableItems(parsed: ParsedPrompt): TableItem[] {
+export function buildTableItems(parsed: ParsedPrompt): TableItem[] {
   return parsed.sections
     .map((section): TableItem => {
       const pct =
@@ -267,7 +273,7 @@ function renderTableRow(
 // BudgetOverlay component
 // ---------------------------------------------------------------------------
 
-type Mode = "sections" | "drilldown";
+type Mode = "sections" | "drilldown" | "skill-toggle";
 
 interface OverlayState {
   mode: Mode;
@@ -276,6 +282,8 @@ interface OverlayState {
   searchActive: boolean;
   searchQuery: string;
   drilldownSection: TableItem | null;
+  pendingChanges: Map<string, DisableMode>;
+  confirmingDiscard: boolean;
 }
 
 class BudgetOverlay {
@@ -286,12 +294,19 @@ class BudgetOverlay {
     searchActive: false,
     searchQuery: "",
     drilldownSection: null,
+    pendingChanges: new Map(),
+    confirmingDiscard: false,
   };
 
   private tableItems: TableItem[];
   private parsed: ParsedPrompt;
+  private originalParsed: ParsedPrompt;
+  private originalTotalTokens: number;
+  private adjustedTotalTokens: number;
   private contextWindow: number | undefined;
+  private readonly discoveredSkills: SkillInfo[];
   private done: (value: null) => void;
+  private onToggleResult?: (result: SkillToggleResult) => boolean;
 
   private cachedWidth?: number;
   private cachedLines?: string[];
@@ -299,12 +314,22 @@ class BudgetOverlay {
   constructor(
     parsed: ParsedPrompt,
     contextWindow: number | undefined,
-    done: (value: null) => void
+    discoveredSkills: SkillInfo[],
+    done: (value: null) => void,
+    onToggleResult?: (result: SkillToggleResult) => boolean
   ) {
     this.parsed = parsed;
+    this.originalParsed = {
+      ...parsed,
+      sections: parsed.sections.map((s) => ({ ...s })),
+    };
+    this.originalTotalTokens = parsed.totalTokens;
+    this.adjustedTotalTokens = parsed.totalTokens;
     this.contextWindow = contextWindow;
+    this.discoveredSkills = discoveredSkills;
     this.tableItems = buildTableItems(parsed);
     this.done = done;
+    this.onToggleResult = onToggleResult;
   }
 
   // -----------------------------------------------------------------------
@@ -312,6 +337,11 @@ class BudgetOverlay {
   // -----------------------------------------------------------------------
 
   handleInput(data: string): void {
+    if (this.state.mode === "skill-toggle") {
+      this.handleSkillToggleInput(data);
+      return;
+    }
+
     if (this.state.searchActive) {
       this.handleSearchInput(data);
       return;
@@ -392,16 +422,19 @@ class BudgetOverlay {
   }
 
   private moveSelection(delta: number): void {
-    const items = this.getVisibleItems();
-    if (items.length === 0) {
+    const itemCount =
+      this.state.mode === "skill-toggle"
+        ? this.getFilteredSkills().length
+        : this.getVisibleItems().length;
+    if (itemCount === 0) {
       return;
     }
 
     let next = this.state.selectedIndex + delta;
     if (next < 0) {
-      next = items.length - 1;
+      next = itemCount - 1;
     }
-    if (next >= items.length) {
+    if (next >= itemCount) {
       next = 0;
     }
     this.state.selectedIndex = next;
@@ -426,6 +459,19 @@ class BudgetOverlay {
       return;
     }
 
+    if (
+      selected.label.startsWith("Skills") &&
+      this.discoveredSkills.length > 0
+    ) {
+      this.state.mode = "skill-toggle";
+      this.state.selectedIndex = 0;
+      this.state.scrollOffset = 0;
+      this.state.searchActive = false;
+      this.state.searchQuery = "";
+      this.invalidate();
+      return;
+    }
+
     this.state.mode = "drilldown";
     this.state.drilldownSection = selected;
     this.state.selectedIndex = 0;
@@ -446,6 +492,333 @@ class BudgetOverlay {
     }
 
     return baseItems;
+  }
+
+  // -----------------------------------------------------------------------
+  // Skill toggle
+  // -----------------------------------------------------------------------
+
+  private handleSkillToggleInput(data: string): void {
+    if (this.state.confirmingDiscard) {
+      if (data === "y" || data === "Y") {
+        this.state.mode = "sections";
+        this.state.pendingChanges = new Map();
+        this.state.confirmingDiscard = false;
+        this.state.selectedIndex = 0;
+        this.state.scrollOffset = 0;
+        this.recalculateTokens();
+        this.invalidate();
+        return;
+      }
+      if (data === "n" || data === "N" || matchesKey(data, "escape")) {
+        this.state.confirmingDiscard = false;
+        this.invalidate();
+        return;
+      }
+      return;
+    }
+
+    if (this.state.searchActive) {
+      this.handleSearchInput(data);
+      return;
+    }
+
+    if (matchesKey(data, "escape")) {
+      if (this.state.pendingChanges.size > 0) {
+        this.state.confirmingDiscard = true;
+        this.invalidate();
+        return;
+      }
+      this.state.mode = "sections";
+      this.state.selectedIndex = 0;
+      this.state.scrollOffset = 0;
+      this.invalidate();
+      return;
+    }
+
+    if (matchesKey(data, "up")) {
+      this.moveSelection(-1);
+      return;
+    }
+
+    if (matchesKey(data, "down")) {
+      this.moveSelection(1);
+      return;
+    }
+
+    if (matchesKey(data, "enter") || data === " ") {
+      this.cycleSkillState();
+      return;
+    }
+
+    if (matchesKey(data, "ctrl+s")) {
+      this.saveSkillChanges();
+      return;
+    }
+
+    if (data === "/") {
+      this.state.searchActive = true;
+      this.state.searchQuery = "";
+      this.invalidate();
+    }
+  }
+
+  private cycleSkillState(): void {
+    const visibleSkills = this.getFilteredSkills();
+    const skill = visibleSkills[this.state.selectedIndex];
+    if (!skill) {
+      return;
+    }
+
+    const current = this.getEffectiveMode(skill);
+    let next: DisableMode;
+    if (current === DisableMode.Enabled) {
+      next = DisableMode.Hidden;
+    } else if (current === DisableMode.Hidden) {
+      next = DisableMode.Disabled;
+    } else {
+      next = DisableMode.Enabled;
+    }
+
+    if (next === skill.mode) {
+      this.state.pendingChanges.delete(skill.name);
+    } else {
+      this.state.pendingChanges.set(skill.name, next);
+    }
+
+    this.recalculateTokens();
+    this.invalidate();
+  }
+
+  private getEffectiveMode(skill: SkillInfo): DisableMode {
+    return this.state.pendingChanges.get(skill.name) ?? skill.mode;
+  }
+
+  private recalculateTokens(): void {
+    let tokenDelta = 0;
+    for (const [name, newMode] of this.state.pendingChanges) {
+      const skill = this.discoveredSkills.find((s) => s.name === name);
+      if (!skill) {
+        continue;
+      }
+
+      const wasInPrompt = skill.mode === DisableMode.Enabled;
+      const willBeInPrompt = newMode === DisableMode.Enabled;
+
+      if (wasInPrompt && !willBeInPrompt) {
+        tokenDelta -= skill.tokens;
+      } else if (!wasInPrompt && willBeInPrompt) {
+        tokenDelta += skill.tokens;
+      }
+    }
+
+    this.adjustedTotalTokens = this.originalTotalTokens + tokenDelta;
+    this.parsed = this.getAdjustedParsed();
+    this.tableItems = buildTableItems(this.parsed);
+    this.invalidate();
+  }
+
+  private getAdjustedParsed(): ParsedPrompt {
+    const sections = this.originalParsed.sections.map((s) => ({ ...s }));
+
+    // Find the skills section and adjust its token count
+    const skillsSection = sections.find((s) => s.label.startsWith("Skills"));
+    if (skillsSection) {
+      const originalSkillsTokens =
+        this.originalParsed.sections.find((s) => s.label.startsWith("Skills"))
+          ?.tokens ?? 0;
+
+      let delta = 0;
+      for (const [name, newMode] of this.state.pendingChanges) {
+        const skill = this.discoveredSkills.find((s) => s.name === name);
+        if (!skill) {
+          continue;
+        }
+
+        const wasInPrompt = skill.mode === DisableMode.Enabled;
+        const willBeInPrompt = newMode === DisableMode.Enabled;
+
+        if (wasInPrompt && !willBeInPrompt) {
+          delta -= skill.tokens;
+        } else if (!wasInPrompt && willBeInPrompt) {
+          delta += skill.tokens;
+        }
+      }
+
+      skillsSection.tokens = originalSkillsTokens + delta;
+    }
+
+    return {
+      sections,
+      totalChars: this.originalParsed.totalChars,
+      totalTokens: this.adjustedTotalTokens,
+      skills: this.originalParsed.skills,
+    };
+  }
+
+  private saveSkillChanges(): void {
+    if (this.state.pendingChanges.size === 0) {
+      return;
+    }
+
+    const success =
+      this.onToggleResult?.({
+        applied: true,
+        changes: new Map(this.state.pendingChanges),
+      }) ?? true;
+
+    if (success) {
+      // Update discoveredSkills to reflect the persisted state so the
+      // UI doesn't snap back to stale modes after clearing pendingChanges.
+      for (const [name, newMode] of this.state.pendingChanges) {
+        const skill = this.discoveredSkills.find((s) => s.name === name);
+        if (skill) {
+          skill.mode = newMode;
+        }
+      }
+
+      // Rebase the "original" token counts so subsequent toggles compute
+      // deltas against the newly persisted state, not the initial load.
+      this.originalTotalTokens = this.adjustedTotalTokens;
+      this.originalParsed = {
+        ...this.parsed,
+        sections: this.parsed.sections.map((s) => ({ ...s })),
+      };
+
+      this.state.pendingChanges = new Map();
+      this.state.confirmingDiscard = false;
+    }
+
+    this.invalidate();
+  }
+
+  private getFilteredSkills(): SkillInfo[] {
+    if (this.state.searchActive && this.state.searchQuery) {
+      const items = this.discoveredSkills.map((s) => ({
+        ...s,
+        label: s.name,
+      }));
+      return fuzzyFilter(items, this.state.searchQuery);
+    }
+    return this.discoveredSkills;
+  }
+
+  private renderSkillToggle(
+    lines: string[],
+    innerW: number,
+    row: (content: string) => string,
+    emptyRow: () => string,
+    centerRow: (content: string) => string
+  ): void {
+    lines.push(emptyRow());
+
+    const pendingCount = this.state.pendingChanges.size;
+    if (pendingCount > 0) {
+      lines.push(
+        row(
+          sgr(
+            "33",
+            `⚠ ${pendingCount} pending change${pendingCount === 1 ? "" : "s"} (Ctrl+S to save)`
+          )
+        )
+      );
+      lines.push(emptyRow());
+    }
+
+    const breadcrumb = `${bold("Skills")}  ${dim("← esc to go back")}`;
+    lines.push(row(breadcrumb));
+
+    // Search bar
+    if (this.state.searchActive) {
+      lines.push(emptyRow());
+      const cursor = sgr("36", "│");
+      const query = this.state.searchQuery
+        ? `${this.state.searchQuery}${cursor}`
+        : `${cursor}${dim(italic("type to filter..."))}`;
+      lines.push(row(`${dim("◎")}  ${query}`));
+    }
+
+    lines.push(emptyRow());
+
+    // Skill rows
+    const skills = this.getFilteredSkills();
+    if (skills.length === 0) {
+      lines.push(centerRow(dim(italic("No matching skills"))));
+      lines.push(emptyRow());
+      return;
+    }
+
+    const startIdx = this.state.scrollOffset;
+    const endIdx = Math.min(startIdx + MAX_VISIBLE_ROWS, skills.length);
+
+    for (let i = startIdx; i < endIdx; i++) {
+      const skill = skills[i];
+      const isSelected = i === this.state.selectedIndex;
+      const mode = this.getEffectiveMode(skill);
+      const hasChanged = this.state.pendingChanges.has(skill.name);
+
+      const prefix = isSelected ? sgr("36", "▸") : dim("·");
+
+      let statusIcon: string;
+      if (mode === DisableMode.Enabled) {
+        statusIcon = sgr("32", "●");
+      } else if (mode === DisableMode.Hidden) {
+        statusIcon = sgr("33", "◐");
+      } else {
+        statusIcon = sgr("31", "○");
+      }
+
+      const changedMarker = hasChanged ? sgr("33", "*") : " ";
+      const dupMarker = skill.hasDuplicates ? sgr("35", "²") : " ";
+      const nameStr = isSelected ? bold(sgr("36", skill.name)) : skill.name;
+
+      const tokenStr = `${fmt(skill.tokens)} tok`;
+      const suffixWidth = visibleWidth(tokenStr);
+      const prefixWidth = 8;
+      const nameMaxWidth = innerW - prefixWidth - suffixWidth - 4;
+
+      const truncatedName = truncateToWidth(nameStr, nameMaxWidth, "…");
+      const nameWidth = visibleWidth(truncatedName);
+      const gap = Math.max(
+        1,
+        innerW - prefixWidth - nameWidth - suffixWidth - 3
+      );
+
+      const content = `${prefix} ${statusIcon}${changedMarker}${dupMarker}${truncatedName}${" ".repeat(gap)}${dim(tokenStr)}`;
+      lines.push(row(content));
+    }
+
+    lines.push(emptyRow());
+
+    // Legend
+    lines.push(
+      row(
+        dim(
+          `${sgr("32", "●")} on  ${sgr("33", "◐")} hidden  ${sgr("31", "○")} disabled  ${sgr("35", "²")} duplicates`
+        )
+      )
+    );
+
+    // Scroll indicator
+    if (skills.length > MAX_VISIBLE_ROWS) {
+      const progress = Math.round(
+        ((this.state.selectedIndex + 1) / skills.length) * 10
+      );
+      const dots = rainbowDots(progress, 10);
+      const countStr = `${this.state.selectedIndex + 1}/${skills.length}`;
+      lines.push(row(`${dots}  ${dim(countStr)}`));
+      lines.push(emptyRow());
+    }
+
+    // Discard confirmation
+    if (this.state.confirmingDiscard) {
+      lines.push(emptyRow());
+      lines.push(
+        row(
+          `${sgr("33", `Discard ${this.state.pendingChanges.size} change${this.state.pendingChanges.size === 1 ? "" : "s"}? `)}${dim("(y/n)")}`
+        )
+      );
+    }
   }
 
   // -----------------------------------------------------------------------
@@ -484,17 +857,25 @@ class BudgetOverlay {
     lines.push(emptyRow());
     lines.push(divider());
 
-    // Zone 3: Interactive table
-    this.renderInteractiveTable(lines, innerW, row, emptyRow, centerRow);
+    // Zone 3: Interactive table or skill toggle
+    if (this.state.mode === "skill-toggle") {
+      this.renderSkillToggle(lines, innerW, row, emptyRow, centerRow);
+    } else {
+      this.renderInteractiveTable(lines, innerW, row, emptyRow, centerRow);
+    }
 
     // Footer
     lines.push(divider());
     lines.push(emptyRow());
 
-    const hints =
-      this.state.mode === "drilldown"
-        ? `${italic("↑↓")} navigate  ${italic("/")} search  ${italic("esc")} back`
-        : `${italic("↑↓")} navigate  ${italic("enter")} drill-in  ${italic("/")} search  ${italic("esc")} close`;
+    let hints: string;
+    if (this.state.mode === "skill-toggle") {
+      hints = `${italic("↑↓")} navigate  ${italic("enter")} cycle state  ${italic("/")} search  ${italic("ctrl+s")} save  ${italic("esc")} back`;
+    } else if (this.state.mode === "drilldown") {
+      hints = `${italic("↑↓")} navigate  ${italic("/")} search  ${italic("esc")} back`;
+    } else {
+      hints = `${italic("↑↓")} navigate  ${italic("enter")} drill-in  ${italic("/")} search  ${italic("esc")} close`;
+    }
     lines.push(centerRow(dim(hints)));
 
     // Bottom border
@@ -573,11 +954,19 @@ class BudgetOverlay {
 export async function showReport(
   parsed: ParsedPrompt,
   contextWindow: number | undefined,
-  ctx: ExtensionCommandContext
+  ctx: ExtensionCommandContext,
+  discoveredSkills?: SkillInfo[],
+  onToggleResult?: (result: SkillToggleResult) => boolean
 ): Promise<void> {
   await ctx.ui.custom<null>(
     (tui, _theme, _kb, done) => {
-      const overlay = new BudgetOverlay(parsed, contextWindow, done);
+      const overlay = new BudgetOverlay(
+        parsed,
+        contextWindow,
+        discoveredSkills ?? [],
+        done,
+        onToggleResult
+      );
       return {
         render: (width: number) => overlay.render(width),
         invalidate: () => overlay.invalidate(),

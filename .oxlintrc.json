@@ -1,7 +1,14 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "extends": ["./node_modules/ultracite/config/oxlint/core/.oxlintrc.json"],
-  "ignorePatterns": ["docs/", "node_modules/", "vendor/", "scripts/"],
+  "ignorePatterns": [
+    "docs/",
+    "node_modules/",
+    "vendor/",
+    "scripts/",
+    ".memory/",
+    "src/e2e/**"
+  ],
   "jsPlugins": [
     { "name": "@factory", "specifier": "./vendor/factory-rules/plugin.cjs" }
   ],
@@ -106,7 +113,7 @@
       }
     },
     {
-      "files": ["vitest.config.ts", "*.config.ts"],
+      "files": ["vitest.config.ts", "vitest.config.e2e.ts", "*.config.ts"],
       "rules": {
         "@factory/require-test-files": "off",
         "@factory/constants-file-organization": "off"
