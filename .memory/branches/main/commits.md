@@ -108,3 +108,25 @@ Established a decoupled architecture for the `pi-token-burden` extension, provid
 - Hardened the testing environment using `PI_CODING_AGENT_DIR` for filesystem isolation and a low-cost provider (`zai/glm-4.7`) to minimize token usage during TUI verification.
 - Improved e2e test resilience by using search loops for section navigation and dynamic skill name retrieval, avoiding failures caused by varying sort orders or hardcoded identifiers.
 - Updated project documentation (`AGENTS.md`) with e2e execution commands and an expanded file map for the new testing infrastructure.
+
+---
+
+## Commit 487652c6 | 2026-03-03T06:03:14.912Z
+
+### Branch Purpose
+
+Primary development branch for `pi-token-burden`, a `pi` extension for visualizing and managing the system prompt's token budget, including skill-toggle management and integrated file editing.
+
+### Previous Progress Summary
+
+Initialized the project with a decoupled architecture for parsing system prompts using BPE tokenization (`o200k_base`) and visualizing the budget via an interactive TUI overlay. Integrated a three-state skill management model (Enabled/Hidden/Disabled) into the "Skills" drill-down view, allowing users to toggle skills and observe real-time budget impact. Established a rigorous quality baseline with 67 unit tests and a custom tmux-based e2e TUI harness (`TmuxHarness`) that automates visual verification and keyboard interaction within `pi` sessions.
+
+### This Commit's Contribution
+
+- Implemented an "open-in-editor" feature (v0.3.0) enabling direct editing of `SKILL.md` or `AGENTS.md` files from the TUI using the `e` key.
+- Adopted the `tui.stop()` / `tui.start()` lifecycle pattern to yield the terminal to external editors and resume the overlay state without data loss.
+- Standardized editor resolution via a new `getEditor()` helper following the `$VISUAL` → `$EDITOR` → `vi` convention.
+- Refactored logic into a shared `launchEditor()` method to support consistent behavior across both skill-toggle and AGENTS.md drill-down modes.
+- Enhanced the UI with conditional footer hints that dynamically display the "edit" shortcut only when the selected item supports it.
+- Validated the feature with 4 unit tests for environment resolution and 4 e2e tests covering hint visibility and visual recovery after editor sessions.
+- Tagged v0.3.0, formally releasing skill-toggle management, BPE tokenization, and the e2e testing infrastructure.
