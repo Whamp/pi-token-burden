@@ -1,4 +1,8 @@
 import { spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { unlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import type { ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import {
@@ -104,6 +108,23 @@ export function getEditor(): string {
   return process.env.VISUAL || process.env.EDITOR || "vi";
 }
 
+/** True for sections whose content is generated (not a user-editable file). */
+export function isReadOnlySection(label: string): boolean {
+  return (
+    label.startsWith("Base") ||
+    label.startsWith("Metadata") ||
+    label.startsWith("SYSTEM")
+  );
+}
+
+/** Convert a section label to a safe filename slug. */
+function sanitizeLabel(label: string): string {
+  return label
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/g, "-")
+    .replaceAll(/^-|-$/g, "");
+}
+
 // ---------------------------------------------------------------------------
 // Data preparation
 // ---------------------------------------------------------------------------
@@ -140,6 +161,7 @@ export function buildTableItems(parsed: ParsedPrompt): TableItem[] {
         chars: section.chars,
         pct,
         drillable: (children?.length ?? 0) > 0,
+        content: section.content,
         children,
       };
     })
@@ -386,8 +408,12 @@ class BudgetOverlay {
       return;
     }
 
-    if (data === "e" && this.state.mode === "drilldown") {
-      this.openDrilldownItemInEditor();
+    if (data === "e") {
+      if (this.state.mode === "sections") {
+        this.openSectionInEditor();
+      } else if (this.state.mode === "drilldown") {
+        this.openDrilldownItemInEditor();
+      }
       return;
     }
 
@@ -733,6 +759,36 @@ class BudgetOverlay {
     this.launchEditor(item.label);
   }
 
+  private openSectionInEditor(): void {
+    const items = this.getVisibleItems();
+    const item = items[this.state.selectedIndex];
+    if (!item?.content) {
+      return;
+    }
+
+    const slug = sanitizeLabel(item.label);
+    const tempPath = join(
+      tmpdir(),
+      `pi-token-burden-${slug}-${randomUUID().slice(0, 8)}.md`
+    );
+
+    const header = isReadOnlySection(item.label)
+      ? "<!-- Read-only view. Edits here have no effect. -->\n\n"
+      : "";
+
+    writeFileSync(tempPath, `${header}${item.content}`, "utf8");
+
+    try {
+      this.launchEditor(tempPath);
+    } finally {
+      try {
+        unlinkSync(tempPath);
+      } catch {
+        // Temp file already removed — ignore.
+      }
+    }
+  }
+
   private launchEditor(filePath: string): void {
     const editorCmd = getEditor();
     const [editor, ...editorArgs] = editorCmd.split(" ");
@@ -936,7 +992,7 @@ class BudgetOverlay {
         ? `${italic("↑↓")} navigate  ${italic("e")} edit  ${italic("/")} search  ${italic("esc")} back`
         : `${italic("↑↓")} navigate  ${italic("/")} search  ${italic("esc")} back`;
     } else {
-      hints = `${italic("↑↓")} navigate  ${italic("enter")} drill-in  ${italic("/")} search  ${italic("esc")} close`;
+      hints = `${italic("↑↓")} navigate  ${italic("enter")} drill-in  ${italic("e")} view  ${italic("/")} search  ${italic("esc")} close`;
     }
     lines.push(centerRow(dim(hints)));
 

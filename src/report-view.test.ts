@@ -1,4 +1,9 @@
-import { getEditor, showReport, buildTableItems } from "./report-view.js";
+import {
+  getEditor,
+  isReadOnlySection,
+  showReport,
+  buildTableItems,
+} from "./report-view.js";
 import type { ParsedPrompt } from "./types.js";
 
 describe("report-view", () => {
@@ -139,6 +144,37 @@ describe("buildTableItems — table items", () => {
 
     expect(labels).toStrictEqual(["Large", "Medium", "Small"]);
   });
+
+  it("should propagate content from PromptSection to TableItem", () => {
+    const parsed: ParsedPrompt = {
+      sections: [
+        {
+          label: "Base prompt",
+          chars: 18,
+          tokens: 5,
+          content: "You are helpful.\n\n",
+        },
+        {
+          label: "Metadata (date/time, cwd)",
+          chars: 30,
+          tokens: 8,
+          content: "Current date and time: Monday",
+        },
+      ],
+      totalChars: 48,
+      totalTokens: 13,
+      skills: [],
+    };
+
+    const items = buildTableItems(parsed);
+
+    expect(items.find((i) => i.label === "Base prompt")?.content).toBe(
+      "You are helpful.\n\n"
+    );
+    expect(items.find((i) => i.label.startsWith("Metadata"))?.content).toBe(
+      "Current date and time: Monday"
+    );
+  });
 });
 
 describe("getEditor — editor resolution", () => {
@@ -188,5 +224,18 @@ describe("getEditor — editor resolution", () => {
     withEnv({ VISUAL: "", EDITOR: "nano" }, () => {
       expect(getEditor()).toBe("nano");
     });
+  });
+});
+
+describe("isReadOnlySection — read-only detection", () => {
+  it("returns true for generated sections", () => {
+    expect(isReadOnlySection("Base prompt")).toBeTruthy();
+    expect(isReadOnlySection("Metadata (date/time, cwd)")).toBeTruthy();
+    expect(isReadOnlySection("SYSTEM.md / APPEND_SYSTEM.md")).toBeTruthy();
+  });
+
+  it("returns false for file-backed sections", () => {
+    expect(isReadOnlySection("AGENTS.md files")).toBeFalsy();
+    expect(isReadOnlySection("Skills (3)")).toBeFalsy();
   });
 });

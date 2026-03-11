@@ -30,7 +30,12 @@ export function estimateTokens(text: string): number {
 // ---------------------------------------------------------------------------
 
 function measure(label: string, text: string): PromptSection {
-  return { label, chars: text.length, tokens: estimateTokens(text) };
+  return {
+    label,
+    chars: text.length,
+    tokens: estimateTokens(text),
+    content: text,
+  };
 }
 
 /** Return the smallest positive value, or -1 if none are positive. */
