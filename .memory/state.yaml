@@ -2,9 +2,9 @@ active_branch: main
 initialized: "2026-02-26T21:46:02Z"
 last_commit:
   branch: main
-  hash: 27268839
-  timestamp: "2026-03-03T04:42:25.053Z"
-  summary: ""Implemented e2e TUI tests via tmux (plan: docs/plans/2026-03-02-e2e-tui-tests.md). 5 tasks completed:"
+  hash: 487652c6
+  timestamp: "2026-03-03T06:03:14.912Z"
+  summary: "Implemented open-in-editor feature (v0.3.0): Press `e` in skill-toggle mode to open a skill's SKILL.md in $VISUAL/$EDITOR/vi, or in AGENTS.md drilldown to open the selected AGENTS.md file. Uses tui.stop()/start() pattern from pi's own external editor implementation. Refactored shared `launchEditor()` method. Added `getEditor()` helper (exported for testing). Footer hints conditionally show `e edit` only in modes where editing is available. 4 unit tests for env-var resolution, 4 e2e tests (hint visibility + round-trip recovery for both skill-toggle and AGENTS drilldown). Released as v0.3.0 with full changelog covering skill-toggle, open-in-editor, e2e test infrastructure, and BPE tokenization since v0.2.0."
 sessions:
   - file: "/home/will/.pi/agent/sessions/--home-will-projects-pi-token-burden--/2026-02-26T21-45-50-232Z_43e18b9a-a463-42f5-a332-c6c9a28718fd.jsonl"
     branch: main
@@ -84,3 +84,21 @@ sessions:
   - file: "/home/will/.pi/agent/sessions/--home-will-projects-pi-token-burden--/2026-03-03T05-04-29-588Z_83798057-9258-46c7-97cb-45917103676a.jsonl"
     branch: main
     started: "2026-03-03T05:04:29.606Z"
+  - file: "/home/will/.pi/agent/sessions/--home-will-projects-pi-token-burden--/2026-03-03T05-09-02-597Z_537823d2-b1fb-4dfd-a98f-b2a762c4d4b9.jsonl"
+    branch: main
+    started: "2026-03-03T05:09:02.598Z"
+  - file: "/home/will/.pi/agent/sessions/--home-will-projects-pi-token-burden--/2026-03-03T14-20-15-194Z_1b300ca6-0a67-499e-a27a-9fc7810579a0.jsonl"
+    branch: main
+    started: "2026-03-03T14:20:15.213Z"
+  - file: "/home/will/.pi/agent/sessions/--home-will-projects-pi-token-burden--/2026-03-11T03-55-23-128Z_41badc87-ca9c-4de5-90d0-9962460cfd78.jsonl"
+    branch: main
+    started: "2026-03-11T03:55:23.142Z"
+  - file: "/home/will/.pi/agent/sessions/--home-will-projects-pi-token-burden--/2026-03-11T03-59-56-314Z_e9121bee-93e4-4b2e-8ba4-9f7c8d019f68.jsonl"
+    branch: main
+    started: "2026-03-11T03:59:56.328Z"
+  - file: "/home/will/.pi/agent/sessions/--home-will-projects-pi-token-burden--/2026-03-11T04-27-33-175Z_9f9cdf5f-cf87-4067-b15f-21d645c5c321.jsonl"
+    branch: main
+    started: "2026-03-11T04:27:33.189Z"
+  - file: "/home/will/.pi/agent/sessions/--home-will-projects-pi-token-burden--/2026-03-11T04-27-59-635Z_753f857a-2043-4fe4-96bb-ecc50880aec0.jsonl"
+    branch: main
+    started: "2026-03-11T04:27:59.651Z"

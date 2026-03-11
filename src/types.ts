@@ -28,6 +28,8 @@ export interface PromptSection {
   label: string;
   chars: number;
   tokens: number;
+  /** Raw text of this section from the system prompt. */
+  content?: string;
   children?: { label: string; chars: number; tokens: number }[];
 }
 
@@ -47,6 +49,8 @@ export interface TableItem {
   pct: number;
   /** Whether this item can be drilled into (has children). */
   drillable: boolean;
+  /** Raw text of this section from the system prompt. */
+  content?: string;
   /** Children shown when drilling down. */
   children?: TableItem[];
 }

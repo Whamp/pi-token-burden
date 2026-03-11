@@ -163,4 +163,28 @@ describe("parseSystemPrompt()", () => {
     expect(systemMdSection).toBeDefined();
     expect(systemMdSection?.chars).toBeGreaterThan(0);
   });
+
+  it("populates content for every section", () => {
+    const prompt =
+      basePrompt + agentsBlock + skillsPreamble + skillsBlock + metadata;
+    const result = parseSystemPrompt(prompt);
+
+    for (const section of result.sections) {
+      expect(section.content).toBeDefined();
+      expect(section.content?.length).toBe(section.chars);
+    }
+  });
+
+  it("populates content for SYSTEM.md gap section", () => {
+    const appendContent =
+      "\n\nCustom SYSTEM.md instructions here.\nMore custom content.";
+    const prompt = basePrompt + appendContent + agentsBlock + metadata;
+    const result = parseSystemPrompt(prompt);
+
+    const systemMdSection = result.sections.find((s) =>
+      s.label.includes("SYSTEM.md")
+    );
+    expect(systemMdSection?.content).toBeDefined();
+    expect(systemMdSection?.content?.length).toBe(systemMdSection?.chars);
+  });
 });

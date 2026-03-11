@@ -148,4 +148,31 @@ describe("overlay — open in editor", () => {
     expect(afterText).toContain("AGENTS");
     expect(afterText).toContain("esc to go back");
   });
+
+  it("should show 'e view' hint in sections mode", () => {
+    const text = harness.capture().join("\n");
+    expect(text).toContain("view");
+  });
+
+  it("should open editor on 'e' in sections mode and recover overlay", () => {
+    // Navigate to "Base prompt" row using loop-and-check pattern
+    for (let i = 0; i < 5; i++) {
+      const lines = harness.capture();
+      const cursorLine = lines.find((l) => l.includes("▸"));
+      if (cursorLine?.includes("Base")) {
+        break;
+      }
+      harness.sendKeys("Down");
+    }
+
+    // Press e — fake editor (true) exits immediately
+    harness.sendKeys("e");
+    sleepMs(1500);
+
+    // Overlay should recover to sections view
+    const afterLines = harness.waitFor("Token Burden", 10_000);
+    const afterText = afterLines.join("\n");
+    expect(afterText).toContain("view");
+    expect(afterText).toContain("drill-in");
+  });
 });
