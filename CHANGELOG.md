@@ -1,6 +1,28 @@
 # Changelog
 
 
+## v0.3.0...main
+
+[compare changes](https://github.com/Whamp/pi-token-burden/compare/v0.3.0...main)
+
+### 🚀 Enhancements
+
+- View any section in editor from sections mode ([7bd4138](https://github.com/Whamp/pi-token-burden/commit/7bd4138))
+
+### 🩹 Fixes
+
+- Drop md files from lint-staged oxfmt rule ([f0dc971](https://github.com/Whamp/pi-token-burden/commit/f0dc971))
+- Don't delete temp file after editor exits ([bf6406f](https://github.com/Whamp/pi-token-burden/commit/bf6406f))
+
+### 🏡 Chore
+
+- Update memory state ([0879333](https://github.com/Whamp/pi-token-burden/commit/0879333))
+- Update memory state ([6884b9f](https://github.com/Whamp/pi-token-burden/commit/6884b9f))
+
+### ❤️ Contributors
+
+- Will Hampson <will@ggl.slmail.me>
+
 ## v0.1.3...main
 
 [compare changes](https://github.com/Whamp/pi-token-burden/compare/v0.1.3...main)
