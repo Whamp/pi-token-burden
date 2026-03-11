@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { unlinkSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -778,15 +778,10 @@ class BudgetOverlay {
 
     writeFileSync(tempPath, `${header}${item.content}`, "utf8");
 
-    try {
-      this.launchEditor(tempPath);
-    } finally {
-      try {
-        unlinkSync(tempPath);
-      } catch {
-        // Temp file already removed — ignore.
-      }
-    }
+    // Don't delete the temp file after the editor exits — editors like
+    // VS Code (`code`) return immediately and read the file asynchronously.
+    // Deleting it would race with the editor opening. The OS cleans /tmp.
+    this.launchEditor(tempPath);
   }
 
   private launchEditor(filePath: string): void {
