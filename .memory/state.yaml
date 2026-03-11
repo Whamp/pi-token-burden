@@ -2,9 +2,9 @@ active_branch: main
 initialized: "2026-02-26T21:46:02Z"
 last_commit:
   branch: main
-  hash: 487652c6
-  timestamp: "2026-03-03T06:03:14.912Z"
-  summary: "Implemented open-in-editor feature (v0.3.0): Press `e` in skill-toggle mode to open a skill's SKILL.md in $VISUAL/$EDITOR/vi, or in AGENTS.md drilldown to open the selected AGENTS.md file. Uses tui.stop()/start() pattern from pi's own external editor implementation. Refactored shared `launchEditor()` method. Added `getEditor()` helper (exported for testing). Footer hints conditionally show `e edit` only in modes where editing is available. 4 unit tests for env-var resolution, 4 e2e tests (hint visibility + round-trip recovery for both skill-toggle and AGENTS drilldown). Released as v0.3.0 with full changelog covering skill-toggle, open-in-editor, e2e test infrastructure, and BPE tokenization since v0.2.0."
+  hash: 38d01742
+  timestamp: "2026-03-11T05:08:42.354Z"
+  summary: "Fixed empty temp file bug in view-section-in-editor. Root cause: spawnSync("code", [tempFile]) returns immediately since VS Code forks to background, then unlinkSync deleted the file before VS Code read it. Fix: removed temp file cleanup — let OS handle /tmp. Also fixed lint-staged pre-commit hook by dropping md files from oxfmt rule."
 sessions:
   - file: "/home/will/.pi/agent/sessions/--home-will-projects-pi-token-burden--/2026-02-26T21-45-50-232Z_43e18b9a-a463-42f5-a332-c6c9a28718fd.jsonl"
     branch: main
@@ -102,3 +102,15 @@ sessions:
   - file: "/home/will/.pi/agent/sessions/--home-will-projects-pi-token-burden--/2026-03-11T04-27-59-635Z_753f857a-2043-4fe4-96bb-ecc50880aec0.jsonl"
     branch: main
     started: "2026-03-11T04:27:59.651Z"
+  - file: "/home/will/.pi/agent/sessions/--home-will-projects-pi-token-burden--/2026-03-11T04-42-16-117Z_15fec6dd-95c0-4d9e-a839-6a717cc619a6.jsonl"
+    branch: main
+    started: "2026-03-11T04:42:16.132Z"
+  - file: "/home/will/.pi/agent/sessions/--home-will-projects-pi-token-burden--/2026-03-11T04-45-22-918Z_06ddc67b-d9d9-472f-bc4f-7780700db2f0.jsonl"
+    branch: main
+    started: "2026-03-11T04:45:22.932Z"
+  - file: "/home/will/.pi/agent/sessions/--home-will-projects-pi-token-burden--/2026-03-11T04-54-29-580Z_bf904fb7-edb7-4680-9ef3-3bea4814ee98.jsonl"
+    branch: main
+    started: "2026-03-11T04:54:29.593Z"
+  - file: "/home/will/.pi/agent/sessions/--home-will-projects-pi-token-burden--/2026-03-11T04-55-48-498Z_a30387dd-8760-4791-a433-8d027c91e52b.jsonl"
+    branch: main
+    started: "2026-03-11T04:55:48.513Z"

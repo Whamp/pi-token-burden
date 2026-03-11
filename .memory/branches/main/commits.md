@@ -130,3 +130,44 @@ Initialized the project with a decoupled architecture for parsing system prompts
 - Enhanced the UI with conditional footer hints that dynamically display the "edit" shortcut only when the selected item supports it.
 - Validated the feature with 4 unit tests for environment resolution and 4 e2e tests covering hint visibility and visual recovery after editor sessions.
 - Tagged v0.3.0, formally releasing skill-toggle management, BPE tokenization, and the e2e testing infrastructure.
+
+---
+
+## Commit 1f692345 | 2026-03-11T04:38:34.430Z
+
+### Branch Purpose
+
+Refine and extend the `pi-token-burden` extension to provide deep visibility and management of the system prompt token budget, including interactive skill toggling, e2e testing, and integrated viewing/editing of prompt components.
+
+### Previous Progress Summary
+
+The project established a modular architecture for parsing `pi` system prompts using BPE tokenization (`o200k_base`) and visualizing usage via an interactive TUI overlay. It integrated a three-state skill management model (Enabled/Hidden/Disabled) with filesystem discovery and persistence, allowing users to reduce token burden by hiding unused skills. A custom tmux-based e2e test harness was developed to verify TUI interactions and visual state. Most recently, the v0.3.0 release introduced direct editing of `SKILL.md` and `AGENTS.md` files from the overlay using the terminal-handover pattern to bridge the TUI and external editors.
+
+### This Commit's Contribution
+
+- Generalized the "open-in-editor" feature to support all top-level prompt sections, including the dynamically generated base prompt and metadata.
+- Decided to use ephemeral temp files in the system's temporary directory to allow viewing of raw section text that does not originate from a single user-editable file.
+- Implemented a read-only header mechanism for non-file sections to prevent user confusion between viewing generated content and editing source files.
+- Refined TUI input routing to correctly distinguish between section-level text viewing and item-level file editing depending on the active navigation mode.
+- Fixed a pre-commit hook conflict by excluding Markdown files from automatic formatting, ensuring documentation and state files remain stable during commits.
+- Validated the expanded editor support with a suite of new unit and e2e tests, confirming robust visual recovery and terminal state integrity across editor sessions.
+
+---
+
+## Commit 38d01742 | 2026-03-11T05:08:42.354Z
+
+### Branch Purpose
+
+Primary development branch for `pi-token-burden`, focusing on system prompt token analysis, skill management, and interactive visualization within the `pi` TUI.
+
+### Previous Progress Summary
+
+The project established a modular architecture for parsing `pi` system prompts using BPE tokenization (`o200k_base`) and visualizing usage via an interactive TUI overlay. It features a three-state skill management model (Enabled/Hidden/Disabled) with filesystem discovery and persistence to `settings.json`, allowing users to reduce token burden. A custom tmux-based e2e test harness (`TmuxHarness`) ensures TUI stability. Most recently, the extension generalized the "open-in-editor" feature to support all prompt sections (including the base prompt and metadata) using temporary files and a read-only header mechanism, while also refining pre-commit hooks to exclude Markdown files from formatting.
+
+### This Commit's Contribution
+
+- Fixed a bug where viewing prompt sections in asynchronous editors (like VS Code) resulted in empty files due to a race condition with temp file cleanup.
+- Identified that `spawnSync` returns immediately for background-forking editors, causing the cleanup logic to delete the temporary file before it could be read by the editor.
+- Resolved the issue by removing the `unlinkSync` cleanup step in `report-view.ts`, opting to let the operating system handle the disposal of temporary files in `/tmp`.
+- Confirmed that fluctuations in base prompt token counts (e.g., from ~400 to ~1700) accurately reflect changes in the active `pi` session's tools and preamble, verifying parser reliability.
+- Hardened the lint-staged pre-commit hook by ensuring Markdown files are dropped from `oxfmt` rules to prevent conflicts with auto-generated documentation and memory state.
