@@ -3,5 +3,5 @@
     "oxlint -c .oxlintrc.json --fix",
     "oxfmt --config .oxfmtrc.jsonc"
   ],
-  "*.{json,md}": ["oxfmt --config .oxfmtrc.jsonc"]
+  "*.json": "oxfmt --config .oxfmtrc.jsonc"
 }
