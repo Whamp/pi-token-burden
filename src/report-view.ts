@@ -106,6 +106,9 @@ function shortenLabel(label: string): string {
   if (label.startsWith("SYSTEM")) {
     return "SYSTEM";
   }
+  if (label.startsWith("Tool")) {
+    return "Tools";
+  }
   return truncateToWidth(label, 10, "…");
 }
 

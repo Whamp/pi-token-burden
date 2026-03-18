@@ -2,9 +2,9 @@ active_branch: main
 initialized: "2026-02-26T21:46:02Z"
 last_commit:
   branch: main
-  hash: 43530ade
-  timestamp: "2026-03-18T13:42:52.924Z"
-  summary: "Completed Slices 5-6 of the base prompt source tracing plan. Added 8 e2e tests for trace mode (hint visibility, trace view, drilldown, navigation, refresh). Fixed pre-existing overlay drilldown test. Updated README with keyboard shortcuts table and trace feature docs. Updated AGENTS.md with new file map, architecture diagram, and test counts. Key discovery: extension tools contribute via the LLM function-calling API, not through the system prompt text — Base prompt is entirely built-in pi-core content. All checks pass (105 unit + 29 e2e). Commits: aff1565, 1de4610."
+  hash: 8485150b
+  timestamp: "2026-03-18T14:54:31.660Z"
+  summary: "Added 'e' to open tool definitions in editor. Tool definition children now carry 'content' field with pretty-printed JSON. Drilldown mode shows 'e edit' hint and opens temp file on keypress. 111 tests pass."
 sessions:
   - file: "/home/will/.pi/agent/sessions/--home-will-projects-pi-token-burden--/2026-02-26T21-45-50-232Z_43e18b9a-a463-42f5-a332-c6c9a28718fd.jsonl"
     branch: main

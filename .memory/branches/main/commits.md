@@ -213,3 +213,24 @@ Primary development branch for `pi-token-burden`, a `pi` extension for system pr
 - Updated the project README with a comprehensive keyboard shortcuts table and detailed documentation for the new tracing feature.
 - Hardened the `BudgetOverlay` drill-down logic and fixed a pre-existing e2e test failure related to section navigation.
 - Updated `AGENTS.md` with an expanded file map, an updated architecture diagram reflecting the `base-trace` subsystem, and verified test counts (105 unit + 29 e2e).
+
+---
+
+## Commit 8485150b | 2026-03-18T14:54:31.660Z
+
+### Branch Purpose
+
+Primary development branch for `pi-token-burden`, a pi extension for system prompt token analysis and skill management, featuring interactive visualization, deterministic source tracing, and tool definition counting.
+
+### Previous Progress Summary
+
+`pi-token-burden` provides an interactive TUI for analyzing system prompt token usage via BPE tokenization (`o200k_base`). It features a three-state skill management model (Enabled/Hidden/Disabled), a terminal-handover pattern for editing prompt components, and a deterministic source-tracing engine for Base prompt attribution. The project uses a robust modular architecture with a 134-test suite (105 unit + 29 e2e) ensured by a custom tmux-based TUI harness (`TmuxHarness`). Recent work confirmed that the Base prompt consists of built-in pi-core content, as extension tools contribute via the LLM function-calling API rather than the system prompt text.
+
+### This Commit's Contribution
+
+- Implemented a "Tool definitions" section in the budget breakdown to track the hidden token cost of function schemas sent via the LLM's tool-calling API.
+- Added support for opening tool definitions in the user's editor using the `e` key; individual tools now carry a `content` field with their pretty-printed JSON schema for inspection.
+- Updated `BudgetOverlay` to handle both file-based editing (AGENTS.md/Skills) and content-based viewing (Tool definitions) in drilldown mode using temporary files.
+- Extended the `PromptSection` and `TableItem` types to carry optional content buffers, enabling uniform "open-in-editor" behavior across all navigated items.
+- Corrected a systemic undercounting of the context window by incorporating `pi.getAllTools()` data into the total token and character calculations.
+- Verified the implementation with 6 new unit tests for the tool section builder and updated e2e tests, reaching a total of 111 passing tests.
