@@ -24,7 +24,7 @@ stacked bar visualization, drill-down table, and fuzzy search.
 
 | Command                 | Description                       | ~Time |
 | ----------------------- | --------------------------------- | ----- |
-| `pnpm run test`         | Run Vitest unit tests (67 tests)  | <1s   |
+| `pnpm run test`         | Run Vitest unit tests (105 tests) | <1s   |
 | `pnpm run test:e2e`     | Run e2e TUI tests (requires tmux) | ~30s  |
 | `pnpm run typecheck`    | TypeScript type checking          | ~2s   |
 | `pnpm run lint`         | Run oxlint linter                 | <1s   |
@@ -39,31 +39,37 @@ stacked bar visualization, drill-down table, and fuzzy search.
 
 ## File Map
 
-| Path                      | Purpose                                                        |
-| ------------------------- | -------------------------------------------------------------- |
-| `src/index.ts`            | Extension entry: registers `/token-burden` command             |
-| `src/parser.ts`           | Parses system prompt into sections (base, AGENTS, skills, etc) |
-| `src/report-view.ts`      | TUI overlay: `BudgetOverlay` class, ANSI rendering, input      |
-| `src/utils.ts`            | `fuzzyFilter()` for search, `buildBarSegments()` for bar chart |
-| `src/types.ts`            | Shared types: `ParsedPrompt`, `TableItem`, `PromptSection`     |
-| `src/*.test.ts`           | Colocated unit tests (6 files, 67 tests total)                 |
-| `src/e2e/tmux-harness.ts` | Tmux session helper for e2e TUI testing                        |
-| `src/e2e/*.test.ts`       | E2e TUI tests (overlay, skill-toggle)                          |
-| `vitest.config.e2e.ts`    | Vitest config for e2e tests (30s timeout)                      |
-| `CHANGELOG.md`            | Auto-generated changelog (do not edit manually)                |
-| `scripts/`                | Shell scripts (`check.sh`, `fix.sh`)                           |
-| `docs/plans/`             | Implementation plans                                           |
+| Path                      | Purpose                                                         |
+| ------------------------- | --------------------------------------------------------------- |
+| `src/index.ts`            | Extension entry: registers `/token-burden` command, wires trace |
+| `src/parser.ts`           | Parses system prompt into sections (base, AGENTS, skills, etc)  |
+| `src/report-view.ts`      | TUI overlay: `BudgetOverlay` class, ANSI rendering, input       |
+| `src/utils.ts`            | `fuzzyFilter()` for search, `buildBarSegments()` for bar chart  |
+| `src/types.ts`            | Shared types: `ParsedPrompt`, `TableItem`, `PromptSection`      |
+| `src/base-trace/`         | Source tracing: attribution, extension inspector, cache         |
+| `src/*.test.ts`           | Colocated unit tests (10 files, 105 tests total)                |
+| `src/e2e/tmux-harness.ts` | Tmux session helper for e2e TUI testing                         |
+| `src/e2e/*.test.ts`       | E2e TUI tests (overlay, skill-toggle, trace)                    |
+| `vitest.config.e2e.ts`    | Vitest config for e2e tests (30s timeout)                       |
+| `CHANGELOG.md`            | Auto-generated changelog (do not edit manually)                 |
+| `scripts/`                | Shell scripts (`check.sh`, `fix.sh`)                            |
+| `docs/plans/`             | Implementation plans                                            |
 
 ## Architecture
 
 ```
 index.ts ──→ parser.ts ──→ types.ts
    │              │
-   └──→ report-view.ts ──→ utils.ts ──→ types.ts
+   ├──→ report-view.ts ──→ utils.ts ──→ types.ts
+   │
+   └──→ base-trace/ ──→ attribution.ts, base-lines.ts, extension-inspector.ts, cache.ts
 ```
 
 **Data flow:** `ctx.getSystemPrompt()` → `parseSystemPrompt()` → `ParsedPrompt`
 → `BudgetOverlay` (TUI overlay with `ctx.ui.custom()`).
+
+**Trace flow (on-demand):** `discoverAndLoadExtensions()` → `extractContributions()`
+→ `extractBaseLines()` → `attributeBasePrompt()` → `BasePromptTraceResult`.
 
 The parser identifies sections by structural markers in the assembled prompt:
 `# Project Context`, `<available_skills>`, `Current date and time:`, and
