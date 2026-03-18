@@ -8,35 +8,44 @@ so the user can see where context window capacity is being spent.
 
 ## Current State
 
-- v0.3.0 released and published to npm
+- v0.4.0 released and published to npm
 - Parses system prompt into sections using structural markers
 - Token estimation via BPE tokenization (gpt-tokenizer, o200k_base encoding)
 - Interactive TUI overlay via `BudgetOverlay`:
   - Keyboard nav, drill-down into children, fuzzy search
   - Skill-toggle mode: enable/disable/hide skills, see token impact in graphs, persist via Ctrl+S
   - Open-in-editor: press `e` to edit skill SKILL.md files or AGENTS.md files in $VISUAL/$EDITOR
-- 71 unit tests (6 test files), 19 e2e tests (3 test files via TmuxHarness)
+  - **Base prompt source tracing**: press `t` on Base prompt to attribute lines to extensions
+- 105 unit tests (10 test files), 19 e2e tests (3 test files via TmuxHarness)
 - Tooling: oxlint, oxfmt, TypeScript strict, Vitest, knip, jscpd, husky, CI
 
 ## Architecture
 
-- `src/index.ts` — Extension entry point, registers `/token-burden` command
+- `src/index.ts` — Extension entry point, registers `/token-burden` command, wires trace handler
 - `src/parser.ts` — Splits the prompt into sections, extracts AGENTS.md and skill entries; `estimateTokens()`
-- `src/report-view.ts` — `BudgetOverlay` class, ANSI rendering, keyboard input handling, `getEditor()`, `launchEditor()`
+- `src/report-view.ts` — `BudgetOverlay` class, ANSI rendering, keyboard input handling, trace/drilldown/skill-toggle modes
 - `src/utils.ts` — `fuzzyFilter()` for search, `buildBarSegments()` for bar chart
 - `src/types.ts` — Shared types (ParsedPrompt, TableItem, PromptSection, SkillInfo, SkillToggleResult)
 - `src/enums.ts` — DisableMode enum (Enabled, Hidden, Disabled)
 - `src/skills.ts` — Skill discovery module (filesystem scanning)
 - `src/skills-persistence.ts` — Settings and frontmatter persistence for skill toggle
+- `src/base-trace/` — Source tracing subsystem:
+  - `types.ts` — TraceLineEvidence, TraceBucket, BasePromptTraceResult, LoadedExtension
+  - `base-lines.ts` — Extracts tool/guideline bullet lines from Base prompt text
+  - `attribution.ts` — Normalizes, matches, and buckets lines against extension contributions
+  - `extension-inspector.ts` — Extracts promptSnippet/promptGuidelines from loaded extensions
+  - `cache.ts` — In-memory fingerprint-keyed trace cache
+  - `index.ts` — Barrel exports
 - `src/e2e/tmux-harness.ts` — TmuxHarness class for e2e TUI testing
 
 ## Key Decisions
 
 - BPE tokenization (o200k_base) for accurate token counts
-- tui.stop()/start() pattern for opening external editor (matches pi's own ctrl+g)
-- `EDITOR=true` trick for e2e testing of editor launch without blocking
-- Drilldown items with absolute-path labels (AGENTS.md files) are editable; others are not
-- oxlint `prefer-describe-function-title` conflicts with string titles matching imports — use suffixed names
+- tui.stop()/start() pattern for opening external editor
+- One-pass extension introspection for trace (not subprocess diffing)
+- Trace is user-triggered only (`t` key) to keep default overlay fast
+- Attribution uses exact normalized matching — unmatched lines labeled "Unattributed"
+- Shared bucket for identical lines from multiple extensions (counted once, all sources listed)
 
 ## Milestones
 
@@ -44,4 +53,11 @@ so the user can see where context window capacity is being spent.
 2. **Skill management** (done) — Skill discovery, toggle mode, persistence, token impact visualization
 3. **Open-in-editor** (done) — Edit skills and AGENTS.md files directly from the overlay
 4. **E2e test infrastructure** (done) — TmuxHarness, overlay/skill-toggle/editor e2e tests
-5. **Actionable insights** — Suggest which skills/files to trim when budget is tight
+5. **Base prompt source tracing** (done) — On-demand attribution of Base prompt lines to extensions
+6. **E2e tests for trace** (next) — Fixture extensions, tmux-based trace verification
+7. **Actionable insights** — Suggest which skills/files to trim when budget is tight
+
+## Open Problems
+
+- E2e tests for trace mode not yet written (need fixture extensions with known snippets)
+- Design doc defers "deep diff mode" (subprocess counterfactual) for pathological cases

@@ -45,6 +45,35 @@ The table is sorted by token count (descending). Use arrow keys to navigate,
 Enter to drill down into children (e.g., individual skills or AGENTS.md files),
 and `/` to fuzzy-search items.
 
+### Keyboard shortcuts
+
+| Key       | Context         | Action                                       |
+| --------- | --------------- | -------------------------------------------- |
+| `↑` / `↓` | All modes       | Navigate rows                                |
+| `Enter`   | Sections        | Drill into children or enter skill-toggle    |
+| `/`       | Sections/skills | Fuzzy search                                 |
+| `e`       | Sections        | Open the selected section in `$EDITOR`       |
+| `t`       | Sections        | Trace Base prompt sources (attribution view) |
+| `s`       | Sections        | Enter skill-toggle mode                      |
+| `Enter`   | Skill-toggle    | Cycle skill state (on → hidden → disabled)   |
+| `Ctrl+S`  | Skill-toggle    | Save pending skill changes                   |
+| `Enter`   | Trace view      | Drill into bucket (line-level evidence)      |
+| `r`       | Trace view      | Refresh trace                                |
+| `Esc`     | Any             | Go back / close overlay                      |
+
+### Base prompt source tracing
+
+Press `t` when the cursor is on the **Base prompt** row to run an on-demand
+attribution trace. This analyzes extension tool registrations and matches their
+prompt snippets and guidelines against the lines in the Base prompt, showing:
+
+- **Built-in/core** — tools and guidelines hardcoded in pi
+- **Extension buckets** — lines contributed by specific extensions
+- **Shared** — lines registered by multiple extensions
+- **Unattributed** — lines that couldn't be matched to any source
+
+Press `Enter` on any bucket to see line-level evidence with per-line token counts.
+
 ### What each section measures
 
 | Section                          | Content                                                          |
@@ -67,7 +96,8 @@ This gives exact BPE token counts rather than a character-based approximation.
 git clone https://github.com/Whamp/pi-token-burden.git
 cd pi-token-burden
 pnpm install
-pnpm run test     # 21 tests
+pnpm run test     # 105 unit tests
+pnpm run test:e2e # 29 e2e tests (requires tmux)
 pnpm run check    # lint, typecheck, format, dead code, duplicates, tests
 ```
 

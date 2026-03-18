@@ -65,7 +65,16 @@ describe("overlay rendering", () => {
   });
 
   it("should drill into a section with children and return with esc", () => {
-    // First section (AGENTS.md files) is drillable
+    // Navigate to AGENTS.md section which has drillable children
+    for (let i = 0; i < 8; i++) {
+      const lines = harness.capture();
+      const cursorLine = lines.find((l) => l.includes("▸"));
+      if (cursorLine?.includes("AGENTS")) {
+        break;
+      }
+      harness.sendKeys("Down");
+    }
+
     harness.sendKeys("Enter");
     const drilled = harness.waitFor("esc to go back", 5000);
     const text = drilled.join("\n");

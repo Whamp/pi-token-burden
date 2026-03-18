@@ -171,3 +171,24 @@ The project established a modular architecture for parsing `pi` system prompts u
 - Resolved the issue by removing the `unlinkSync` cleanup step in `report-view.ts`, opting to let the operating system handle the disposal of temporary files in `/tmp`.
 - Confirmed that fluctuations in base prompt token counts (e.g., from ~400 to ~1700) accurately reflect changes in the active `pi` session's tools and preamble, verifying parser reliability.
 - Hardened the lint-staged pre-commit hook by ensuring Markdown files are dropped from `oxfmt` rules to prevent conflicts with auto-generated documentation and memory state.
+
+---
+
+## Commit f69305e0 | 2026-03-18T13:14:37.009Z
+
+### Branch Purpose
+
+Primary development branch for `pi-token-burden`, a pi extension for system prompt token analysis and skill management, now featuring deterministic source tracing for extension-added bloat.
+
+### Previous Progress Summary
+
+`pi-token-burden` provides an interactive TUI for analyzing system prompt token usage via BPE tokenization (`o200k_base`). It features a three-state skill management model (Enabled/Hidden/Disabled) with `settings.json` persistence and a terminal-handover pattern for editing all prompt components (skills, AGENTS.md, and raw sections) directly from the overlay. Stability is ensured by a comprehensive test suite including a custom tmux-based e2e TUI harness for visual verification and a modular architecture that separates parsing, attribution, and rendering.
+
+### This Commit's Contribution
+
+- Implemented a deterministic source-tracing engine for the Base prompt (Slices 1-4) to attribute token usage to specific extensions.
+- Rejected brute-force subprocess diffing and static parsing in favor of a one-pass introspection analyzer that reuses pi-core's internal loader for high-fidelity matching.
+- Added 5 specialized modules in `src/base-trace/` for line extraction, attribution logic, extension inspection, and fingerprint-based caching.
+- Integrated an interactive "Trace Mode" into the `BudgetOverlay` TUI (triggered by the `t` key on the Base prompt) with support for evidence drill-downs and refresh.
+- Adopted a strict normalization matching model (whitespace collapsing and trimming) to ensure attribution parity with pi-core's internal prompt assembly.
+- Expanded the test suite with 29 new unit and integration tests (105 total), verifying reconciliation between extension, shared, core, and unattributed token buckets.

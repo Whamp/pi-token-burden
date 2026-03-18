@@ -71,6 +71,7 @@ const extension: ExtensionFactory = (pi) => {
         const contributions = extractContributions(
           extensions as unknown as LoadedExtension[]
         );
+
         const baseSection = parsed.sections.find((s) =>
           s.label.startsWith("Base")
         );
