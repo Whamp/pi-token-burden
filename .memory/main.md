@@ -16,7 +16,8 @@ so the user can see where context window capacity is being spent.
   - Skill-toggle mode: enable/disable/hide skills, see token impact in graphs, persist via Ctrl+S
   - Open-in-editor: press `e` to edit skill SKILL.md files or AGENTS.md files in $VISUAL/$EDITOR
   - **Base prompt source tracing**: press `t` on Base prompt to attribute lines to extensions
-- 105 unit tests (10 test files), 29 e2e tests (4 test files via TmuxHarness)
+  - **Tool definitions section**: shows token cost of LLM function schemas, drillable with `e` to view JSON
+- 111 unit tests (10 test files), 29 e2e tests (4 test files via TmuxHarness)
 - Tooling: oxlint, oxfmt, TypeScript strict, Vitest, knip, jscpd, husky, CI
 
 ## Architecture
