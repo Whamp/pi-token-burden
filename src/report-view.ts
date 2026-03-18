@@ -276,11 +276,15 @@ function renderStackedBar(
       `${sgr(SECTION_COLORS[colorIdx], "■")} ${shortLabel} ${pct}%`
     );
   }
-  const legendContent = legendParts.join("  ");
+  let legendContent = legendParts.join("  ");
   // Pad to fill the width (accounting for leading space added by row())
   const legendWidth = visibleWidth(legendContent);
   const paddingNeeded = Math.max(0, innerW - 1 - legendWidth);
-  lines.push(row(legendContent + " ".repeat(paddingNeeded)));
+  if (paddingNeeded > 0) {
+    // Wrap padding in dim so spaces inherit styling
+    legendContent += dim(" ".repeat(paddingNeeded));
+  }
+  lines.push(row(legendContent));
 }
 
 function renderTableRow(
