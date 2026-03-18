@@ -156,6 +156,7 @@ export function buildTableItems(parsed: ParsedPrompt): TableItem[] {
                     ? (child.tokens / parsed.totalTokens) * 100
                     : 0,
                 drillable: false,
+                content: child.content,
               })
             )
             .toSorted((a, b) => b.tokens - a.tokens)
@@ -796,11 +797,25 @@ class BudgetOverlay {
   private openDrilldownItemInEditor(): void {
     const items = this.getVisibleItems();
     const item = items[this.state.selectedIndex];
-    if (!item?.label.startsWith("/")) {
+    if (!item) {
       return;
     }
 
-    this.launchEditor(item.label);
+    // If it's a path (AGENTS.md file), open it directly
+    if (item.label.startsWith("/")) {
+      this.launchEditor(item.label);
+      return;
+    }
+
+    // If it has content (tool definition, etc.), write to temp file
+    if (item.content) {
+      const tempPath = join(
+        tmpdir(),
+        `pi-token-burden-${sanitizeLabel(item.label)}-${randomUUID().slice(0, 8)}.json`
+      );
+      writeFileSync(tempPath, item.content, "utf8");
+      this.launchEditor(tempPath);
+    }
   }
 
   private openSectionInEditor(): void {
@@ -1391,7 +1406,7 @@ class BudgetOverlay {
       hints = `${italic("↑↓")} navigate  ${italic("esc")} back`;
     } else if (this.state.mode === "drilldown") {
       const hasEditableItems = this.state.drilldownSection?.children?.some(
-        (c) => c.label.startsWith("/")
+        (c) => c.label.startsWith("/") || c.content
       );
       hints = hasEditableItems
         ? `${italic("↑↓")} navigate  ${italic("e")} edit  ${italic("/")} search  ${italic("esc")} back`

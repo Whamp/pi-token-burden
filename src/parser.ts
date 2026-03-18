@@ -276,15 +276,20 @@ export function buildToolDefinitionsSection(
     return null;
   }
 
-  const children: { label: string; chars: number; tokens: number }[] = [];
+  const children: {
+    label: string;
+    chars: number;
+    tokens: number;
+    content?: string;
+  }[] = [];
   let totalTokens = 0;
   let totalChars = 0;
 
   for (const tool of tools) {
-    const serialized = JSON.stringify(tool);
+    const serialized = JSON.stringify(tool, null, 2);
     const tokens = estimateTokens(serialized);
     const chars = serialized.length;
-    children.push({ label: tool.name, chars, tokens });
+    children.push({ label: tool.name, chars, tokens, content: serialized });
     totalTokens += tokens;
     totalChars += chars;
   }

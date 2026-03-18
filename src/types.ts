@@ -30,7 +30,12 @@ export interface PromptSection {
   tokens: number;
   /** Raw text of this section from the system prompt. */
   content?: string;
-  children?: { label: string; chars: number; tokens: number }[];
+  children?: {
+    label: string;
+    chars: number;
+    tokens: number;
+    content?: string;
+  }[];
 }
 
 export interface ParsedPrompt {

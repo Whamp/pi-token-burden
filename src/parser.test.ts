@@ -265,7 +265,7 @@ describe("buildToolDefinitionsSection()", () => {
       parameters: { type: "object", properties: { input: { type: "string" } } },
     };
     const section = buildToolDefinitionsSection([tool]);
-    const serialized = JSON.stringify(tool);
+    const serialized = JSON.stringify(tool, null, 2);
     expect(section?.children?.[0].tokens).toBe(estimateTokens(serialized));
   });
 
