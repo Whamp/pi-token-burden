@@ -47,19 +47,21 @@ and `/` to fuzzy-search items.
 
 ### Keyboard shortcuts
 
-| Key       | Context         | Action                                       |
-| --------- | --------------- | -------------------------------------------- |
-| `↑` / `↓` | All modes       | Navigate rows                                |
-| `Enter`   | Sections        | Drill into children or enter skill-toggle    |
-| `/`       | Sections/skills | Fuzzy search                                 |
-| `e`       | Sections        | Open the selected section in `$EDITOR`       |
-| `t`       | Sections        | Trace Base prompt sources (attribution view) |
-| `s`       | Sections        | Enter skill-toggle mode                      |
-| `Enter`   | Skill-toggle    | Cycle skill state (on → hidden → disabled)   |
-| `Ctrl+S`  | Skill-toggle    | Save pending skill changes                   |
-| `Enter`   | Trace view      | Drill into bucket (line-level evidence)      |
-| `r`       | Trace view      | Refresh trace                                |
-| `Esc`     | Any             | Go back / close overlay                      |
+| Key       | Context            | Action                                       |
+| --------- | ------------------ | -------------------------------------------- |
+| `↑` / `↓` | All modes          | Navigate rows                                |
+| `Enter`   | Sections           | Drill into children or enter skill-toggle    |
+| `/`       | Sections/skills    | Fuzzy search                                 |
+| `e`       | Sections           | Open the selected section in `$EDITOR`       |
+| `e`       | Drilldown (AGENTS) | Open the AGENTS.md file in `$EDITOR`         |
+| `e`       | Drilldown (Tools)  | Open tool JSON definition in `$EDITOR`       |
+| `t`       | Sections           | Trace Base prompt sources (attribution view) |
+| `s`       | Sections           | Enter skill-toggle mode                      |
+| `Enter`   | Skill-toggle       | Cycle skill state (on → hidden → disabled)   |
+| `Ctrl+S`  | Skill-toggle       | Save pending skill changes                   |
+| `Enter`   | Trace view         | Drill into bucket (line-level evidence)      |
+| `r`       | Trace view         | Refresh trace                                |
+| `Esc`     | Any                | Go back / close overlay                      |
 
 ### Base prompt source tracing
 
@@ -74,6 +76,13 @@ prompt snippets and guidelines against the lines in the Base prompt, showing:
 
 Press `Enter` on any bucket to see line-level evidence with per-line token counts.
 
+### Tool definitions
+
+Tool definitions are the function schemas (name, description, parameter JSON schema) sent to the LLM alongside the system prompt. They consume context window tokens but were previously invisible in the budget. Now they appear as a drillable section where you can:
+
+- View per-tool token costs
+- Press `e` on any tool to see its full JSON definition in your editor
+
 ### What each section measures
 
 | Section                          | Content                                                          |
@@ -82,6 +91,7 @@ Press `Enter` on any bucket to see line-level evidence with per-line token count
 | **SYSTEM.md / APPEND_SYSTEM.md** | Your custom system prompt overrides                              |
 | **AGENTS.md files**              | Each AGENTS.md file, listed individually                         |
 | **Skills**                       | The `<available_skills>` block, with per-skill breakdown         |
+| **Tool definitions**             | LLM function schemas (name, description, parameters)             |
 | **Metadata**                     | The `Current date and time` / `Current working directory` footer |
 
 ### Token estimation
@@ -96,7 +106,7 @@ This gives exact BPE token counts rather than a character-based approximation.
 git clone https://github.com/Whamp/pi-token-burden.git
 cd pi-token-burden
 pnpm install
-pnpm run test     # 105 unit tests
+pnpm run test     # 111 unit tests
 pnpm run test:e2e # 29 e2e tests (requires tmux)
 pnpm run check    # lint, typecheck, format, dead code, duplicates, tests
 ```
