@@ -12,6 +12,12 @@ import {
 } from "@mariozechner/pi-tui";
 import type { TUI } from "@mariozechner/pi-tui";
 
+import { TraceCache } from "./base-trace/index.js";
+import type {
+  BasePromptTraceResult,
+  TraceBucket,
+  TraceLineEvidence,
+} from "./base-trace/index.js";
 import { DisableMode } from "./enums.js";
 import type {
   ParsedPrompt,
@@ -303,7 +309,12 @@ function renderTableRow(
 // BudgetOverlay component
 // ---------------------------------------------------------------------------
 
-type Mode = "sections" | "drilldown" | "skill-toggle";
+type Mode =
+  | "sections"
+  | "drilldown"
+  | "skill-toggle"
+  | "trace"
+  | "trace-drilldown";
 
 interface OverlayState {
   mode: Mode;
@@ -314,6 +325,9 @@ interface OverlayState {
   drilldownSection: TableItem | null;
   pendingChanges: Map<string, DisableMode>;
   confirmingDiscard: boolean;
+  traceResult: BasePromptTraceResult | null;
+  traceLoading: boolean;
+  traceDrilldownBucket: TraceBucket | null;
 }
 
 class BudgetOverlay {
@@ -326,6 +340,9 @@ class BudgetOverlay {
     drilldownSection: null,
     pendingChanges: new Map(),
     confirmingDiscard: false,
+    traceResult: null,
+    traceLoading: false,
+    traceDrilldownBucket: null,
   };
 
   private tableItems: TableItem[];
@@ -338,6 +355,8 @@ class BudgetOverlay {
   private readonly tui: TUI;
   private done: (value: null) => void;
   private onToggleResult?: (result: SkillToggleResult) => boolean;
+  private traceCache = new TraceCache();
+  private onRunTrace?: () => Promise<BasePromptTraceResult>;
 
   private cachedWidth?: number;
   private cachedLines?: string[];
@@ -348,7 +367,8 @@ class BudgetOverlay {
     contextWindow: number | undefined,
     discoveredSkills: SkillInfo[],
     done: (value: null) => void,
-    onToggleResult?: (result: SkillToggleResult) => boolean
+    onToggleResult?: (result: SkillToggleResult) => boolean,
+    onRunTrace?: () => Promise<BasePromptTraceResult>
   ) {
     this.tui = tui;
     this.parsed = parsed;
@@ -363,6 +383,7 @@ class BudgetOverlay {
     this.tableItems = buildTableItems(parsed);
     this.done = done;
     this.onToggleResult = onToggleResult;
+    this.onRunTrace = onRunTrace;
   }
 
   // -----------------------------------------------------------------------
@@ -372,6 +393,11 @@ class BudgetOverlay {
   handleInput(data: string): void {
     if (this.state.mode === "skill-toggle") {
       this.handleSkillToggleInput(data);
+      return;
+    }
+
+    if (this.state.mode === "trace" || this.state.mode === "trace-drilldown") {
+      this.handleTraceInput(data);
       return;
     }
 
@@ -413,6 +439,17 @@ class BudgetOverlay {
         this.openSectionInEditor();
       } else if (this.state.mode === "drilldown") {
         this.openDrilldownItemInEditor();
+      }
+      return;
+    }
+
+    if (data === "t") {
+      if (this.state.mode === "sections") {
+        const items = this.getVisibleItems();
+        const selected = items[this.state.selectedIndex];
+        if (selected?.label.startsWith("Base")) {
+          this.runTrace();
+        }
       }
       return;
     }
@@ -464,10 +501,17 @@ class BudgetOverlay {
   }
 
   private moveSelection(delta: number): void {
-    const itemCount =
-      this.state.mode === "skill-toggle"
-        ? this.getFilteredSkills().length
-        : this.getVisibleItems().length;
+    let itemCount: number;
+    if (this.state.mode === "skill-toggle") {
+      itemCount = this.getFilteredSkills().length;
+    } else if (this.state.mode === "trace") {
+      itemCount = this.state.traceResult?.buckets.length ?? 0;
+    } else if (this.state.mode === "trace-drilldown") {
+      const bucket = this.state.traceDrilldownBucket;
+      itemCount = bucket ? this.getTraceEvidenceForBucket(bucket).length : 0;
+    } else {
+      itemCount = this.getVisibleItems().length;
+    }
     if (itemCount === 0) {
       return;
     }
@@ -811,6 +855,363 @@ class BudgetOverlay {
     return this.discoveredSkills;
   }
 
+  // -----------------------------------------------------------------------
+  // Trace mode
+  // -----------------------------------------------------------------------
+
+  private handleTraceInput(data: string): void {
+    if (matchesKey(data, "escape")) {
+      if (this.state.mode === "trace-drilldown") {
+        this.state.mode = "trace";
+        this.state.traceDrilldownBucket = null;
+        this.state.selectedIndex = 0;
+        this.state.scrollOffset = 0;
+        this.invalidate();
+        return;
+      }
+      this.state.mode = "sections";
+      this.state.selectedIndex = 0;
+      this.state.scrollOffset = 0;
+      this.invalidate();
+      return;
+    }
+
+    if (matchesKey(data, "up")) {
+      this.moveSelection(-1);
+      return;
+    }
+
+    if (matchesKey(data, "down")) {
+      this.moveSelection(1);
+      return;
+    }
+
+    if (matchesKey(data, "enter") && this.state.mode === "trace") {
+      this.traceDetailDrillIn();
+      return;
+    }
+
+    if (data === "r") {
+      this.traceCache.clear();
+      this.runTrace();
+      return;
+    }
+
+    if (data === "e" && this.state.mode === "trace") {
+      this.openTraceBucketInEditor();
+    }
+  }
+
+  private traceDetailDrillIn(): void {
+    const result = this.state.traceResult;
+    if (!result) {
+      return;
+    }
+
+    const bucket = result.buckets[this.state.selectedIndex];
+    if (!bucket) {
+      return;
+    }
+
+    const evidenceForBucket = result.evidence.filter((e) => {
+      if (bucket.id === "built-in") {
+        return e.bucket === "built-in";
+      }
+      if (bucket.id === "shared") {
+        return e.bucket === "shared";
+      }
+      if (bucket.id === "unattributed") {
+        return e.bucket === "unattributed";
+      }
+      return e.bucket === "extension" && e.contributors.includes(bucket.id);
+    });
+
+    if (evidenceForBucket.length === 0) {
+      return;
+    }
+
+    this.state.mode = "trace-drilldown";
+    this.state.traceDrilldownBucket = bucket;
+    this.state.selectedIndex = 0;
+    this.state.scrollOffset = 0;
+    this.invalidate();
+  }
+
+  private openTraceBucketInEditor(): void {
+    const result = this.state.traceResult;
+    if (!result) {
+      return;
+    }
+
+    const bucket = result.buckets[this.state.selectedIndex];
+    if (
+      !bucket ||
+      bucket.id === "built-in" ||
+      bucket.id === "shared" ||
+      bucket.id === "unattributed"
+    ) {
+      return;
+    }
+
+    this.launchEditor(bucket.id);
+  }
+
+  private async runTrace(): Promise<void> {
+    if (!this.onRunTrace || this.state.traceLoading) {
+      return;
+    }
+
+    // Check cache first
+    const baseSection = this.parsed.sections.find((s) =>
+      s.label.startsWith("Base")
+    );
+    if (!baseSection?.content) {
+      return;
+    }
+
+    this.state.traceLoading = true;
+    this.state.mode = "trace";
+    this.invalidate();
+
+    try {
+      const result = await this.onRunTrace();
+      this.traceCache.set(result);
+      this.state.traceResult = result;
+      this.state.traceLoading = false;
+      this.state.selectedIndex = 0;
+      this.state.scrollOffset = 0;
+    } catch {
+      this.state.traceLoading = false;
+      this.state.mode = "sections";
+    }
+    this.invalidate();
+    this.tui.requestRender(true);
+  }
+
+  private getTraceEvidenceForBucket(bucket: TraceBucket): TraceLineEvidence[] {
+    const result = this.state.traceResult;
+    if (!result) {
+      return [];
+    }
+
+    return result.evidence.filter((e) => {
+      if (bucket.id === "built-in") {
+        return e.bucket === "built-in";
+      }
+      if (bucket.id === "shared") {
+        return e.bucket === "shared";
+      }
+      if (bucket.id === "unattributed") {
+        return e.bucket === "unattributed";
+      }
+      return e.bucket === "extension" && e.contributors.includes(bucket.id);
+    });
+  }
+
+  private renderTrace(
+    lines: string[],
+    innerW: number,
+    row: (content: string) => string,
+    emptyRow: () => string,
+    centerRow: (content: string) => string
+  ): void {
+    lines.push(emptyRow());
+
+    if (this.state.traceLoading) {
+      lines.push(centerRow(dim(italic("Analyzing extensions…"))));
+      lines.push(emptyRow());
+      return;
+    }
+
+    const result = this.state.traceResult;
+    if (!result) {
+      lines.push(centerRow(dim(italic("No trace data"))));
+      lines.push(emptyRow());
+      return;
+    }
+
+    if (
+      this.state.mode === "trace-drilldown" &&
+      this.state.traceDrilldownBucket
+    ) {
+      this.renderTraceDrilldown(lines, innerW, row, emptyRow, centerRow);
+      return;
+    }
+
+    // Status line
+    const status =
+      result.errors.length > 0
+        ? sgr(
+            "33",
+            `Trace partial (${result.errors.length} error${result.errors.length === 1 ? "" : "s"})`
+          )
+        : sgr("32", "Trace complete");
+    const breadcrumb = `${bold("Base prompt")} → ${status}  ${dim("← esc")}`;
+    lines.push(row(breadcrumb));
+    lines.push(emptyRow());
+
+    // Bucket rows
+    const { buckets } = result;
+    if (buckets.length === 0) {
+      lines.push(centerRow(dim(italic("No attributable lines found"))));
+      lines.push(emptyRow());
+      return;
+    }
+
+    const startIdx = this.state.scrollOffset;
+    const endIdx = Math.min(startIdx + MAX_VISIBLE_ROWS, buckets.length);
+
+    for (let i = startIdx; i < endIdx; i++) {
+      const bucket = buckets[i];
+      const isSelected = i === this.state.selectedIndex;
+
+      const prefix = isSelected ? sgr("36", "▸") : dim("·");
+      const tokenStr = `${fmt(bucket.tokens)} tokens`;
+      const pctStr = `${bucket.pctOfBase.toFixed(1)}%`;
+      const countStr = `${bucket.lineCount} line${bucket.lineCount === 1 ? "" : "s"}`;
+      const suffix = `${countStr}  ${tokenStr}  ${pctStr}`;
+
+      const suffixWidth = visibleWidth(suffix);
+      const prefixWidth = 2;
+      const gapMin = 2;
+      const nameMaxWidth = innerW - prefixWidth - suffixWidth - gapMin - 3;
+
+      const label = this.getTraceBucketLabel(bucket);
+      const truncatedName = truncateToWidth(
+        isSelected ? bold(sgr("36", label)) : label,
+        nameMaxWidth,
+        "…"
+      );
+      const nameWidth = visibleWidth(truncatedName);
+      const gap = Math.max(
+        1,
+        innerW - prefixWidth - nameWidth - suffixWidth - 3
+      );
+
+      const content = `${prefix} ${truncatedName}${" ".repeat(gap)}${dim(suffix)}`;
+      lines.push(
+        `${dim("│")}${truncateToWidth(` ${content}`, innerW, "…", true)}${dim("│")}`
+      );
+    }
+
+    lines.push(emptyRow());
+
+    // Scroll indicator
+    if (buckets.length > MAX_VISIBLE_ROWS) {
+      const progress = Math.round(
+        ((this.state.selectedIndex + 1) / buckets.length) * 10
+      );
+      const dots = rainbowDots(progress, 10);
+      const countStr = `${this.state.selectedIndex + 1}/${buckets.length}`;
+      lines.push(row(`${dots}  ${dim(countStr)}`));
+      lines.push(emptyRow());
+    }
+  }
+
+  private renderTraceDrilldown(
+    lines: string[],
+    innerW: number,
+    row: (content: string) => string,
+    emptyRow: () => string,
+    centerRow: (content: string) => string
+  ): void {
+    const bucket = this.state.traceDrilldownBucket;
+    if (!bucket) {
+      return;
+    }
+    const evidence = this.getTraceEvidenceForBucket(bucket);
+
+    const label = this.getTraceBucketLabel(bucket);
+    const breadcrumb = `${bold(label)}  ${dim("← esc to go back")}`;
+    lines.push(row(breadcrumb));
+    lines.push(emptyRow());
+
+    if (evidence.length === 0) {
+      lines.push(centerRow(dim(italic("No evidence lines"))));
+      lines.push(emptyRow());
+      return;
+    }
+
+    const startIdx = this.state.scrollOffset;
+    const endIdx = Math.min(startIdx + MAX_VISIBLE_ROWS, evidence.length);
+
+    for (let i = startIdx; i < endIdx; i++) {
+      const e = evidence[i];
+      const isSelected = i === this.state.selectedIndex;
+
+      const prefix = isSelected ? sgr("36", "▸") : dim("·");
+      const tokenStr = `${fmt(e.tokens)} tok`;
+      const kindLabel = e.kind === "tool-line" ? "tool" : "guide";
+      const suffix = `${kindLabel}  ${tokenStr}`;
+
+      const suffixWidth = visibleWidth(suffix);
+      const prefixWidth = 2;
+      const gapMin = 2;
+      const nameMaxWidth = innerW - prefixWidth - suffixWidth - gapMin - 3;
+
+      const lineText = e.line.startsWith("- ") ? e.line.slice(2) : e.line;
+      const truncatedLine = truncateToWidth(
+        isSelected ? bold(sgr("36", lineText)) : lineText,
+        nameMaxWidth,
+        "…"
+      );
+      const lineWidth = visibleWidth(truncatedLine);
+      const gap = Math.max(
+        1,
+        innerW - prefixWidth - lineWidth - suffixWidth - 3
+      );
+
+      const content = `${prefix} ${truncatedLine}${" ".repeat(gap)}${dim(suffix)}`;
+      lines.push(
+        `${dim("│")}${truncateToWidth(` ${content}`, innerW, "…", true)}${dim("│")}`
+      );
+    }
+
+    lines.push(emptyRow());
+
+    // Scroll indicator
+    if (evidence.length > MAX_VISIBLE_ROWS) {
+      const progress = Math.round(
+        ((this.state.selectedIndex + 1) / evidence.length) * 10
+      );
+      const dots = rainbowDots(progress, 10);
+      const countStr = `${this.state.selectedIndex + 1}/${evidence.length}`;
+      lines.push(row(`${dots}  ${dim(countStr)}`));
+      lines.push(emptyRow());
+    }
+
+    // Show contributors for shared bucket
+    if (bucket.id === "shared") {
+      const selectedEvidence = evidence[this.state.selectedIndex];
+      if (selectedEvidence && selectedEvidence.contributors.length > 1) {
+        lines.push(row(dim("Contributors:")));
+        for (const c of selectedEvidence.contributors) {
+          lines.push(row(dim(`  • ${c}`)));
+        }
+        lines.push(emptyRow());
+      }
+    }
+  }
+
+  private getTraceBucketLabel(bucket: TraceBucket): string {
+    if (bucket.id === "built-in") {
+      return "Built-in/core";
+    }
+    if (bucket.id === "shared") {
+      return "Shared (multi-extension)";
+    }
+    if (bucket.id === "unattributed") {
+      return "Unattributed";
+    }
+
+    // Extract extension name from path
+    const parts = bucket.id.split("/");
+    const extDir = parts.findLast(
+      (p) => p !== "index.ts" && p !== "index.js" && p !== "src"
+    );
+    return extDir ?? bucket.id;
+  }
+
   private renderSkillToggle(
     lines: string[],
     innerW: number,
@@ -965,9 +1366,14 @@ class BudgetOverlay {
     lines.push(emptyRow());
     lines.push(divider());
 
-    // Zone 3: Interactive table or skill toggle
+    // Zone 3: Interactive table, skill toggle, or trace
     if (this.state.mode === "skill-toggle") {
       this.renderSkillToggle(lines, innerW, row, emptyRow, centerRow);
+    } else if (
+      this.state.mode === "trace" ||
+      this.state.mode === "trace-drilldown"
+    ) {
+      this.renderTrace(lines, innerW, row, emptyRow, centerRow);
     } else {
       this.renderInteractiveTable(lines, innerW, row, emptyRow, centerRow);
     }
@@ -979,6 +1385,10 @@ class BudgetOverlay {
     let hints: string;
     if (this.state.mode === "skill-toggle") {
       hints = `${italic("↑↓")} navigate  ${italic("enter")} cycle state  ${italic("e")} edit  ${italic("/")} search  ${italic("ctrl+s")} save  ${italic("esc")} back`;
+    } else if (this.state.mode === "trace") {
+      hints = `${italic("↑↓")} navigate  ${italic("enter")} details  ${italic("e")} open  ${italic("r")} refresh  ${italic("esc")} back`;
+    } else if (this.state.mode === "trace-drilldown") {
+      hints = `${italic("↑↓")} navigate  ${italic("esc")} back`;
     } else if (this.state.mode === "drilldown") {
       const hasEditableItems = this.state.drilldownSection?.children?.some(
         (c) => c.label.startsWith("/")
@@ -987,7 +1397,13 @@ class BudgetOverlay {
         ? `${italic("↑↓")} navigate  ${italic("e")} edit  ${italic("/")} search  ${italic("esc")} back`
         : `${italic("↑↓")} navigate  ${italic("/")} search  ${italic("esc")} back`;
     } else {
-      hints = `${italic("↑↓")} navigate  ${italic("enter")} drill-in  ${italic("e")} view  ${italic("/")} search  ${italic("esc")} close`;
+      // sections mode
+      const items = this.getVisibleItems();
+      const selected = items[this.state.selectedIndex];
+      const isBase = selected?.label.startsWith("Base");
+      const traceHint =
+        isBase && this.onRunTrace ? `  ${italic("t")} trace` : "";
+      hints = `${italic("↑↓")} navigate  ${italic("enter")} drill-in  ${italic("e")} view${traceHint}  ${italic("/")} search  ${italic("esc")} close`;
     }
     lines.push(centerRow(dim(hints)));
 
@@ -1069,7 +1485,8 @@ export async function showReport(
   contextWindow: number | undefined,
   ctx: ExtensionCommandContext,
   discoveredSkills?: SkillInfo[],
-  onToggleResult?: (result: SkillToggleResult) => boolean
+  onToggleResult?: (result: SkillToggleResult) => boolean,
+  onRunTrace?: () => Promise<BasePromptTraceResult>
 ): Promise<void> {
   await ctx.ui.custom<null>(
     (tui, _theme, _kb, done) => {
@@ -1079,7 +1496,8 @@ export async function showReport(
         contextWindow,
         discoveredSkills ?? [],
         done,
-        onToggleResult
+        onToggleResult,
+        onRunTrace
       );
       return {
         render: (width: number) => overlay.render(width),
