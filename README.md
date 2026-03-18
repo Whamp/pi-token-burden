@@ -39,11 +39,29 @@ Type `/token-burden` in any pi session. An overlay appears with a stacked bar
 and a drill-down table:
 
 <p align="center">
-  <img src="./screenshot.png" alt="pi-token-burden TUI screenshot" width="720" />
+  <img src="./screenshot.png" alt="pi-token-burden main view" width="720" />
 </p>
+
 The table is sorted by token count (descending). Use arrow keys to navigate,
 Enter to drill down into children (e.g., individual skills or AGENTS.md files),
 and `/` to fuzzy-search items.
+
+**Drill-down views:**
+
+<p align="center">
+  <img src="./screenshot-drilldown-agents.png" alt="AGENTS.md drilldown" width="720" />
+  <br/><em>AGENTS.md files with per-file token counts</em>
+</p>
+
+<p align="center">
+  <img src="./screenshot-drilldown-tools.png" alt="Tool definitions drilldown" width="720" />
+  <br/><em>Tool definitions with per-tool JSON schemas</em>
+</p>
+
+<p align="center">
+  <img src="./screenshot-trace.png" alt="Base prompt trace view" width="720" />
+  <br/><em>Base prompt source attribution (press <code>t</code> on Base prompt)</em>
+</p>
 
 ### Keyboard shortcuts
 
