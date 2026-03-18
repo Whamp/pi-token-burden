@@ -16,7 +16,7 @@ so the user can see where context window capacity is being spent.
   - Skill-toggle mode: enable/disable/hide skills, see token impact in graphs, persist via Ctrl+S
   - Open-in-editor: press `e` to edit skill SKILL.md files or AGENTS.md files in $VISUAL/$EDITOR
   - **Base prompt source tracing**: press `t` on Base prompt to attribute lines to extensions
-- 105 unit tests (10 test files), 19 e2e tests (3 test files via TmuxHarness)
+- 105 unit tests (10 test files), 29 e2e tests (4 test files via TmuxHarness)
 - Tooling: oxlint, oxfmt, TypeScript strict, Vitest, knip, jscpd, husky, CI
 
 ## Architecture
@@ -54,10 +54,10 @@ so the user can see where context window capacity is being spent.
 3. **Open-in-editor** (done) — Edit skills and AGENTS.md files directly from the overlay
 4. **E2e test infrastructure** (done) — TmuxHarness, overlay/skill-toggle/editor e2e tests
 5. **Base prompt source tracing** (done) — On-demand attribution of Base prompt lines to extensions
-6. **E2e tests for trace** (next) — Fixture extensions, tmux-based trace verification
-7. **Actionable insights** — Suggest which skills/files to trim when budget is tight
+6. **E2e tests for trace** (done) — 8 tests covering hint visibility, trace view, drilldown, navigation, refresh
+7. **Actionable insights** (next) — Suggest which skills/files to trim when budget is tight
 
 ## Open Problems
 
-- E2e tests for trace mode not yet written (need fixture extensions with known snippets)
-- Design doc defers "deep diff mode" (subprocess counterfactual) for pathological cases
+- Base prompt is 100% built-in pi-core content; extensions contribute tools via LLM function-calling API, not system prompt text. Trace architecture supports extension attribution if pi adds this in the future.
+- "Deep diff mode" (subprocess counterfactual) deferred for pathological cases

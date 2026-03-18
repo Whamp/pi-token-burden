@@ -249,3 +249,50 @@ export function parseSystemPrompt(prompt: string): ParsedPrompt {
 
   return { sections, totalChars, totalTokens, skills };
 }
+
+// ---------------------------------------------------------------------------
+// Tool definitions section
+// ---------------------------------------------------------------------------
+
+interface ToolDefinitionInput {
+  name: string;
+  description: string;
+  parameters: unknown;
+}
+
+/**
+ * Build a PromptSection for tool definitions (function schemas sent to the LLM).
+ *
+ * Tool definitions are not part of the system prompt text — they're sent via
+ * the function-calling API — but they consume context window tokens. This
+ * builds a section to make that cost visible.
+ *
+ * Returns null if there are no tools.
+ */
+export function buildToolDefinitionsSection(
+  tools: ToolDefinitionInput[]
+): PromptSection | null {
+  if (tools.length === 0) {
+    return null;
+  }
+
+  const children: { label: string; chars: number; tokens: number }[] = [];
+  let totalTokens = 0;
+  let totalChars = 0;
+
+  for (const tool of tools) {
+    const serialized = JSON.stringify(tool);
+    const tokens = estimateTokens(serialized);
+    const chars = serialized.length;
+    children.push({ label: tool.name, chars, tokens });
+    totalTokens += tokens;
+    totalChars += chars;
+  }
+
+  return {
+    label: `Tool definitions (${String(tools.length)})`,
+    chars: totalChars,
+    tokens: totalTokens,
+    children,
+  };
+}

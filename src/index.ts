@@ -15,7 +15,11 @@ import {
 import type { BasePromptTraceResult } from "./base-trace/index.js";
 import type { LoadedExtension } from "./base-trace/types.js";
 import { DisableMode } from "./enums.js";
-import { estimateTokens, parseSystemPrompt } from "./parser.js";
+import {
+  buildToolDefinitionsSection,
+  estimateTokens,
+  parseSystemPrompt,
+} from "./parser.js";
 import { showReport } from "./report-view.js";
 import { applyChanges, loadSettings } from "./skills-persistence.js";
 import { loadAllSkills } from "./skills.js";
@@ -45,6 +49,15 @@ const extension: ExtensionFactory = (pi) => {
     handler: async (_args, ctx) => {
       const prompt = ctx.getSystemPrompt();
       const parsed = parseSystemPrompt(prompt);
+
+      // Add tool definitions section (function schemas sent via tool-calling API)
+      const allTools = pi.getAllTools();
+      const toolSection = buildToolDefinitionsSection(allTools);
+      if (toolSection) {
+        parsed.sections.push(toolSection);
+        parsed.totalTokens += toolSection.tokens;
+        parsed.totalChars += toolSection.chars;
+      }
 
       const usage = ctx.getContextUsage();
       const contextWindow = usage?.contextWindow ?? ctx.model?.contextWindow;

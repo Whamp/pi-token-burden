@@ -2,9 +2,9 @@ active_branch: main
 initialized: "2026-02-26T21:46:02Z"
 last_commit:
   branch: main
-  hash: f69305e0
-  timestamp: "2026-03-18T13:14:37.009Z"
-  summary: "Implemented Base prompt source tracing (Slices 1-4 of design doc). Added 5 new modules in src/base-trace/ for types, base-line extraction, attribution engine, extension inspector, and cache. Integrated trace mode into BudgetOverlay TUI with 't' key trigger, bucket drilldown, evidence view, refresh. 29 new tests (105 total). All checks pass. Commit: fced41e."
+  hash: 43530ade
+  timestamp: "2026-03-18T13:42:52.924Z"
+  summary: "Completed Slices 5-6 of the base prompt source tracing plan. Added 8 e2e tests for trace mode (hint visibility, trace view, drilldown, navigation, refresh). Fixed pre-existing overlay drilldown test. Updated README with keyboard shortcuts table and trace feature docs. Updated AGENTS.md with new file map, architecture diagram, and test counts. Key discovery: extension tools contribute via the LLM function-calling API, not through the system prompt text — Base prompt is entirely built-in pi-core content. All checks pass (105 unit + 29 e2e). Commits: aff1565, 1de4610."
 sessions:
   - file: "/home/will/.pi/agent/sessions/--home-will-projects-pi-token-burden--/2026-02-26T21-45-50-232Z_43e18b9a-a463-42f5-a332-c6c9a28718fd.jsonl"
     branch: main

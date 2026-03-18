@@ -192,3 +192,24 @@ Primary development branch for `pi-token-burden`, a pi extension for system prom
 - Integrated an interactive "Trace Mode" into the `BudgetOverlay` TUI (triggered by the `t` key on the Base prompt) with support for evidence drill-downs and refresh.
 - Adopted a strict normalization matching model (whitespace collapsing and trimming) to ensure attribution parity with pi-core's internal prompt assembly.
 - Expanded the test suite with 29 new unit and integration tests (105 total), verifying reconciliation between extension, shared, core, and unattributed token buckets.
+
+---
+
+## Commit 43530ade | 2026-03-18T13:42:52.924Z
+
+### Branch Purpose
+
+Primary development branch for `pi-token-burden`, a `pi` extension for system prompt token analysis and skill management, featuring interactive visualization and deterministic source tracing.
+
+### Previous Progress Summary
+
+`pi-token-burden` provides an interactive TUI for analyzing system prompt token usage via BPE tokenization (`o200k_base`). It features a three-state skill management model (Enabled/Hidden/Disabled) and a terminal-handover pattern for editing all prompt components (skills, AGENTS.md, and raw sections) directly from the overlay. It includes a deterministic source-tracing engine for the Base prompt, attributing token usage to specific extensions using a one-pass introspection analyzer and an interactive "Trace Mode" with evidence drill-downs and fingerprint-based caching.
+
+### This Commit's Contribution
+
+- Completed the final implementation phases (Slices 5-6) for Base prompt source tracing, moving the feature from implementation to full verification.
+- Added 8 e2e tests using `TmuxHarness` covering the entire trace lifecycle: hint visibility, trace view rendering, bucket drill-down navigation, and on-demand refresh.
+- Discovered that extension tools contribute via the LLM's function-calling API rather than system prompt text, confirming that the Base prompt consists almost exclusively of built-in pi-core content.
+- Updated the project README with a comprehensive keyboard shortcuts table and detailed documentation for the new tracing feature.
+- Hardened the `BudgetOverlay` drill-down logic and fixed a pre-existing e2e test failure related to section navigation.
+- Updated `AGENTS.md` with an expanded file map, an updated architecture diagram reflecting the `base-trace` subsystem, and verified test counts (105 unit + 29 e2e).

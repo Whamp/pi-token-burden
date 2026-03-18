@@ -188,3 +188,102 @@ describe("parseSystemPrompt()", () => {
     expect(systemMdSection?.content?.length).toBe(systemMdSection?.chars);
   });
 });
+
+describe("buildToolDefinitionsSection()", () => {
+  it("returns null for empty tools array", async () => {
+    const { buildToolDefinitionsSection } = await import("./parser.js");
+    const result = buildToolDefinitionsSection([]);
+    expect(result).toBeNull();
+  });
+
+  it("creates a section with correct label and children count", async () => {
+    const { buildToolDefinitionsSection } = await import("./parser.js");
+    const tools = [
+      {
+        name: "read",
+        description: "Read files",
+        parameters: { type: "object", properties: {} },
+      },
+      {
+        name: "bash",
+        description: "Run commands",
+        parameters: {
+          type: "object",
+          properties: { command: { type: "string" } },
+        },
+      },
+    ];
+    const section = buildToolDefinitionsSection(tools);
+    expect(section).not.toBeNull();
+    expect(section?.label).toContain("Tool definitions");
+    expect(section?.label).toContain("2");
+    expect(section?.children).toHaveLength(2);
+  });
+
+  it("labels children by tool name", async () => {
+    const { buildToolDefinitionsSection } = await import("./parser.js");
+    const tools = [
+      {
+        name: "read",
+        description: "Read files",
+        parameters: { type: "object" },
+      },
+      {
+        name: "bash",
+        description: "Run commands",
+        parameters: { type: "object" },
+      },
+    ];
+    const section = buildToolDefinitionsSection(tools);
+    expect(section?.children?.[0].label).toBe("read");
+    expect(section?.children?.[1].label).toBe("bash");
+  });
+
+  it("counts tokens for each tool based on JSON serialization", async () => {
+    const { buildToolDefinitionsSection } = await import("./parser.js");
+    const tools = [
+      {
+        name: "my_tool",
+        description: "Does something useful",
+        parameters: {
+          type: "object",
+          properties: { input: { type: "string" } },
+        },
+      },
+    ];
+    const section = buildToolDefinitionsSection(tools);
+    expect(section).not.toBeNull();
+    expect(section?.tokens).toBeGreaterThan(0);
+    expect(section?.children?.[0].tokens).toBeGreaterThan(0);
+  });
+
+  it("matches token count to serialized JSON", async () => {
+    const { buildToolDefinitionsSection } = await import("./parser.js");
+    const tool = {
+      name: "my_tool",
+      description: "Does something useful",
+      parameters: { type: "object", properties: { input: { type: "string" } } },
+    };
+    const section = buildToolDefinitionsSection([tool]);
+    const serialized = JSON.stringify(tool);
+    expect(section?.children?.[0].tokens).toBe(estimateTokens(serialized));
+  });
+
+  it("sums child tokens for the section total", async () => {
+    const { buildToolDefinitionsSection } = await import("./parser.js");
+    const tools = [
+      { name: "a", description: "Tool A", parameters: { type: "object" } },
+      {
+        name: "b",
+        description: "Tool B with more text",
+        parameters: { type: "object", properties: { x: { type: "number" } } },
+      },
+    ];
+    const section = buildToolDefinitionsSection(tools);
+    expect(section).not.toBeNull();
+    expect(section?.children).toHaveLength(2);
+    const tokenA = section?.children?.[0].tokens;
+    const tokenB = section?.children?.[1].tokens;
+    expect(section?.tokens).toBe(Number(tokenA) + Number(tokenB));
+  });
+});
