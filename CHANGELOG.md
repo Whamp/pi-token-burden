@@ -22,6 +22,41 @@
 
 - **plan:** Add skill-editor walkthrough and sync memory state ([c09d9d7](https://github.com/Whamp/pi-token-burden/commit/c09d9d7))
 - Update AGENTS.md and README for trace feature ([1de4610](https://github.com/Whamp/pi-token-burden/commit/1de4610))
+- Update README and CHANGELOG for v0.5.0 features ([d426c28](https://github.com/Whamp/pi-token-burden/commit/d426c28))
+
+### 🏡 Chore
+
+- Update memory with tool definitions feature and test count ([30c35a0](https://github.com/Whamp/pi-token-burden/commit/30c35a0))
+
+### ✅ Tests
+
+- **e2e:** Add trace mode tests and fix overlay drilldown ([aff1565](https://github.com/Whamp/pi-token-burden/commit/aff1565))
+
+### ❤️ Contributors
+
+- Will Hampson <will@ggl.slmail.me>
+
+## v0.4.0...main
+
+[compare changes](https://github.com/Whamp/pi-token-burden/compare/v0.4.0...main)
+
+### 🚀 Enhancements
+
+- **trace:** Add on-demand Base prompt source tracing ([fced41e](https://github.com/Whamp/pi-token-burden/commit/fced41e))
+- Show tool definition tokens in budget breakdown ([3ee59b3](https://github.com/Whamp/pi-token-burden/commit/3ee59b3))
+- Open tool definitions in editor via 'e' key ([575639f](https://github.com/Whamp/pi-token-burden/commit/575639f))
+
+### 🩹 Fixes
+
+- Shorten 'Tool definitions' to 'Tools' in stacked bar legend ([fc0872d](https://github.com/Whamp/pi-token-burden/commit/fc0872d))
+- Pad stacked bar legend to fill available width ([2b9c88f](https://github.com/Whamp/pi-token-burden/commit/2b9c88f))
+- Apply dim styling to legend padding for consistent background ([97c8959](https://github.com/Whamp/pi-token-burden/commit/97c8959))
+- **legend:** Remove redundant manual padding ([29758b0](https://github.com/Whamp/pi-token-burden/commit/29758b0))
+
+### 📖 Documentation
+
+- **plan:** Add skill-editor walkthrough and sync memory state ([c09d9d7](https://github.com/Whamp/pi-token-burden/commit/c09d9d7))
+- Update AGENTS.md and README for trace feature ([1de4610](https://github.com/Whamp/pi-token-burden/commit/1de4610))
 
 ### 🏡 Chore
 
