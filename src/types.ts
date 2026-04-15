@@ -35,6 +35,8 @@ export interface PromptSection {
     chars: number;
     tokens: number;
     content?: string;
+    /** Whether this child is currently active (e.g. tool enabled via setActiveTools). */
+    active?: boolean;
   }[];
 }
 
@@ -58,6 +60,8 @@ export interface TableItem {
   content?: string;
   /** Children shown when drilling down. */
   children?: TableItem[];
+  /** Whether this item is currently active (undefined = no active/inactive distinction). */
+  active?: boolean;
 }
 
 // ---------------------------------------------------------------------------

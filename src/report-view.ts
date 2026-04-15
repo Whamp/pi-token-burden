@@ -160,6 +160,7 @@ export function buildTableItems(parsed: ParsedPrompt): TableItem[] {
                     : 0,
                 drillable: false,
                 content: child.content,
+                active: child.active,
               })
             )
             .toSorted((a, b) => b.tokens - a.tokens)
@@ -286,13 +287,24 @@ function renderTableRow(
 ): string {
   const prefix = isSelected ? sgr("36", "▸") : dim("·");
 
+  // Active/inactive status icon (only for items that carry the distinction)
+  let statusIcon = "";
+  let statusWidth = 0;
+  if (item.active === true) {
+    statusIcon = `${sgr("32", "●")} `;
+    statusWidth = 2;
+  } else if (item.active === false) {
+    statusIcon = `${sgr("31", "○")} `;
+    statusWidth = 2;
+  }
+
   const tokenStr = `${fmt(item.tokens)} tokens`;
   const pctStr = `${item.pct.toFixed(1)}%`;
   const suffix = `${tokenStr}   ${pctStr}`;
 
   // Calculate available space for name
   const suffixWidth = visibleWidth(suffix);
-  const prefixWidth = 2; // "▸ " or "· "
+  const prefixWidth = 2 + statusWidth; // "▸ " or "· " + optional "● "
   const gapMin = 2;
   const nameMaxWidth = innerW - prefixWidth - suffixWidth - gapMin - 3;
 
@@ -304,7 +316,7 @@ function renderTableRow(
   const nameWidth = visibleWidth(truncatedName);
   const gap = Math.max(1, innerW - prefixWidth - nameWidth - suffixWidth - 3);
 
-  const content = `${prefix} ${truncatedName}${" ".repeat(gap)}${dim(suffix)}`;
+  const content = `${prefix} ${statusIcon}${truncatedName}${" ".repeat(gap)}${dim(suffix)}`;
 
   return `${dim("│")}${truncateToWidth(` ${content}`, innerW, "…", true)}${dim("│")}`;
 }
@@ -1485,6 +1497,17 @@ class BudgetOverlay {
         lines.push(row(`${dots}  ${dim(countStr)}`));
         lines.push(emptyRow());
       }
+    }
+
+    // Active/inactive legend for tool definitions drilldown
+    if (items.some((item) => item.active !== undefined)) {
+      lines.push(
+        row(
+          dim(
+            `${sgr("32", "●")} active  ${sgr("31", "○")} inactive`
+          )
+        )
+      );
     }
   }
 

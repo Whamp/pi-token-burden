@@ -258,6 +258,7 @@ interface ToolDefinitionInput {
   name: string;
   description: string;
   parameters: unknown;
+  active?: boolean;
 }
 
 /**
@@ -267,6 +268,10 @@ interface ToolDefinitionInput {
  * the function-calling API — but they consume context window tokens. This
  * builds a section to make that cost visible.
  *
+ * Only active tools count toward the section's token and char totals. Inactive
+ * tools are still included as drill-down rows so their hidden cost surface area
+ * remains visible.
+ *
  * Returns null if there are no tools.
  */
 export function buildToolDefinitionsSection(
@@ -275,6 +280,9 @@ export function buildToolDefinitionsSection(
   if (tools.length === 0) {
     return null;
   }
+
+  const activeCount = tools.filter((tool) => tool.active !== false).length;
+  const inactiveCount = tools.length - activeCount;
 
   const children: {
     label: string;
@@ -286,16 +294,30 @@ export function buildToolDefinitionsSection(
   let totalChars = 0;
 
   for (const tool of tools) {
-    const serialized = JSON.stringify(tool, null, 2);
-    const tokens = estimateTokens(serialized);
-    const chars = serialized.length;
-    children.push({ label: tool.name, chars, tokens, content: serialized });
+    const active = tool.active !== false;
+    const serialized = JSON.stringify(
+      {
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters,
+      },
+      null,
+      2
+    );
+    const tokens = active ? estimateTokens(serialized) : 0;
+    const chars = active ? serialized.length : 0;
+    children.push({ label: tool.name, chars, tokens, content: serialized, active });
     totalTokens += tokens;
     totalChars += chars;
   }
 
+  const label =
+    inactiveCount > 0
+      ? `Tool definitions (${String(activeCount)} active, ${String(inactiveCount)} inactive)`
+      : `Tool definitions (${String(activeCount)} active)`;
+
   return {
-    label: `Tool definitions (${String(tools.length)})`,
+    label,
     chars: totalChars,
     tokens: totalTokens,
     children,

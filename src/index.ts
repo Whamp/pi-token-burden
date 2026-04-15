@@ -51,8 +51,13 @@ const extension: ExtensionFactory = (pi) => {
       const parsed = parseSystemPrompt(prompt);
 
       // Add tool definitions section (function schemas sent via tool-calling API)
-      const allTools = pi.getAllTools();
-      const toolSection = buildToolDefinitionsSection(allTools);
+      const activeToolNames = new Set(pi.getActiveTools());
+      const toolSection = buildToolDefinitionsSection(
+        pi.getAllTools().map((tool) => ({
+          ...tool,
+          active: activeToolNames.has(tool.name),
+        }))
+      );
       if (toolSection) {
         parsed.sections.push(toolSection);
         parsed.totalTokens += toolSection.tokens;

@@ -196,7 +196,7 @@ describe("buildToolDefinitionsSection()", () => {
     expect(result).toBeNull();
   });
 
-  it("creates a section with correct label and children count", async () => {
+  it("creates a section with active and inactive counts", async () => {
     const { buildToolDefinitionsSection } = await import("./parser.js");
     const tools = [
       {
@@ -211,16 +211,16 @@ describe("buildToolDefinitionsSection()", () => {
           type: "object",
           properties: { command: { type: "string" } },
         },
+        active: false,
       },
     ];
     const section = buildToolDefinitionsSection(tools);
     expect(section).not.toBeNull();
-    expect(section?.label).toContain("Tool definitions");
-    expect(section?.label).toContain("2");
+    expect(section?.label).toBe("Tool definitions (1 active, 1 inactive)");
     expect(section?.children).toHaveLength(2);
   });
 
-  it("labels children by tool name", async () => {
+  it("carries active state on children", async () => {
     const { buildToolDefinitionsSection } = await import("./parser.js");
     const tools = [
       {
@@ -232,14 +232,17 @@ describe("buildToolDefinitionsSection()", () => {
         name: "bash",
         description: "Run commands",
         parameters: { type: "object" },
+        active: false,
       },
     ];
     const section = buildToolDefinitionsSection(tools);
     expect(section?.children?.[0].label).toBe("read");
+    expect(section?.children?.[0].active).toBe(true);
     expect(section?.children?.[1].label).toBe("bash");
+    expect(section?.children?.[1].active).toBe(false);
   });
 
-  it("counts tokens for each tool based on JSON serialization", async () => {
+  it("counts tokens for active tools based on JSON serialization", async () => {
     const { buildToolDefinitionsSection } = await import("./parser.js");
     const tools = [
       {
@@ -257,7 +260,7 @@ describe("buildToolDefinitionsSection()", () => {
     expect(section?.children?.[0].tokens).toBeGreaterThan(0);
   });
 
-  it("matches token count to serialized JSON", async () => {
+  it("matches active tool token count to serialized JSON", async () => {
     const { buildToolDefinitionsSection } = await import("./parser.js");
     const tool = {
       name: "my_tool",
@@ -269,7 +272,7 @@ describe("buildToolDefinitionsSection()", () => {
     expect(section?.children?.[0].tokens).toBe(estimateTokens(serialized));
   });
 
-  it("sums child tokens for the section total", async () => {
+  it("excludes inactive tools from section totals", async () => {
     const { buildToolDefinitionsSection } = await import("./parser.js");
     const tools = [
       { name: "a", description: "Tool A", parameters: { type: "object" } },
@@ -277,13 +280,20 @@ describe("buildToolDefinitionsSection()", () => {
         name: "b",
         description: "Tool B with more text",
         parameters: { type: "object", properties: { x: { type: "number" } } },
+        active: false,
       },
     ];
     const section = buildToolDefinitionsSection(tools);
+    const serializedActive = JSON.stringify(
+      { name: "a", description: "Tool A", parameters: { type: "object" } },
+      null,
+      2
+    );
+
     expect(section).not.toBeNull();
     expect(section?.children).toHaveLength(2);
-    const tokenA = section?.children?.[0].tokens;
-    const tokenB = section?.children?.[1].tokens;
-    expect(section?.tokens).toBe(Number(tokenA) + Number(tokenB));
+    expect(section?.children?.[0].tokens).toBe(estimateTokens(serializedActive));
+    expect(section?.children?.[1].tokens).toBe(0);
+    expect(section?.tokens).toBe(estimateTokens(serializedActive));
   });
 });

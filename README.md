@@ -96,9 +96,10 @@ Press `Enter` on any bucket to see line-level evidence with per-line token count
 
 ### Tool definitions
 
-Tool definitions are the function schemas (name, description, parameter JSON schema) sent to the LLM alongside the system prompt. They consume context window tokens but were previously invisible in the budget. Now they appear as a drillable section where you can:
+Tool definitions are the function schemas (name, description, parameter JSON schema) sent to the LLM alongside the system prompt. The tool burden view respects pi's current active tool set: active tools count toward the token total, while inactive tools remain visible in drilldown as `(inactive)` rows with zero token cost. In the drilldown you can:
 
-- View per-tool token costs
+- View per-tool token costs for the currently active tool set
+- Inspect inactive tools without counting them against the budget
 - Press `e` on any tool to see its full JSON definition in your editor
 
 ### What each section measures
@@ -109,7 +110,7 @@ Tool definitions are the function schemas (name, description, parameter JSON sch
 | **SYSTEM.md / APPEND_SYSTEM.md** | Your custom system prompt overrides                              |
 | **AGENTS.md files**              | Each AGENTS.md file, listed individually                         |
 | **Skills**                       | The `<available_skills>` block, with per-skill breakdown         |
-| **Tool definitions**             | LLM function schemas (name, description, parameters)             |
+| **Tool definitions**             | Active LLM function schemas, plus inactive tools shown in drilldown |
 | **Metadata**                     | The `Current date and time` / `Current working directory` footer |
 
 ### Token estimation
