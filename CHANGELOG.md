@@ -1,6 +1,26 @@
 # Changelog
 
 
+## v0.5.0...main
+
+[compare changes](https://github.com/Whamp/pi-token-burden/compare/v0.5.0...main)
+
+### 🚀 Enhancements
+
+- Respect active tool state in token burden ([07357de](https://github.com/Whamp/pi-token-burden/commit/07357de))
+
+### 🩹 Fixes
+
+- Restore tools view interactions ([eedd3ce](https://github.com/Whamp/pi-token-burden/commit/eedd3ce))
+
+### 📖 Documentation
+
+- Update screenshots for v0.5.0 features ([8ee6027](https://github.com/Whamp/pi-token-burden/commit/8ee6027))
+
+### ❤️ Contributors
+
+- Will Hampson <will@ggl.slmail.me>
+
 ## v0.4.0...main
 
 [compare changes](https://github.com/Whamp/pi-token-burden/compare/v0.4.0...main)
