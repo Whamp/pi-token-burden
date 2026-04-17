@@ -40,6 +40,11 @@ interface MockTui {
   start: ReturnType<typeof vi.fn>;
 }
 
+interface MountedOverlay {
+  overlay: OverlayComponent;
+  tui: MockTui;
+}
+
 type OverlayFactory = (
   tui: MockTui,
   theme: unknown,
@@ -47,13 +52,16 @@ type OverlayFactory = (
   done: (value: null) => void
 ) => OverlayComponent;
 
-async function mountOverlay(parsed: ParsedPrompt): Promise<OverlayComponent> {
+async function mountOverlayWithTui(
+  parsed: ParsedPrompt
+): Promise<MountedOverlay> {
   let component: OverlayComponent | undefined;
+  let tui: MockTui | undefined;
 
   const ctx = {
     ui: {
       custom: vi.fn(async (factory: OverlayFactory) => {
-        const tui = {
+        tui = {
           requestRender: vi.fn(),
           stop: vi.fn(),
           start: vi.fn(),
@@ -69,7 +77,16 @@ async function mountOverlay(parsed: ParsedPrompt): Promise<OverlayComponent> {
     throw new Error("Overlay component was not created");
   }
 
-  return component;
+  if (!tui) {
+    throw new Error("Overlay TUI was not created");
+  }
+
+  return { overlay: component, tui };
+}
+
+async function mountOverlay(parsed: ParsedPrompt): Promise<OverlayComponent> {
+  const { overlay } = await mountOverlayWithTui(parsed);
+  return overlay;
 }
 
 describe("buildTableItems — table items", () => {
@@ -308,6 +325,50 @@ describe("showReport — tools view", () => {
     expect(text).not.toContain("bash");
   });
 
+  it("expands inactive tools after navigating past active tools", async () => {
+    const parsed = {
+      sections: [
+        {
+          label: "Tool definitions (1 active, 2 total)",
+          chars: 100,
+          tokens: 10,
+          children: [{ label: "read", chars: 40, tokens: 10 }],
+          tools: {
+            active: [
+              {
+                name: "read",
+                chars: 40,
+                tokens: 10,
+                content: '{"name":"read"}',
+              },
+            ],
+            inactive: [
+              {
+                name: "bash",
+                chars: 50,
+                tokens: 12,
+                content: '{"name":"bash"}',
+              },
+            ],
+          },
+        },
+      ],
+      totalChars: 100,
+      totalTokens: 10,
+      skills: [],
+    } as ParsedPrompt;
+
+    const overlay = await mountOverlay(parsed);
+    overlay.handleInput("\r");
+    overlay.handleInput("\u001B[B");
+    overlay.handleInput("\r");
+
+    const text = overlay.render(120).join("\n");
+
+    expect(text).toContain("bash");
+    expect(text).toContain("+12 tok if enabled");
+  });
+
   it("expands Inactive to show per-tool counterfactual rows", async () => {
     const parsed = {
       sections: [
@@ -342,6 +403,135 @@ describe("showReport — tools view", () => {
 
     expect(text).toContain("bash");
     expect(text).toContain("+12 tok if enabled");
+  });
+
+  it("allows selecting inactive tools when no active tools are present", async () => {
+    const parsed = {
+      sections: [
+        {
+          label: "Tool definitions (0 active, 1 total)",
+          chars: 50,
+          tokens: 0,
+          children: [],
+          tools: {
+            active: [],
+            inactive: [
+              {
+                name: "bash",
+                chars: 50,
+                tokens: 12,
+                content: '{"name":"bash"}',
+              },
+            ],
+          },
+        },
+      ],
+      totalChars: 50,
+      totalTokens: 0,
+      skills: [],
+    } as ParsedPrompt;
+
+    const overlay = await mountOverlay(parsed);
+    overlay.handleInput("\r");
+    overlay.handleInput("\r");
+    overlay.handleInput("\u001B[B");
+
+    const selectedLine = overlay.render(120).find((line) => line.includes("▸"));
+
+    expect(selectedLine).toContain("bash");
+  });
+
+  it("opens the selected tool definition in the editor", async () => {
+    const savedVisual = process.env.VISUAL;
+    const savedEditor = process.env.EDITOR;
+    process.env.VISUAL = "";
+    process.env.EDITOR = "true";
+
+    try {
+      const parsed = {
+        sections: [
+          {
+            label: "Tool definitions (1 active, 2 total)",
+            chars: 100,
+            tokens: 10,
+            children: [{ label: "read", chars: 40, tokens: 10 }],
+            tools: {
+              active: [
+                {
+                  name: "read",
+                  chars: 40,
+                  tokens: 10,
+                  content: '{"name":"read"}',
+                },
+              ],
+              inactive: [
+                {
+                  name: "bash",
+                  chars: 50,
+                  tokens: 12,
+                  content: '{"name":"bash"}',
+                },
+              ],
+            },
+          },
+        ],
+        totalChars: 100,
+        totalTokens: 10,
+        skills: [],
+      } as ParsedPrompt;
+
+      const { overlay, tui } = await mountOverlayWithTui(parsed);
+      overlay.handleInput("\r");
+      overlay.handleInput("e");
+
+      expect(tui.stop).toHaveBeenCalledWith();
+      expect(tui.start).toHaveBeenCalledWith();
+      expect(tui.requestRender).toHaveBeenCalledWith(true);
+    } finally {
+      process.env.VISUAL = savedVisual;
+      process.env.EDITOR = savedEditor;
+    }
+  });
+
+  it("shows a view hint when a tool row is selected", async () => {
+    const parsed = {
+      sections: [
+        {
+          label: "Tool definitions (1 active, 2 total)",
+          chars: 100,
+          tokens: 10,
+          children: [{ label: "read", chars: 40, tokens: 10 }],
+          tools: {
+            active: [
+              {
+                name: "read",
+                chars: 40,
+                tokens: 10,
+                content: '{"name":"read"}',
+              },
+            ],
+            inactive: [
+              {
+                name: "bash",
+                chars: 50,
+                tokens: 12,
+                content: '{"name":"bash"}',
+              },
+            ],
+          },
+        },
+      ],
+      totalChars: 100,
+      totalTokens: 10,
+      skills: [],
+    } as ParsedPrompt;
+
+    const overlay = await mountOverlay(parsed);
+    overlay.handleInput("\r");
+
+    const text = overlay.render(120).join("\n");
+
+    expect(text).toContain("view");
   });
 });
 

@@ -343,6 +343,7 @@ interface ToolsRow {
   kind: "active-tool" | "inactive-header" | "inactive-tool";
   label: string;
   tokens?: number;
+  content?: string;
 }
 
 class BudgetOverlay {
@@ -527,7 +528,7 @@ class BudgetOverlay {
     if (this.state.mode === "skill-toggle") {
       itemCount = this.getFilteredSkills().length;
     } else if (this.state.mode === "tools") {
-      itemCount = this.getVisibleTools().length;
+      itemCount = this.getToolsRows().length;
     } else if (this.state.mode === "trace") {
       itemCount = this.state.traceResult?.buckets.length ?? 0;
     } else if (this.state.mode === "trace-drilldown") {
@@ -643,6 +644,11 @@ class BudgetOverlay {
         this.state.toolsInactiveExpanded = !this.state.toolsInactiveExpanded;
         this.invalidate();
       }
+      return;
+    }
+
+    if (data === "e") {
+      this.openSelectedToolInEditor();
     }
   }
 
@@ -663,6 +669,7 @@ class BudgetOverlay {
       kind: "active-tool",
       label: tool.name,
       tokens: tool.tokens,
+      content: tool.content,
     }));
 
     const inactive = this.getInactiveTools();
@@ -682,6 +689,7 @@ class BudgetOverlay {
             kind: "inactive-tool" as const,
             label: tool.name,
             tokens: tool.tokens,
+            content: tool.content,
           }))
         );
       }
@@ -918,13 +926,17 @@ class BudgetOverlay {
 
     // If it has content (tool definition, etc.), write to temp file
     if (item.content) {
-      const tempPath = join(
-        tmpdir(),
-        `pi-token-burden-${sanitizeLabel(item.label)}-${randomUUID().slice(0, 8)}.json`
-      );
-      writeFileSync(tempPath, item.content, "utf8");
-      this.launchEditor(tempPath);
+      this.openJsonContentInEditor(item.label, item.content);
     }
+  }
+
+  private openSelectedToolInEditor(): void {
+    const tool = this.getToolsRows()[this.state.selectedIndex];
+    if (!tool?.content) {
+      return;
+    }
+
+    this.openJsonContentInEditor(tool.label, tool.content);
   }
 
   private openSectionInEditor(): void {
@@ -966,6 +978,15 @@ class BudgetOverlay {
       this.tui.start();
       this.tui.requestRender(true);
     }
+  }
+
+  private openJsonContentInEditor(label: string, content: string): void {
+    const tempPath = join(
+      tmpdir(),
+      `pi-token-burden-${sanitizeLabel(label)}-${randomUUID().slice(0, 8)}.json`
+    );
+    writeFileSync(tempPath, content, "utf8");
+    this.launchEditor(tempPath);
   }
 
   private getFilteredSkills(): SkillInfo[] {
@@ -1586,7 +1607,9 @@ class BudgetOverlay {
     if (this.state.mode === "skill-toggle") {
       hints = `${italic("↑↓")} navigate  ${italic("enter")} cycle state  ${italic("e")} edit  ${italic("/")} search  ${italic("ctrl+s")} save  ${italic("esc")} back`;
     } else if (this.state.mode === "tools") {
-      hints = `${italic("↑↓")} navigate  ${italic("enter")} toggle  ${italic("esc")} back`;
+      const selectedTool = this.getToolsRows()[this.state.selectedIndex];
+      const viewHint = selectedTool?.content ? `  ${italic("e")} view` : "";
+      hints = `${italic("↑↓")} navigate  ${italic("enter")} toggle${viewHint}  ${italic("esc")} back`;
     } else if (this.state.mode === "trace") {
       hints = `${italic("↑↓")} navigate  ${italic("enter")} details  ${italic("e")} open  ${italic("r")} refresh  ${italic("esc")} back`;
     } else if (this.state.mode === "trace-drilldown") {

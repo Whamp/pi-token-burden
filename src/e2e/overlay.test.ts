@@ -173,6 +173,15 @@ describe("overlay — tools view with inactive tools", () => {
     expect(collapsed).toContain("if enabled");
     expect(collapsed).not.toContain("bash");
   });
+
+  it("should expand inactive tools after navigating past active tools", () => {
+    harness.sendKeys("Down");
+    harness.sendKeys("Enter");
+
+    const expanded = harness.waitFor("bash", 5000).join("\n");
+    expect(expanded).toContain("bash");
+    expect(expanded).toContain("if enabled");
+  });
 });
 
 describe("overlay — open in editor", () => {
@@ -264,5 +273,20 @@ describe("overlay — open in editor", () => {
     const afterText = afterLines.join("\n");
     expect(afterText).toContain("view");
     expect(afterText).toContain("drill-in");
+  });
+
+  it("should open editor on 'e' in tools view and recover overlay", () => {
+    navigateToToolsView(harness);
+
+    const beforeText = harness.capture().join("\n");
+    expect(beforeText).toContain("view");
+
+    harness.sendKeys("e");
+    sleepMs(1500);
+
+    const afterLines = harness.waitFor(/Active \(/, 10_000);
+    const afterText = afterLines.join("\n");
+    expect(afterText).toContain("Tools");
+    expect(afterText).toContain("view");
   });
 });
