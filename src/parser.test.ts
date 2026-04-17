@@ -196,6 +196,46 @@ describe("buildToolDefinitionsSection()", () => {
     expect(result).toBeNull();
   });
 
+  it("counts only active tools while exposing active and total counts in the label", async () => {
+    const { buildToolDefinitionsSection } = await import("./parser.js");
+    const tools = [
+      {
+        name: "read",
+        description: "Read files",
+        parameters: { type: "object", properties: {} },
+      },
+      {
+        name: "bash",
+        description: "Run commands",
+        parameters: { type: "object", properties: {} },
+      },
+      {
+        name: "write",
+        description: "Write files",
+        parameters: { type: "object", properties: {} },
+      },
+    ];
+
+    const section = buildToolDefinitionsSection(tools, ["read", "write"]);
+
+    expect(section).not.toBeNull();
+    expect(section?.label).toBe("Tool definitions (2 active, 3 total)");
+    expect(section?.children?.map((child) => child.label)).toStrictEqual([
+      "read",
+      "write",
+    ]);
+
+    const expectedTokens = ["read", "write"]
+      .map((name) => tools.find((tool) => tool.name === name))
+      .filter((tool): tool is (typeof tools)[number] => tool !== undefined)
+      .reduce(
+        (sum, tool) => sum + estimateTokens(JSON.stringify(tool, null, 2)),
+        0
+      );
+
+    expect(section?.tokens).toBe(expectedTokens);
+  });
+
   it("creates a section with correct label and children count", async () => {
     const { buildToolDefinitionsSection } = await import("./parser.js");
     const tools = [

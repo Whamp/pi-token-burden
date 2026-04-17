@@ -24,12 +24,25 @@ export interface BarSegment {
   width: number;
 }
 
+export interface ToolEntry {
+  name: string;
+  chars: number;
+  tokens: number;
+  content: string;
+}
+
+export interface ToolSectionData {
+  active: ToolEntry[];
+  inactive: ToolEntry[];
+}
+
 export interface PromptSection {
   label: string;
   chars: number;
   tokens: number;
   /** Raw text of this section from the system prompt. */
   content?: string;
+  tools?: ToolSectionData;
   children?: {
     label: string;
     chars: number;
@@ -56,6 +69,7 @@ export interface TableItem {
   drillable: boolean;
   /** Raw text of this section from the system prompt. */
   content?: string;
+  tools?: ToolSectionData;
   /** Children shown when drilling down. */
   children?: TableItem[];
 }

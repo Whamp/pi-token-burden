@@ -52,7 +52,8 @@ const extension: ExtensionFactory = (pi) => {
 
       // Add tool definitions section (function schemas sent via tool-calling API)
       const allTools = pi.getAllTools();
-      const toolSection = buildToolDefinitionsSection(allTools);
+      const activeTools = pi.getActiveTools();
+      const toolSection = buildToolDefinitionsSection(allTools, activeTools);
       if (toolSection) {
         parsed.sections.push(toolSection);
         parsed.totalTokens += toolSection.tokens;

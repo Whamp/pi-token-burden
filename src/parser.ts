@@ -16,6 +16,7 @@ import type {
   ParsedPrompt,
   PromptSection,
   SkillEntry,
+  ToolEntry,
 } from "./types.js";
 
 export type { ParsedPrompt };
@@ -270,11 +271,35 @@ interface ToolDefinitionInput {
  * Returns null if there are no tools.
  */
 export function buildToolDefinitionsSection(
-  tools: ToolDefinitionInput[]
+  tools: ToolDefinitionInput[],
+  activeToolNames?: string[]
 ): PromptSection | null {
   if (tools.length === 0) {
     return null;
   }
+
+  const activeSet = activeToolNames ? new Set(activeToolNames) : null;
+  const countedTools = activeSet
+    ? tools.filter((tool) => activeSet.has(tool.name))
+    : tools;
+  const inactiveTools = activeSet
+    ? tools.filter((tool) => !activeSet.has(tool.name))
+    : [];
+
+  function serializeTools(input: ToolDefinitionInput[]): ToolEntry[] {
+    return input.map((tool) => {
+      const serialized = JSON.stringify(tool, null, 2);
+      return {
+        name: tool.name,
+        chars: serialized.length,
+        tokens: estimateTokens(serialized),
+        content: serialized,
+      };
+    });
+  }
+
+  const activeEntries = serializeTools(countedTools);
+  const inactiveEntries = serializeTools(inactiveTools);
 
   const children: {
     label: string;
@@ -285,19 +310,29 @@ export function buildToolDefinitionsSection(
   let totalTokens = 0;
   let totalChars = 0;
 
-  for (const tool of tools) {
-    const serialized = JSON.stringify(tool, null, 2);
-    const tokens = estimateTokens(serialized);
-    const chars = serialized.length;
-    children.push({ label: tool.name, chars, tokens, content: serialized });
-    totalTokens += tokens;
-    totalChars += chars;
+  for (const tool of activeEntries) {
+    children.push({
+      label: tool.name,
+      chars: tool.chars,
+      tokens: tool.tokens,
+      content: tool.content,
+    });
+    totalTokens += tool.tokens;
+    totalChars += tool.chars;
   }
 
+  const label = activeSet
+    ? `Tool definitions (${String(countedTools.length)} active, ${String(tools.length)} total)`
+    : `Tool definitions (${String(tools.length)})`;
+
   return {
-    label: `Tool definitions (${String(tools.length)})`,
+    label,
     chars: totalChars,
     tokens: totalTokens,
+    tools: {
+      active: activeEntries,
+      inactive: inactiveEntries,
+    },
     children,
   };
 }

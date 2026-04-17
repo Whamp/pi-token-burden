@@ -24,6 +24,7 @@ import type {
   SkillInfo,
   SkillToggleResult,
   TableItem,
+  ToolEntry,
 } from "./types.js";
 import { buildBarSegments, fuzzyFilter } from "./utils.js";
 
@@ -170,8 +171,9 @@ export function buildTableItems(parsed: ParsedPrompt): TableItem[] {
         tokens: section.tokens,
         chars: section.chars,
         pct,
-        drillable: (children?.length ?? 0) > 0,
+        drillable: (children?.length ?? 0) > 0 || Boolean(section.tools),
         content: section.content,
+        tools: section.tools,
         children,
       };
     })
@@ -316,6 +318,7 @@ function renderTableRow(
 type Mode =
   | "sections"
   | "drilldown"
+  | "tools"
   | "skill-toggle"
   | "trace"
   | "trace-drilldown";
@@ -327,11 +330,19 @@ interface OverlayState {
   searchActive: boolean;
   searchQuery: string;
   drilldownSection: TableItem | null;
+  toolsSection: TableItem | null;
+  toolsInactiveExpanded: boolean;
   pendingChanges: Map<string, DisableMode>;
   confirmingDiscard: boolean;
   traceResult: BasePromptTraceResult | null;
   traceLoading: boolean;
   traceDrilldownBucket: TraceBucket | null;
+}
+
+interface ToolsRow {
+  kind: "active-tool" | "inactive-header" | "inactive-tool";
+  label: string;
+  tokens?: number;
 }
 
 class BudgetOverlay {
@@ -342,6 +353,8 @@ class BudgetOverlay {
     searchActive: false,
     searchQuery: "",
     drilldownSection: null,
+    toolsSection: null,
+    toolsInactiveExpanded: false,
     pendingChanges: new Map(),
     confirmingDiscard: false,
     traceResult: null,
@@ -397,6 +410,11 @@ class BudgetOverlay {
   handleInput(data: string): void {
     if (this.state.mode === "skill-toggle") {
       this.handleSkillToggleInput(data);
+      return;
+    }
+
+    if (this.state.mode === "tools") {
+      this.handleToolsInput(data);
       return;
     }
 
@@ -508,6 +526,8 @@ class BudgetOverlay {
     let itemCount: number;
     if (this.state.mode === "skill-toggle") {
       itemCount = this.getFilteredSkills().length;
+    } else if (this.state.mode === "tools") {
+      itemCount = this.getVisibleTools().length;
     } else if (this.state.mode === "trace") {
       itemCount = this.state.traceResult?.buckets.length ?? 0;
     } else if (this.state.mode === "trace-drilldown") {
@@ -562,6 +582,18 @@ class BudgetOverlay {
       return;
     }
 
+    if (selected.tools) {
+      this.state.mode = "tools";
+      this.state.toolsSection = selected;
+      this.state.toolsInactiveExpanded = false;
+      this.state.selectedIndex = 0;
+      this.state.scrollOffset = 0;
+      this.state.searchActive = false;
+      this.state.searchQuery = "";
+      this.invalidate();
+      return;
+    }
+
     this.state.mode = "drilldown";
     this.state.drilldownSection = selected;
     this.state.selectedIndex = 0;
@@ -582,6 +614,80 @@ class BudgetOverlay {
     }
 
     return baseItems;
+  }
+
+  private handleToolsInput(data: string): void {
+    if (matchesKey(data, "escape")) {
+      this.state.mode = "sections";
+      this.state.toolsSection = null;
+      this.state.toolsInactiveExpanded = false;
+      this.state.selectedIndex = 0;
+      this.state.scrollOffset = 0;
+      this.invalidate();
+      return;
+    }
+
+    if (matchesKey(data, "up")) {
+      this.moveSelection(-1);
+      return;
+    }
+
+    if (matchesKey(data, "down")) {
+      this.moveSelection(1);
+      return;
+    }
+
+    if (matchesKey(data, "enter") || data === " ") {
+      const row = this.getToolsRows()[this.state.selectedIndex];
+      if (row?.kind === "inactive-header") {
+        this.state.toolsInactiveExpanded = !this.state.toolsInactiveExpanded;
+        this.invalidate();
+      }
+    }
+  }
+
+  private getVisibleTools(): ToolEntry[] {
+    return (this.state.toolsSection?.tools?.active ?? []).toSorted(
+      (a, b) => b.tokens - a.tokens
+    );
+  }
+
+  private getInactiveTools(): ToolEntry[] {
+    return (this.state.toolsSection?.tools?.inactive ?? []).toSorted(
+      (a, b) => b.tokens - a.tokens
+    );
+  }
+
+  private getToolsRows(): ToolsRow[] {
+    const rows: ToolsRow[] = this.getVisibleTools().map((tool) => ({
+      kind: "active-tool",
+      label: tool.name,
+      tokens: tool.tokens,
+    }));
+
+    const inactive = this.getInactiveTools();
+    if (inactive.length > 0) {
+      const inactiveTokens = inactive.reduce(
+        (sum, tool) => sum + tool.tokens,
+        0
+      );
+      rows.push({
+        kind: "inactive-header",
+        label: `Inactive (${String(inactive.length)}, +${fmt(inactiveTokens)} tok if enabled)`,
+      });
+
+      if (this.state.toolsInactiveExpanded) {
+        rows.push(
+          ...inactive.map((tool) => ({
+            kind: "inactive-tool" as const,
+            label: tool.name,
+            tokens: tool.tokens,
+          }))
+        );
+      }
+    }
+
+    return rows;
   }
 
   // -----------------------------------------------------------------------
@@ -1348,6 +1454,80 @@ class BudgetOverlay {
     }
   }
 
+  private renderToolsView(
+    lines: string[],
+    innerW: number,
+    row: (content: string) => string,
+    emptyRow: () => string,
+    centerRow: (content: string) => string
+  ): void {
+    lines.push(emptyRow());
+
+    const breadcrumb = `${bold("Tools")}  ${dim("← esc to go back")}`;
+    lines.push(row(breadcrumb));
+    lines.push(emptyRow());
+
+    const activeTools = this.getVisibleTools();
+    const rows = this.getToolsRows();
+
+    lines.push(row(bold(`Active (${String(activeTools.length)})`)));
+    lines.push(emptyRow());
+
+    if (rows.length === 0) {
+      lines.push(centerRow(dim(italic("No active tools"))));
+      lines.push(emptyRow());
+      return;
+    }
+
+    const startIdx = this.state.scrollOffset;
+    const endIdx = Math.min(startIdx + MAX_VISIBLE_ROWS, rows.length);
+
+    for (let i = startIdx; i < endIdx; i++) {
+      const tool = rows[i];
+      const isSelected = i === this.state.selectedIndex;
+      if (tool.kind === "inactive-header") {
+        const prefix = isSelected ? sgr("36", "▸") : dim("·");
+        const label = isSelected
+          ? bold(sgr("36", tool.label))
+          : dim(tool.label);
+        lines.push(row(`${prefix} ${label}`));
+        continue;
+      }
+
+      const prefix = isSelected ? sgr("36", "▸") : dim("·");
+      const nameStr = isSelected ? bold(sgr("36", tool.label)) : tool.label;
+      const tokenStr =
+        tool.kind === "inactive-tool"
+          ? `+${fmt(tool.tokens ?? 0)} tok if enabled`
+          : `${fmt(tool.tokens ?? 0)} tok`;
+
+      const suffixWidth = visibleWidth(tokenStr);
+      const prefixWidth = 2;
+      const nameMaxWidth = innerW - prefixWidth - suffixWidth - 4;
+      const truncatedName = truncateToWidth(nameStr, nameMaxWidth, "…");
+      const nameWidth = visibleWidth(truncatedName);
+      const gap = Math.max(
+        1,
+        innerW - prefixWidth - nameWidth - suffixWidth - 3
+      );
+
+      const content = `${prefix} ${truncatedName}${" ".repeat(gap)}${dim(tokenStr)}`;
+      lines.push(row(content));
+    }
+
+    lines.push(emptyRow());
+
+    if (rows.length > MAX_VISIBLE_ROWS) {
+      const progress = Math.round(
+        ((this.state.selectedIndex + 1) / rows.length) * 10
+      );
+      const dots = rainbowDots(progress, 10);
+      const countStr = `${this.state.selectedIndex + 1}/${rows.length}`;
+      lines.push(row(`${dots}  ${dim(countStr)}`));
+      lines.push(emptyRow());
+    }
+  }
+
   // -----------------------------------------------------------------------
   // Rendering
   // -----------------------------------------------------------------------
@@ -1387,6 +1567,8 @@ class BudgetOverlay {
     // Zone 3: Interactive table, skill toggle, or trace
     if (this.state.mode === "skill-toggle") {
       this.renderSkillToggle(lines, innerW, row, emptyRow, centerRow);
+    } else if (this.state.mode === "tools") {
+      this.renderToolsView(lines, innerW, row, emptyRow, centerRow);
     } else if (
       this.state.mode === "trace" ||
       this.state.mode === "trace-drilldown"
@@ -1403,6 +1585,8 @@ class BudgetOverlay {
     let hints: string;
     if (this.state.mode === "skill-toggle") {
       hints = `${italic("↑↓")} navigate  ${italic("enter")} cycle state  ${italic("e")} edit  ${italic("/")} search  ${italic("ctrl+s")} save  ${italic("esc")} back`;
+    } else if (this.state.mode === "tools") {
+      hints = `${italic("↑↓")} navigate  ${italic("enter")} toggle  ${italic("esc")} back`;
     } else if (this.state.mode === "trace") {
       hints = `${italic("↑↓")} navigate  ${italic("enter")} details  ${italic("e")} open  ${italic("r")} refresh  ${italic("esc")} back`;
     } else if (this.state.mode === "trace-drilldown") {

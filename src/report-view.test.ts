@@ -28,6 +28,50 @@ function summarizeItems(
   }));
 }
 
+interface OverlayComponent {
+  render(width: number): string[];
+  invalidate(): void;
+  handleInput(data: string): void;
+}
+
+interface MockTui {
+  requestRender: ReturnType<typeof vi.fn>;
+  stop: ReturnType<typeof vi.fn>;
+  start: ReturnType<typeof vi.fn>;
+}
+
+type OverlayFactory = (
+  tui: MockTui,
+  theme: unknown,
+  kb: unknown,
+  done: (value: null) => void
+) => OverlayComponent;
+
+async function mountOverlay(parsed: ParsedPrompt): Promise<OverlayComponent> {
+  let component: OverlayComponent | undefined;
+
+  const ctx = {
+    ui: {
+      custom: vi.fn(async (factory: OverlayFactory) => {
+        const tui = {
+          requestRender: vi.fn(),
+          stop: vi.fn(),
+          start: vi.fn(),
+        };
+        component = factory(tui, undefined, undefined, vi.fn());
+      }),
+    },
+  };
+
+  await showReport(parsed, undefined, ctx as never);
+
+  if (!component) {
+    throw new Error("Overlay component was not created");
+  }
+
+  return component;
+}
+
 describe("buildTableItems — table items", () => {
   it("should mark Skills section as drillable", () => {
     const parsed: ParsedPrompt = {
@@ -174,6 +218,130 @@ describe("buildTableItems — table items", () => {
     expect(items.find((i) => i.label.startsWith("Metadata"))?.content).toBe(
       "Current date and time: Monday"
     );
+  });
+});
+
+describe("showReport — tools view", () => {
+  it("opens a dedicated tools view with Active expanded", async () => {
+    const parsed = {
+      sections: [
+        {
+          label: "Tool definitions (1 active, 2 total)",
+          chars: 100,
+          tokens: 10,
+          children: [{ label: "read", chars: 40, tokens: 10 }],
+          tools: {
+            active: [
+              {
+                name: "read",
+                chars: 40,
+                tokens: 10,
+                content: '{"name":"read"}',
+              },
+            ],
+            inactive: [
+              {
+                name: "bash",
+                chars: 50,
+                tokens: 12,
+                content: '{"name":"bash"}',
+              },
+            ],
+          },
+        },
+      ],
+      totalChars: 100,
+      totalTokens: 10,
+      skills: [],
+    } as ParsedPrompt;
+
+    const overlay = await mountOverlay(parsed);
+    overlay.handleInput("\r");
+
+    const text = overlay.render(120).join("\n");
+
+    expect(text).toContain("Active");
+    expect(text).toContain("read");
+    expect(text).toContain("10 tok");
+    expect(text).not.toContain("bash");
+  });
+
+  it("shows Inactive as a collapsed counterfactual group by default", async () => {
+    const parsed = {
+      sections: [
+        {
+          label: "Tool definitions (1 active, 2 total)",
+          chars: 100,
+          tokens: 10,
+          children: [{ label: "read", chars: 40, tokens: 10 }],
+          tools: {
+            active: [
+              {
+                name: "read",
+                chars: 40,
+                tokens: 10,
+                content: '{"name":"read"}',
+              },
+            ],
+            inactive: [
+              {
+                name: "bash",
+                chars: 50,
+                tokens: 12,
+                content: '{"name":"bash"}',
+              },
+            ],
+          },
+        },
+      ],
+      totalChars: 100,
+      totalTokens: 10,
+      skills: [],
+    } as ParsedPrompt;
+
+    const overlay = await mountOverlay(parsed);
+    overlay.handleInput("\r");
+
+    const text = overlay.render(120).join("\n");
+
+    expect(text).toContain("Inactive (1, +12 tok if enabled)");
+    expect(text).not.toContain("bash");
+  });
+
+  it("expands Inactive to show per-tool counterfactual rows", async () => {
+    const parsed = {
+      sections: [
+        {
+          label: "Tool definitions (0 active, 1 total)",
+          chars: 50,
+          tokens: 0,
+          children: [],
+          tools: {
+            active: [],
+            inactive: [
+              {
+                name: "bash",
+                chars: 50,
+                tokens: 12,
+                content: '{"name":"bash"}',
+              },
+            ],
+          },
+        },
+      ],
+      totalChars: 50,
+      totalTokens: 0,
+      skills: [],
+    } as ParsedPrompt;
+
+    const overlay = await mountOverlay(parsed);
+    overlay.handleInput("\r");
+    overlay.handleInput("\r");
+
+    const text = overlay.render(120).join("\n");
+
+    expect(text).toContain("bash");
+    expect(text).toContain("+12 tok if enabled");
   });
 });
 

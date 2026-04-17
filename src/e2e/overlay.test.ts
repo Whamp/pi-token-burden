@@ -1,4 +1,7 @@
 import { execSync } from "node:child_process";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 
 import { TmuxHarness } from "./tmux-harness.js";
 
@@ -6,11 +9,33 @@ function sleepMs(ms: number): void {
   execSync(`sleep ${(ms / 1000).toFixed(3)}`);
 }
 
+function navigateToToolsView(harness: TmuxHarness): void {
+  for (let i = 0; i < 8; i++) {
+    const lines = harness.capture();
+    const cursorLine = lines.find((l) => l.includes("▸"));
+    if (cursorLine?.includes("Tool definitions")) {
+      break;
+    }
+    harness.sendKeys("Down");
+  }
+
+  harness.sendKeys("Enter");
+  harness.waitFor(/Active \(/, 5000);
+}
+
+function createIsolatedAgentDir(): string {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "e2e-agent-"));
+  fs.writeFileSync(path.join(tmpDir, "settings.json"), "{}");
+  return tmpDir;
+}
+
 describe("overlay rendering", () => {
   let harness: TmuxHarness;
+  let agentDir: string;
 
   beforeEach(() => {
-    harness = new TmuxHarness({ sessionName: "e2e-overlay" });
+    agentDir = createIsolatedAgentDir();
+    harness = new TmuxHarness({ sessionName: "e2e-overlay", agentDir });
     harness.start();
     harness.waitFor("pi-token-burden", 15_000);
     harness.sendKeys("/token-burden", "Enter");
@@ -19,6 +44,7 @@ describe("overlay rendering", () => {
 
   afterEach(() => {
     harness.stop();
+    fs.rmSync(agentDir, { recursive: true, force: true });
   });
 
   it("should show title, context bar, stacked bar, and section table", () => {
@@ -89,6 +115,17 @@ describe("overlay rendering", () => {
     expect(back.join("\n")).toContain("drill-in");
   });
 
+  it("should open a dedicated tools view with Active expanded", () => {
+    navigateToToolsView(harness);
+
+    const text = harness.capture().join("\n");
+
+    expect(text).toContain("Active (");
+    expect(text).toContain(" tok");
+    expect(text).toContain("esc to go back");
+    expect(text).not.toContain("search");
+  });
+
   it("should close the overlay with esc from sections view", () => {
     harness.sendKeys("Escape");
     sleepMs(500);
@@ -98,12 +135,55 @@ describe("overlay rendering", () => {
   });
 });
 
-describe("overlay — open in editor", () => {
+describe("overlay — tools view with inactive tools", () => {
   let harness: TmuxHarness;
+  let agentDir: string;
 
   beforeEach(() => {
+    agentDir = createIsolatedAgentDir();
+    harness = new TmuxHarness({
+      sessionName: "e2e-tools-view",
+      agentDir,
+      piFlags: [
+        "--no-session",
+        "--no-memory",
+        "--provider",
+        "zai",
+        "--model",
+        "glm-4.7",
+        "--tools",
+        "read",
+      ],
+    });
+    harness.start();
+    harness.waitFor("pi-token-burden", 120_000);
+    harness.sendKeys("/token-burden", "Enter");
+    harness.waitFor("Token Burden", 10_000);
+    navigateToToolsView(harness);
+  });
+
+  afterEach(() => {
+    harness.stop();
+    fs.rmSync(agentDir, { recursive: true, force: true });
+  });
+
+  it("should show inactive tools as a collapsed counterfactual group", () => {
+    const collapsed = harness.capture().join("\n");
+    expect(collapsed).toContain("Inactive (");
+    expect(collapsed).toContain("if enabled");
+    expect(collapsed).not.toContain("bash");
+  });
+});
+
+describe("overlay — open in editor", () => {
+  let harness: TmuxHarness;
+  let agentDir: string;
+
+  beforeEach(() => {
+    agentDir = createIsolatedAgentDir();
     harness = new TmuxHarness({
       sessionName: "e2e-overlay-edit",
+      agentDir,
       env: { VISUAL: "", EDITOR: "true" },
     });
     harness.start();
@@ -114,6 +194,7 @@ describe("overlay — open in editor", () => {
 
   afterEach(() => {
     harness.stop();
+    fs.rmSync(agentDir, { recursive: true, force: true });
   });
 
   it("should show 'e edit' hint when drilled into AGENTS.md files", () => {
