@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.6.0...main
+
+[compare changes](https://github.com/Whamp/pi-token-burden/compare/v0.6.0...main)
+
+### 🩹 Fixes
+
+- Publish README image assets ([ebe04d7](https://github.com/Whamp/pi-token-burden/commit/ebe04d7))
+
+### ❤️ Contributors
+
+- Test ([@songkang666](https://github.com/songkang666))
+
 ## v0.5.0...main
 
 [compare changes](https://github.com/Whamp/pi-token-burden/compare/v0.5.0...main)
