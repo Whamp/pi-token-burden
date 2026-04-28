@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.6.1...main
+
+[compare changes](https://github.com/Whamp/pi-token-burden/compare/v0.6.1...main)
+
+### 🩹 Fixes
+
+- Use npm-renderable README image URLs ([93b94a7](https://github.com/Whamp/pi-token-burden/commit/93b94a7))
+
+### ❤️ Contributors
+
+- Test ([@songkang666](https://github.com/songkang666))
+
 ## v0.6.0...main
 
 [compare changes](https://github.com/Whamp/pi-token-burden/compare/v0.6.0...main)
