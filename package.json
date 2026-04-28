@@ -10,6 +10,11 @@
   "license": "MIT",
   "files": [
     "src/",
+    "banner.png",
+    "screenshot.png",
+    "screenshot-drilldown-agents.png",
+    "screenshot-drilldown-tools.png",
+    "screenshot-trace.png",
     "CHANGELOG.md",
     "LICENSE",
     "README.md"
