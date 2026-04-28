@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.6.2...main
+
+[compare changes](https://github.com/Whamp/pi-token-burden/compare/v0.6.2...main)
+
+### 📖 Documentation
+
+- Document active tool accounting ([c23c979](https://github.com/Whamp/pi-token-burden/commit/c23c979))
+
+### ❤️ Contributors
+
+- Test ([@songkang666](https://github.com/songkang666))
+
 ## v0.6.1...main
 
 [compare changes](https://github.com/Whamp/pi-token-burden/compare/v0.6.1...main)
