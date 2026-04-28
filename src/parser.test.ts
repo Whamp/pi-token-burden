@@ -236,6 +236,54 @@ describe("buildToolDefinitionsSection()", () => {
     expect(section?.tokens).toBe(expectedTokens);
   });
 
+  it("preserves inactive tool costs as counterfactual data without counting them", async () => {
+    const { buildToolDefinitionsSection } = await import("./parser.js");
+    const tools = [
+      {
+        name: "read",
+        description: "Read files",
+        parameters: { type: "object", properties: {} },
+      },
+      {
+        name: "bash",
+        description: "Run commands with arguments",
+        parameters: {
+          type: "object",
+          properties: { command: { type: "string" } },
+          required: ["command"],
+        },
+      },
+    ];
+
+    const section = buildToolDefinitionsSection(tools, ["read"]);
+    const activeSerialized = JSON.stringify(tools[0], null, 2);
+    const inactiveSerialized = JSON.stringify(tools[1], null, 2);
+
+    expect(section).toMatchObject({
+      chars: activeSerialized.length,
+      tokens: estimateTokens(activeSerialized),
+      children: [{ label: "read" }],
+      tools: {
+        active: [
+          {
+            name: "read",
+            chars: activeSerialized.length,
+            tokens: estimateTokens(activeSerialized),
+            content: activeSerialized,
+          },
+        ],
+        inactive: [
+          {
+            name: "bash",
+            chars: inactiveSerialized.length,
+            tokens: estimateTokens(inactiveSerialized),
+            content: inactiveSerialized,
+          },
+        ],
+      },
+    });
+  });
+
   it("creates a section with correct label and children count", async () => {
     const { buildToolDefinitionsSection } = await import("./parser.js");
     const tools = [

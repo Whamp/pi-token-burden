@@ -72,7 +72,8 @@ and `/` to fuzzy-search items.
 | `/`       | Sections/skills    | Fuzzy search                                 |
 | `e`       | Sections           | Open the selected section in `$EDITOR`       |
 | `e`       | Drilldown (AGENTS) | Open the AGENTS.md file in `$EDITOR`         |
-| `e`       | Drilldown (Tools)  | Open tool JSON definition in `$EDITOR`       |
+| `Enter`   | Tools view         | Expand/collapse the Inactive group           |
+| `e`       | Tools view         | Open tool JSON definition in `$EDITOR`       |
 | `t`       | Sections           | Trace Base prompt sources (attribution view) |
 | `s`       | Sections           | Enter skill-toggle mode                      |
 | `Enter`   | Skill-toggle       | Cycle skill state (on → hidden → disabled)   |
@@ -96,21 +97,28 @@ Press `Enter` on any bucket to see line-level evidence with per-line token count
 
 ### Tool definitions
 
-Tool definitions are the function schemas (name, description, parameter JSON schema) sent to the LLM alongside the system prompt. They consume context window tokens but were previously invisible in the budget. Now they appear as a drillable section where you can:
+Tool definitions are the function schemas (name, description, parameter JSON schema) sent to the LLM alongside the system prompt. They are not part of the system prompt text, but they still consume context window tokens through the tool-calling API.
 
-- View per-tool token costs
-- Press `e` on any tool to see its full JSON definition in your editor
+`/token-burden` compares Pi's full registered tool catalog with the current active tool set:
+
+- The top-level Tool definitions row counts only active tool schemas and shows active/total inventory, for example `Tool definitions (4 active, 11 total)`.
+- Selecting Tool definitions opens a dedicated read-only Tools view.
+- `Active` is expanded by default. Active rows show plain token costs such as `182 tok`, sorted by token cost descending.
+- `Inactive` is collapsed by default. Inactive tools remain visible as counterfactual costs such as `+182 tok if enabled`, but they do not affect the stacked bar, section totals, or percentages.
+- Press `e` on any tool row to see its full JSON definition in your editor.
+
+Tool-related guideline text remains accounted under **Base prompt**. The **Tool definitions** section is limited to schema payload.
 
 ### What each section measures
 
-| Section                          | Content                                                          |
-| -------------------------------- | ---------------------------------------------------------------- |
-| **Base prompt**                  | pi's built-in instructions, tool descriptions, guidelines        |
-| **SYSTEM.md / APPEND_SYSTEM.md** | Your custom system prompt overrides                              |
-| **AGENTS.md files**              | Each AGENTS.md file, listed individually                         |
-| **Skills**                       | The `<available_skills>` block, with per-skill breakdown         |
-| **Tool definitions**             | LLM function schemas (name, description, parameters)             |
-| **Metadata**                     | The `Current date and time` / `Current working directory` footer |
+| Section                          | Content                                                                                  |
+| -------------------------------- | ---------------------------------------------------------------------------------------- |
+| **Base prompt**                  | pi's built-in instructions, tool descriptions, guidelines                                |
+| **SYSTEM.md / APPEND_SYSTEM.md** | Your custom system prompt overrides                                                      |
+| **AGENTS.md files**              | Each AGENTS.md file, listed individually                                                 |
+| **Skills**                       | The `<available_skills>` block, with per-skill breakdown                                 |
+| **Tool definitions**             | Active LLM function schemas; inactive schemas shown as counterfactual `if enabled` costs |
+| **Metadata**                     | The `Current date and time` / `Current working directory` footer                         |
 
 ### Token estimation
 
