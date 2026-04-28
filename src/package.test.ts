@@ -1,28 +1,26 @@
 import { readFile } from "node:fs/promises";
 
-const LOCAL_IMAGE_REFERENCE =
-  /(?:src=|]\()"?\.\/(?<path>[^")]+\.(?:png|jpg|jpeg|gif|webp|svg))/gi;
+const README_IMAGE_REFERENCE =
+  /<img[^>]+src="(?<htmlSrc>[^"]+)"|!\[[^\]]*]\((?<markdownSrc>[^)\s]+)(?:\s+"[^"]*")?\)/gi;
+const ABSOLUTE_IMAGE_URL = /^https:\/\//;
 
-interface PackageManifest {
-  files: string[];
+function extractReadmeImageReferences(readme: string): string[] {
+  return Array.from(
+    readme.matchAll(README_IMAGE_REFERENCE),
+    (match) => match.groups?.htmlSrc ?? match.groups?.markdownSrc
+  ).filter((path): path is string => path !== undefined);
 }
 
-async function readPackageManifest(): Promise<PackageManifest> {
-  return JSON.parse(await readFile("package.json", "utf8")) as PackageManifest;
+function findNonAbsoluteImageReferences(imageReferences: string[]): string[] {
+  return imageReferences.filter((path) => !ABSOLUTE_IMAGE_URL.test(path));
 }
 
-describe("package manifest", () => {
-  it("publishes local images referenced by the README", async () => {
+describe("readme images", () => {
+  it("uses absolute image URLs so npm can render them", async () => {
     const readme = await readFile("README.md", "utf8");
-    const packageManifest = await readPackageManifest();
-    const referencedImages = Array.from(
-      readme.matchAll(LOCAL_IMAGE_REFERENCE),
-      (match) => match.groups?.path
-    ).filter((path): path is string => path !== undefined);
+    const imageReferences = extractReadmeImageReferences(readme);
 
-    expect(referencedImages).not.toHaveLength(0);
-    expect(packageManifest.files).toStrictEqual(
-      expect.arrayContaining(referencedImages)
-    );
+    expect(imageReferences).not.toHaveLength(0);
+    expect(findNonAbsoluteImageReferences(imageReferences)).toStrictEqual([]);
   });
 });
