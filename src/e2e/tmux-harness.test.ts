@@ -1,14 +1,18 @@
+import { createIsolatedAgentDir, removeIsolatedAgentDir } from "./agent-dir.js";
 import { TmuxHarness } from "./tmux-harness.js";
 
 describe("tmux harness", () => {
   let harness: TmuxHarness;
+  let agentDir: string;
 
   afterEach(() => {
     harness?.stop();
+    removeIsolatedAgentDir(agentDir);
   });
 
   it("should start pi and capture the token-burden overlay", () => {
-    harness = new TmuxHarness({ sessionName: "e2e-harness-test" });
+    agentDir = createIsolatedAgentDir();
+    harness = new TmuxHarness({ sessionName: "e2e-harness-test", agentDir });
     harness.start();
     harness.waitFor("pi-token-burden", 15_000);
 

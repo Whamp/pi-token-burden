@@ -1,5 +1,6 @@
 import { execSync } from "node:child_process";
 
+import { createIsolatedAgentDir, removeIsolatedAgentDir } from "./agent-dir.js";
 import { TmuxHarness } from "./tmux-harness.js";
 
 function sleepMs(ms: number): void {
@@ -22,9 +23,11 @@ function navigateTo(harness: TmuxHarness, label: string): void {
 
 describe("trace mode", () => {
   let harness: TmuxHarness;
+  let agentDir: string;
 
   beforeEach(() => {
-    harness = new TmuxHarness({ sessionName: "e2e-trace" });
+    agentDir = createIsolatedAgentDir();
+    harness = new TmuxHarness({ sessionName: "e2e-trace", agentDir });
     harness.start();
     harness.waitFor("pi-token-burden", 15_000);
 
@@ -35,6 +38,7 @@ describe("trace mode", () => {
 
   afterEach(() => {
     harness.stop();
+    removeIsolatedAgentDir(agentDir);
   });
 
   it("should show 't trace' hint when Base prompt is selected", () => {

@@ -261,6 +261,12 @@ interface ToolDefinitionInput {
   parameters: unknown;
 }
 
+interface ToolSchemaPayload {
+  name: string;
+  description: string;
+  parameters: unknown;
+}
+
 /**
  * Build a PromptSection for tool definitions (function schemas sent to the LLM).
  *
@@ -288,12 +294,18 @@ export function buildToolDefinitionsSection(
 
   function serializeTools(input: ToolDefinitionInput[]): ToolEntry[] {
     return input.map((tool) => {
-      const serialized = JSON.stringify(tool, null, 2);
+      const payload: ToolSchemaPayload = {
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters,
+      };
+      const content = JSON.stringify(payload, null, 2);
+      const countedPayload = JSON.stringify(payload);
       return {
         name: tool.name,
-        chars: serialized.length,
-        tokens: estimateTokens(serialized),
-        content: serialized,
+        chars: content.length,
+        tokens: estimateTokens(countedPayload),
+        content,
       };
     });
   }
