@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.6.4
+
+[compare changes](https://github.com/Whamp/pi-token-burden/compare/v0.6.3...v0.6.4)
+
+### 🩹 Fixes
+
+- Count compact LLM-visible tool schemas ([#8](https://github.com/Whamp/pi-token-burden/pull/8))
+
+### ❤️ Contributors
+
+- Will Hampson <will@ggl.slmail.me>
+
 ## v0.6.2...main
 
 [compare changes](https://github.com/Whamp/pi-token-burden/compare/v0.6.2...main)
