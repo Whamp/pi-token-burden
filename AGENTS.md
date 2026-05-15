@@ -169,9 +169,9 @@ pull requests.
 - Commit secrets or credentials
 - Use `any` types (use proper TypeBox schemas)
 
-## Brain — Agent Memory
+## Napkin — Agent Documentation
 
-This project uses Brain for agent memory management.
-**Start here when orienting:** Read `.memory/main.md` for the project roadmap, key decisions, and open problems.
-Read `.memory/AGENTS.md` for the full Brain protocol reference.
-Tools: memory_commit, memory_branch, memory_merge, memory_switch, memory_status
+This project uses a repository-local napkin vault for agent-facing documentation.
+**Start here when orienting:** run `napkin overview`, then `napkin search "<topic>"` and `napkin read "<note>"` as needed.
+Key entry points: `NAPKIN.md`, `architecture/Token Budget Pipeline.md`, `decisions/Key Decisions.md`, and `guides/Napkin Workflow.md`.
+Use napkin notes for durable architecture, decision, and workflow context; capture why decisions were made, not routine git-change details.

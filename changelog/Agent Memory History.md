@@ -1,3 +1,16 @@
+---
+tags:
+  - changelog
+  - migrated
+  - brain-memory
+---
+
+# Agent Memory History
+
+This note preserves the useful Brain branch commit history that used to live in `.memory/branches/main/commits.md`. It is historical context; prefer `NAPKIN.md` and topic notes for current project orientation.
+
+---
+
 # main
 
 **Purpose:** Main project memory branch

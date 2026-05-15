@@ -493,7 +493,7 @@ Note any issues found. If all pass, proceed to Task 8.
 **Step 1: Verify git status is clean**
 
 Run: `git status`
-Expected: Clean working tree (except `.memory/state.yaml`)
+Expected: Clean working tree
 
 **Step 2: Verify unit test count**
 

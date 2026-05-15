@@ -11,7 +11,7 @@
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
   "ignorePatterns": [
     ".gcc/**",
-    ".memory/**",
+    ".napkin/**",
     "docs/**",
     "dist/**",
     "CHANGELOG.md",

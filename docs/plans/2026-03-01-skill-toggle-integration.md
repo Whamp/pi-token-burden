@@ -974,8 +974,8 @@ describe("applyChanges", () => {
     fs.writeFileSync(skillPath, "---\nname: my-skill\ndescription: test\n---\n");
 
     const skill = makeSkill("my-skill", skillPath);
-    const byName = new Map([["my-skill", skill]]);
-    const changes = new Map<string, DisableMode>([["my-skill", "disabled"]]);
+    const byName = new Map([ ["my-skill", skill] ]);
+    const changes = new Map<string, DisableMode>([ ["my-skill", "disabled"] ]);
 
     applyChanges(changes, byName, settingsPath);
 
@@ -996,8 +996,8 @@ describe("applyChanges", () => {
     saveSettings({ skills: [`-${skillDir}`] }, settingsPath);
 
     const skill = makeSkill("my-skill", skillPath);
-    const byName = new Map([["my-skill", skill]]);
-    const changes = new Map<string, DisableMode>([["my-skill", "enabled"]]);
+    const byName = new Map([ ["my-skill", skill] ]);
+    const changes = new Map<string, DisableMode>([ ["my-skill", "enabled"] ]);
 
     applyChanges(changes, byName, settingsPath);
 
@@ -1015,8 +1015,8 @@ describe("applyChanges", () => {
     fs.writeFileSync(skillPath, "---\nname: hide-skill\ndescription: test\n---\n# Content");
 
     const skill = makeSkill("hide-skill", skillPath);
-    const byName = new Map([["hide-skill", skill]]);
-    const changes = new Map<string, DisableMode>([["hide-skill", "hidden"]]);
+    const byName = new Map([ ["hide-skill", skill] ]);
+    const changes = new Map<string, DisableMode>([ ["hide-skill", "hidden"] ]);
 
     applyChanges(changes, byName, settingsPath);
 
@@ -1034,8 +1034,8 @@ describe("applyChanges", () => {
     );
 
     const skill = makeSkill("unhide-skill", skillPath);
-    const byName = new Map([["unhide-skill", skill]]);
-    const changes = new Map<string, DisableMode>([["unhide-skill", "enabled"]]);
+    const byName = new Map([ ["unhide-skill", skill] ]);
+    const changes = new Map<string, DisableMode>([ ["unhide-skill", "enabled"] ]);
 
     applyChanges(changes, byName, settingsPath);
 
@@ -1054,8 +1054,8 @@ describe("applyChanges", () => {
     fs.writeFileSync(path2, "---\nname: dupe\ndescription: test\n---\n");
 
     const skill = makeSkill("dupe", path1, [path1, path2]);
-    const byName = new Map([["dupe", skill]]);
-    const changes = new Map<string, DisableMode>([["dupe", "disabled"]]);
+    const byName = new Map([ ["dupe", skill] ]);
+    const changes = new Map<string, DisableMode>([ ["dupe", "disabled"] ]);
 
     applyChanges(changes, byName, settingsPath);
 
