@@ -101,3 +101,8 @@ export interface SkillToggleResult {
   applied: boolean;
   changes: Map<string, DisableMode>;
 }
+
+export type SkillSaveOutcome =
+  | { ok: true; saved: false }
+  | { ok: true; saved: true; summary: string }
+  | { ok: false; saved: false; errorMessage: string };

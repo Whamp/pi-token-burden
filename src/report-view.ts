@@ -19,6 +19,7 @@ import type {
   TraceLineEvidence,
 } from "./base-trace/index.js";
 import { DisableMode } from "./enums.js";
+import { SkillManagementSession } from "./skill-management-session.js";
 import type {
   ParsedPrompt,
   SkillInfo,
@@ -332,7 +333,6 @@ interface OverlayState {
   drilldownSection: TableItem | null;
   toolsSection: TableItem | null;
   toolsInactiveExpanded: boolean;
-  pendingChanges: Map<string, DisableMode>;
   confirmingDiscard: boolean;
   traceResult: BasePromptTraceResult | null;
   traceLoading: boolean;
@@ -356,7 +356,6 @@ class BudgetOverlay {
     drilldownSection: null,
     toolsSection: null,
     toolsInactiveExpanded: false,
-    pendingChanges: new Map(),
     confirmingDiscard: false,
     traceResult: null,
     traceLoading: false,
@@ -369,7 +368,7 @@ class BudgetOverlay {
   private originalTotalTokens: number;
   private adjustedTotalTokens: number;
   private contextWindow: number | undefined;
-  private readonly discoveredSkills: SkillInfo[];
+  private readonly skillSession: SkillManagementSession;
   private readonly tui: TUI;
   private done: (value: null) => void;
   private onToggleResult?: (result: SkillToggleResult) => boolean;
@@ -397,7 +396,7 @@ class BudgetOverlay {
     this.originalTotalTokens = parsed.totalTokens;
     this.adjustedTotalTokens = parsed.totalTokens;
     this.contextWindow = contextWindow;
-    this.discoveredSkills = discoveredSkills;
+    this.skillSession = new SkillManagementSession(discoveredSkills);
     this.tableItems = buildTableItems(parsed);
     this.done = done;
     this.onToggleResult = onToggleResult;
@@ -572,7 +571,7 @@ class BudgetOverlay {
 
     if (
       selected.label.startsWith("Skills") &&
-      this.discoveredSkills.length > 0
+      this.skillSession.skills.length > 0
     ) {
       this.state.mode = "skill-toggle";
       this.state.selectedIndex = 0;
@@ -706,7 +705,7 @@ class BudgetOverlay {
     if (this.state.confirmingDiscard) {
       if (data === "y" || data === "Y") {
         this.state.mode = "sections";
-        this.state.pendingChanges = new Map();
+        this.skillSession.discardPending();
         this.state.confirmingDiscard = false;
         this.state.selectedIndex = 0;
         this.state.scrollOffset = 0;
@@ -728,7 +727,7 @@ class BudgetOverlay {
     }
 
     if (matchesKey(data, "escape")) {
-      if (this.state.pendingChanges.size > 0) {
+      if (this.skillSession.pendingCount > 0) {
         this.state.confirmingDiscard = true;
         this.invalidate();
         return;
@@ -779,49 +778,19 @@ class BudgetOverlay {
       return;
     }
 
-    const current = this.getEffectiveMode(skill);
-    let next: DisableMode;
-    if (current === DisableMode.Enabled) {
-      next = DisableMode.Hidden;
-    } else if (current === DisableMode.Hidden) {
-      next = DisableMode.Disabled;
-    } else {
-      next = DisableMode.Enabled;
-    }
-
-    if (next === skill.mode) {
-      this.state.pendingChanges.delete(skill.name);
-    } else {
-      this.state.pendingChanges.set(skill.name, next);
-    }
-
+    this.skillSession.cycle(skill.name);
     this.recalculateTokens();
     this.invalidate();
   }
 
   private getEffectiveMode(skill: SkillInfo): DisableMode {
-    return this.state.pendingChanges.get(skill.name) ?? skill.mode;
+    return this.skillSession.effectiveMode(skill.name) ?? skill.mode;
   }
 
   private recalculateTokens(): void {
-    let tokenDelta = 0;
-    for (const [name, newMode] of this.state.pendingChanges) {
-      const skill = this.discoveredSkills.find((s) => s.name === name);
-      if (!skill) {
-        continue;
-      }
-
-      const wasInPrompt = skill.mode === DisableMode.Enabled;
-      const willBeInPrompt = newMode === DisableMode.Enabled;
-
-      if (wasInPrompt && !willBeInPrompt) {
-        tokenDelta -= skill.tokens;
-      } else if (!wasInPrompt && willBeInPrompt) {
-        tokenDelta += skill.tokens;
-      }
-    }
-
-    this.adjustedTotalTokens = this.originalTotalTokens + tokenDelta;
+    this.adjustedTotalTokens = this.skillSession.adjustedTotalTokens(
+      this.originalTotalTokens
+    );
     this.parsed = this.getAdjustedParsed();
     this.tableItems = buildTableItems(this.parsed);
     this.invalidate();
@@ -837,24 +806,8 @@ class BudgetOverlay {
         this.originalParsed.sections.find((s) => s.label.startsWith("Skills"))
           ?.tokens ?? 0;
 
-      let delta = 0;
-      for (const [name, newMode] of this.state.pendingChanges) {
-        const skill = this.discoveredSkills.find((s) => s.name === name);
-        if (!skill) {
-          continue;
-        }
-
-        const wasInPrompt = skill.mode === DisableMode.Enabled;
-        const willBeInPrompt = newMode === DisableMode.Enabled;
-
-        if (wasInPrompt && !willBeInPrompt) {
-          delta -= skill.tokens;
-        } else if (!wasInPrompt && willBeInPrompt) {
-          delta += skill.tokens;
-        }
-      }
-
-      skillsSection.tokens = originalSkillsTokens + delta;
+      skillsSection.tokens =
+        originalSkillsTokens + this.skillSession.tokenDelta;
     }
 
     return {
@@ -866,25 +819,20 @@ class BudgetOverlay {
   }
 
   private saveSkillChanges(): void {
-    if (this.state.pendingChanges.size === 0) {
+    if (this.skillSession.pendingCount === 0) {
       return;
     }
 
     const success =
       this.onToggleResult?.({
         applied: true,
-        changes: new Map(this.state.pendingChanges),
+        changes: this.skillSession.changes(),
       }) ?? true;
 
     if (success) {
-      // Update discoveredSkills to reflect the persisted state so the
-      // UI doesn't snap back to stale modes after clearing pendingChanges.
-      for (const [name, newMode] of this.state.pendingChanges) {
-        const skill = this.discoveredSkills.find((s) => s.name === name);
-        if (skill) {
-          skill.mode = newMode;
-        }
-      }
+      // Update the session to reflect the persisted state so the UI doesn't
+      // snap back to stale modes after clearing pending changes.
+      this.skillSession.commitPending();
 
       // Rebase the "original" token counts so subsequent toggles compute
       // deltas against the newly persisted state, not the initial load.
@@ -894,7 +842,6 @@ class BudgetOverlay {
         sections: this.parsed.sections.map((s) => ({ ...s })),
       };
 
-      this.state.pendingChanges = new Map();
       this.state.confirmingDiscard = false;
     }
 
@@ -991,13 +938,13 @@ class BudgetOverlay {
 
   private getFilteredSkills(): SkillInfo[] {
     if (this.state.searchActive && this.state.searchQuery) {
-      const items = this.discoveredSkills.map((s) => ({
+      const items = this.skillSession.skills.map((s) => ({
         ...s,
         label: s.name,
       }));
       return fuzzyFilter(items, this.state.searchQuery);
     }
-    return this.discoveredSkills;
+    return this.skillSession.skills;
   }
 
   // -----------------------------------------------------------------------
@@ -1366,7 +1313,7 @@ class BudgetOverlay {
   ): void {
     lines.push(emptyRow());
 
-    const pendingCount = this.state.pendingChanges.size;
+    const { pendingCount } = this.skillSession;
     if (pendingCount > 0) {
       lines.push(
         row(
@@ -1404,12 +1351,13 @@ class BudgetOverlay {
 
     const startIdx = this.state.scrollOffset;
     const endIdx = Math.min(startIdx + MAX_VISIBLE_ROWS, skills.length);
+    const pendingChanges = this.skillSession.changes();
 
     for (let i = startIdx; i < endIdx; i++) {
       const skill = skills[i];
       const isSelected = i === this.state.selectedIndex;
       const mode = this.getEffectiveMode(skill);
-      const hasChanged = this.state.pendingChanges.has(skill.name);
+      const hasChanged = pendingChanges.has(skill.name);
 
       const prefix = isSelected ? sgr("36", "▸") : dim("·");
 
@@ -1469,7 +1417,7 @@ class BudgetOverlay {
       lines.push(emptyRow());
       lines.push(
         row(
-          `${sgr("33", `Discard ${this.state.pendingChanges.size} change${this.state.pendingChanges.size === 1 ? "" : "s"}? `)}${dim("(y/n)")}`
+          `${sgr("33", `Discard ${pendingCount} change${pendingCount === 1 ? "" : "s"}? `)}${dim("(y/n)")}`
         )
       );
     }
