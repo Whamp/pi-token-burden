@@ -1,24 +1,10 @@
 import { execSync } from "node:child_process";
-import * as fs from "node:fs";
-import * as os from "node:os";
-import * as path from "node:path";
 
+import { createIsolatedAgentDir, removeIsolatedAgentDir } from "./agent-dir.js";
 import { TmuxHarness } from "./tmux-harness.js";
 
 function sleepMs(ms: number): void {
   execSync(`sleep ${(ms / 1000).toFixed(3)}`);
-}
-
-/**
- * Create an isolated agent directory with an empty settings.json.
- * Skills are still discovered from the system's default directories
- * (~/.pi/agent/skills, ~/.agents/skills), but settings changes are
- * written to the temp directory — keeping the real config safe.
- */
-function createIsolatedAgentDir(): string {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "e2e-agent-"));
-  fs.writeFileSync(path.join(tmpDir, "settings.json"), "{}");
-  return tmpDir;
 }
 
 /**
@@ -62,7 +48,7 @@ describe("skill-toggle mode", () => {
 
   afterEach(() => {
     harness.stop();
-    fs.rmSync(agentDir, { recursive: true, force: true });
+    removeIsolatedAgentDir(agentDir);
   });
 
   it("should enter skill-toggle mode showing skill list with status icons", () => {

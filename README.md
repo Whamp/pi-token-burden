@@ -97,7 +97,7 @@ Press `Enter` on any bucket to see line-level evidence with per-line token count
 
 ### Tool definitions
 
-Tool definitions are the function schemas (name, description, parameter JSON schema) sent to the LLM alongside the system prompt. They are not part of the system prompt text, but they still consume context window tokens through the tool-calling API.
+Tool definitions are the function schemas (name, description, parameter JSON schema) sent to the LLM alongside the system prompt. They are not part of the system prompt text, but they still consume context window tokens through the tool-calling API. Counts are based on the compact LLM-visible schema payload, excluding Pi-internal metadata and pretty-printing used only for display.
 
 `/token-burden` compares Pi's full registered tool catalog with the current active tool set:
 

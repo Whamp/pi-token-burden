@@ -1,8 +1,6 @@
 import { execSync } from "node:child_process";
-import * as fs from "node:fs";
-import * as os from "node:os";
-import * as path from "node:path";
 
+import { createIsolatedAgentDir, removeIsolatedAgentDir } from "./agent-dir.js";
 import { TmuxHarness } from "./tmux-harness.js";
 
 function sleepMs(ms: number): void {
@@ -23,12 +21,6 @@ function navigateToToolsView(harness: TmuxHarness): void {
   harness.waitFor(/Active \(/, 5000);
 }
 
-function createIsolatedAgentDir(): string {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "e2e-agent-"));
-  fs.writeFileSync(path.join(tmpDir, "settings.json"), "{}");
-  return tmpDir;
-}
-
 describe("overlay rendering", () => {
   let harness: TmuxHarness;
   let agentDir: string;
@@ -44,7 +36,7 @@ describe("overlay rendering", () => {
 
   afterEach(() => {
     harness.stop();
-    fs.rmSync(agentDir, { recursive: true, force: true });
+    removeIsolatedAgentDir(agentDir);
   });
 
   it("should show title, context bar, stacked bar, and section table", () => {
@@ -164,7 +156,7 @@ describe("overlay — tools view with inactive tools", () => {
 
   afterEach(() => {
     harness.stop();
-    fs.rmSync(agentDir, { recursive: true, force: true });
+    removeIsolatedAgentDir(agentDir);
   });
 
   it("should show inactive tools as a collapsed counterfactual group", () => {
@@ -203,7 +195,7 @@ describe("overlay — open in editor", () => {
 
   afterEach(() => {
     harness.stop();
-    fs.rmSync(agentDir, { recursive: true, force: true });
+    removeIsolatedAgentDir(agentDir);
   });
 
   it("should show 'e edit' hint when drilled into AGENTS.md files", () => {

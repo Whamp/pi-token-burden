@@ -228,10 +228,7 @@ describe("buildToolDefinitionsSection()", () => {
     const expectedTokens = ["read", "write"]
       .map((name) => tools.find((tool) => tool.name === name))
       .filter((tool): tool is (typeof tools)[number] => tool !== undefined)
-      .reduce(
-        (sum, tool) => sum + estimateTokens(JSON.stringify(tool, null, 2)),
-        0
-      );
+      .reduce((sum, tool) => sum + estimateTokens(JSON.stringify(tool)), 0);
 
     expect(section?.tokens).toBe(expectedTokens);
   });
@@ -256,32 +253,71 @@ describe("buildToolDefinitionsSection()", () => {
     ];
 
     const section = buildToolDefinitionsSection(tools, ["read"]);
-    const activeSerialized = JSON.stringify(tools[0], null, 2);
-    const inactiveSerialized = JSON.stringify(tools[1], null, 2);
+    const activeContent = JSON.stringify(tools[0], null, 2);
+    const inactiveContent = JSON.stringify(tools[1], null, 2);
+    const activePayload = JSON.stringify(tools[0]);
+    const inactivePayload = JSON.stringify(tools[1]);
 
     expect(section).toMatchObject({
-      chars: activeSerialized.length,
-      tokens: estimateTokens(activeSerialized),
+      chars: activeContent.length,
+      tokens: estimateTokens(activePayload),
       children: [{ label: "read" }],
       tools: {
         active: [
           {
             name: "read",
-            chars: activeSerialized.length,
-            tokens: estimateTokens(activeSerialized),
-            content: activeSerialized,
+            chars: activeContent.length,
+            tokens: estimateTokens(activePayload),
+            content: activeContent,
           },
         ],
         inactive: [
           {
             name: "bash",
-            chars: inactiveSerialized.length,
-            tokens: estimateTokens(inactiveSerialized),
-            content: inactiveSerialized,
+            chars: inactiveContent.length,
+            tokens: estimateTokens(inactivePayload),
+            content: inactiveContent,
           },
         ],
       },
     });
+  });
+
+  it("counts only the compact LLM-visible tool schema payload", async () => {
+    const { buildToolDefinitionsSection } = await import("./parser.js");
+    const tool = {
+      name: "read",
+      description: "Read files",
+      parameters: {
+        type: "object",
+        properties: { path: { type: "string" } },
+        required: ["path"],
+      },
+      sourceInfo: {
+        path: "/home/user/.pi/agent/extensions/example/index.ts",
+        source: "npm:example-extension",
+        scope: "user",
+        origin: "package",
+        baseDir: "/home/user/.pi/agent/extensions/example",
+      },
+    };
+
+    const section = buildToolDefinitionsSection([tool]);
+    const llmVisiblePayload = {
+      name: tool.name,
+      description: tool.description,
+      parameters: tool.parameters,
+    };
+    const prettyContent = JSON.stringify(llmVisiblePayload, null, 2);
+
+    expect(section?.children?.[0].content).toBe(prettyContent);
+    expect(section?.children?.[0].content).not.toContain("sourceInfo");
+    expect(section?.children?.[0].tokens).toBe(
+      estimateTokens(JSON.stringify(llmVisiblePayload))
+    );
+    expect(section?.tokens).toBe(
+      estimateTokens(JSON.stringify(llmVisiblePayload))
+    );
   });
 
   it("creates a section with correct label and children count", async () => {
@@ -345,7 +381,7 @@ describe("buildToolDefinitionsSection()", () => {
     expect(section?.children?.[0].tokens).toBeGreaterThan(0);
   });
 
-  it("matches token count to serialized JSON", async () => {
+  it("matches token count to compact serialized JSON", async () => {
     const { buildToolDefinitionsSection } = await import("./parser.js");
     const tool = {
       name: "my_tool",
@@ -353,7 +389,7 @@ describe("buildToolDefinitionsSection()", () => {
       parameters: { type: "object", properties: { input: { type: "string" } } },
     };
     const section = buildToolDefinitionsSection([tool]);
-    const serialized = JSON.stringify(tool, null, 2);
+    const serialized = JSON.stringify(tool);
     expect(section?.children?.[0].tokens).toBe(estimateTokens(serialized));
   });
 
