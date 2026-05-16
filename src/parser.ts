@@ -11,6 +11,7 @@
 
 import { encode } from "gpt-tokenizer/encoding/o200k_base";
 
+import { ToolEnvelope } from "./enums.js";
 import type {
   AgentsFileEntry,
   ParsedPrompt,
@@ -30,11 +31,19 @@ export function estimateTokens(text: string): number {
 // Internal helpers (defined before use to satisfy no-use-before-define)
 // ---------------------------------------------------------------------------
 
-function measure(label: string, text: string): PromptSection {
+function measureSpan(
+  label: string,
+  prompt: string,
+  start: number,
+  end: number
+): PromptSection {
+  const text = prompt.slice(start, end);
   return {
     label,
     chars: text.length,
-    tokens: estimateTokens(text),
+    tokens:
+      estimateTokens(prompt.slice(0, end)) -
+      estimateTokens(prompt.slice(0, start)),
     content: text,
   };
 }
@@ -74,6 +83,12 @@ function findBasePromptEnd(
   }
 
   return firstPositive(projectCtxIdx, skillsPreambleIdx, dateLineIdx);
+}
+
+function findMetadataStart(prompt: string): number {
+  const currentDateIdx = prompt.lastIndexOf("\nCurrent date:");
+  const legacyDateTimeIdx = prompt.lastIndexOf("\nCurrent date and time:");
+  return Math.max(currentDateIdx, legacyDateTimeIdx);
 }
 
 /** Parse `## /path/to/AGENTS.md` blocks inside the Project Context section. */
@@ -148,7 +163,7 @@ function findSkillsSectionEnd(
  *   - `# Project Context` heading
  *   - `The following skills provide specialized instructions` preamble
  *   - `<available_skills>` / `</available_skills>` XML block
- *   - `Current date and time:` footer
+ *   - `Current date:` / `Current date and time:` footer
  */
 export function parseSystemPrompt(prompt: string): ParsedPrompt {
   const sections: PromptSection[] = [];
@@ -160,7 +175,7 @@ export function parseSystemPrompt(prompt: string): ParsedPrompt {
   );
   const availableSkillsStart = prompt.indexOf("<available_skills>");
   const availableSkillsEnd = prompt.indexOf("</available_skills>");
-  const dateLineIdx = prompt.lastIndexOf("\nCurrent date and time:");
+  const dateLineIdx = findMetadataStart(prompt);
 
   // 1. Base system prompt
   const baseEnd = findBasePromptEnd(
@@ -169,17 +184,45 @@ export function parseSystemPrompt(prompt: string): ParsedPrompt {
     skillsPreambleIdx,
     dateLineIdx
   );
-  const baseText = baseEnd >= 0 ? prompt.slice(0, baseEnd) : prompt;
-  sections.push(measure("Base prompt", baseText));
+  const nextSectionStart =
+    projectCtxIdx === -1
+      ? firstPositive(skillsPreambleIdx, dateLineIdx)
+      : projectCtxIdx;
+
+  let baseSectionEnd = baseEnd >= 0 ? baseEnd : prompt.length;
+  let systemGapStart = -1;
+  let systemGapEnd = -1;
+
+  if (baseEnd >= 0 && nextSectionStart >= 0 && nextSectionStart > baseEnd) {
+    const gap = prompt.slice(baseEnd, nextSectionStart);
+    if (gap.trim().length > 0) {
+      systemGapStart = baseEnd;
+      systemGapEnd = nextSectionStart;
+    } else {
+      baseSectionEnd = nextSectionStart;
+    }
+  }
+
+  sections.push(measureSpan("Base prompt", prompt, 0, baseSectionEnd));
+
+  if (systemGapStart >= 0 && systemGapEnd >= 0) {
+    sections.push(
+      measureSpan(
+        "SYSTEM.md / APPEND_SYSTEM.md",
+        prompt,
+        systemGapStart,
+        systemGapEnd
+      )
+    );
+  }
 
   // 2. Project Context / AGENTS.md files
   if (projectCtxIdx !== -1) {
-    const contextStart = projectCtxIdx + 2; // skip leading \n\n
-    const contextEnd = firstPositive(skillsPreambleIdx, dateLineIdx);
-    const contextBlock =
-      contextEnd >= 0
-        ? prompt.slice(contextStart, contextEnd)
-        : prompt.slice(contextStart);
+    const contextStart = projectCtxIdx;
+    const contextEndBoundary = firstPositive(skillsPreambleIdx, dateLineIdx);
+    const contextEnd =
+      contextEndBoundary >= 0 ? contextEndBoundary : prompt.length;
+    const contextBlock = prompt.slice(contextStart, contextEnd);
 
     const agentsFiles = parseAgentsFiles(contextBlock);
     const children = agentsFiles.map((f) => ({
@@ -189,24 +232,19 @@ export function parseSystemPrompt(prompt: string): ParsedPrompt {
     }));
 
     sections.push({
-      ...measure("AGENTS.md files", contextBlock),
+      ...measureSpan("AGENTS.md files", prompt, contextStart, contextEnd),
       children,
     });
   }
 
   // 3. Skills section
   if (skillsPreambleIdx !== -1) {
-    const skillsSectionStart = skillsPreambleIdx + 2;
+    const skillsSectionStart = skillsPreambleIdx;
     const skillsSectionEnd = findSkillsSectionEnd(
       availableSkillsEnd,
       dateLineIdx,
       prompt.length
     );
-    const skillsSectionText = prompt.slice(
-      skillsSectionStart,
-      skillsSectionEnd
-    );
-
     if (availableSkillsStart !== -1 && availableSkillsEnd !== -1) {
       const xmlBlock = prompt.slice(
         availableSkillsStart,
@@ -222,27 +260,26 @@ export function parseSystemPrompt(prompt: string): ParsedPrompt {
     }));
 
     sections.push({
-      ...measure(`Skills (${String(skills.length)})`, skillsSectionText),
+      ...measureSpan(
+        `Skills (${String(skills.length)})`,
+        prompt,
+        skillsSectionStart,
+        skillsSectionEnd
+      ),
       children,
     });
   }
 
   // 4. Metadata footer
   if (dateLineIdx !== -1) {
-    const metaText = prompt.slice(dateLineIdx + 1);
-    sections.push(measure("Metadata (date/time, cwd)", metaText));
-  }
-
-  // 5. Detect SYSTEM.md / APPEND_SYSTEM.md gap
-  const nextSectionStart =
-    projectCtxIdx === -1 ? skillsPreambleIdx : projectCtxIdx;
-
-  if (baseEnd >= 0 && nextSectionStart >= 0 && nextSectionStart > baseEnd) {
-    const gap = prompt.slice(baseEnd, nextSectionStart);
-    const trimmed = gap.trim();
-    if (trimmed.length > 0) {
-      sections.splice(1, 0, measure("SYSTEM.md / APPEND_SYSTEM.md", trimmed));
-    }
+    sections.push(
+      measureSpan(
+        "Metadata (date/time, cwd)",
+        prompt,
+        dateLineIdx,
+        prompt.length
+      )
+    );
   }
 
   const totalChars = prompt.length;
@@ -267,6 +304,122 @@ interface ToolSchemaPayload {
   parameters: unknown;
 }
 
+interface ToolEnvelopeVariantPayload {
+  name: ToolEnvelope;
+  payload: unknown;
+}
+
+function createToolSchemaPayload(tool: ToolDefinitionInput): ToolSchemaPayload {
+  return {
+    name: tool.name,
+    description: tool.description,
+    parameters: tool.parameters,
+  };
+}
+
+function toolParametersObject(parameters: unknown): Record<string, unknown> {
+  return parameters &&
+    typeof parameters === "object" &&
+    !Array.isArray(parameters)
+    ? (parameters as Record<string, unknown>)
+    : {};
+}
+
+function buildToolEnvelopePayload(
+  tools: ToolDefinitionInput[],
+  envelope: ToolEnvelope
+): unknown {
+  if (envelope === ToolEnvelope.Compact) {
+    return tools.map(createToolSchemaPayload);
+  }
+
+  if (envelope === ToolEnvelope.OpenAiResponses) {
+    return tools.map((tool) => ({
+      type: "function",
+      name: tool.name,
+      description: tool.description,
+      parameters: tool.parameters,
+      strict: false,
+    }));
+  }
+
+  if (
+    envelope === ToolEnvelope.OpenAiChat ||
+    envelope === ToolEnvelope.Mistral
+  ) {
+    return tools.map((tool) => ({
+      type: "function",
+      function: {
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters,
+        strict: false,
+      },
+    }));
+  }
+
+  if (envelope === ToolEnvelope.Anthropic) {
+    return tools.map((tool) => {
+      const parameters = toolParametersObject(tool.parameters);
+      return {
+        name: tool.name,
+        description: tool.description,
+        input_schema: {
+          type: "object",
+          properties: parameters.properties ?? {},
+          required: parameters.required ?? [],
+        },
+      };
+    });
+  }
+
+  return [
+    {
+      functionDeclarations: tools.map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+        parametersJsonSchema: tool.parameters,
+      })),
+    },
+  ];
+}
+
+export function toolEnvelopeForProvider(
+  provider: string | undefined
+): ToolEnvelope {
+  const normalizedProvider = provider?.toLowerCase() ?? "";
+  if (normalizedProvider.includes("anthropic")) {
+    return ToolEnvelope.Anthropic;
+  }
+  if (
+    normalizedProvider.includes("google") ||
+    normalizedProvider.includes("gemini") ||
+    normalizedProvider.includes("vertex")
+  ) {
+    return ToolEnvelope.Google;
+  }
+  if (normalizedProvider.includes("mistral")) {
+    return ToolEnvelope.Mistral;
+  }
+  return ToolEnvelope.OpenAiResponses;
+}
+
+function buildToolEnvelopeVariants(
+  tools: ToolDefinitionInput[]
+): ToolEnvelopeVariantPayload[] {
+  return [
+    ToolEnvelope.Compact,
+    ToolEnvelope.OpenAiResponses,
+    ToolEnvelope.OpenAiChat,
+    ToolEnvelope.Anthropic,
+    ToolEnvelope.Google,
+    ToolEnvelope.Mistral,
+  ].map((name) => ({
+    name,
+    payload: buildToolEnvelopePayload(tools, name),
+  }));
+}
+
 /**
  * Build a PromptSection for tool definitions (function schemas sent to the LLM).
  *
@@ -278,7 +431,8 @@ interface ToolSchemaPayload {
  */
 export function buildToolDefinitionsSection(
   tools: ToolDefinitionInput[],
-  activeToolNames?: string[]
+  activeToolNames?: string[],
+  countedEnvelope: ToolEnvelope = ToolEnvelope.Compact
 ): PromptSection | null {
   if (tools.length === 0) {
     return null;
@@ -294,11 +448,7 @@ export function buildToolDefinitionsSection(
 
   function serializeTools(input: ToolDefinitionInput[]): ToolEntry[] {
     return input.map((tool) => {
-      const payload: ToolSchemaPayload = {
-        name: tool.name,
-        description: tool.description,
-        parameters: tool.parameters,
-      };
+      const payload = createToolSchemaPayload(tool);
       const content = JSON.stringify(payload, null, 2);
       const countedPayload = JSON.stringify(payload);
       return {
@@ -310,8 +460,21 @@ export function buildToolDefinitionsSection(
     });
   }
 
+  const activeEnvelopePayload = buildToolEnvelopePayload(
+    countedTools,
+    countedEnvelope
+  );
   const activeEntries = serializeTools(countedTools);
   const inactiveEntries = serializeTools(inactiveTools);
+  const variants = buildToolEnvelopeVariants(countedTools).map((variant) => {
+    const content = JSON.stringify(variant.payload, null, 2);
+    return {
+      name: variant.name,
+      chars: content.length,
+      tokens: estimateTokens(JSON.stringify(variant.payload)),
+      content,
+    };
+  });
 
   const children: {
     label: string;
@@ -319,8 +482,9 @@ export function buildToolDefinitionsSection(
     tokens: number;
     content?: string;
   }[] = [];
-  let totalTokens = 0;
-  let totalChars = 0;
+  const totalContent = JSON.stringify(activeEnvelopePayload, null, 2);
+  const totalTokens = estimateTokens(JSON.stringify(activeEnvelopePayload));
+  const totalChars = totalContent.length;
 
   for (const tool of activeEntries) {
     children.push({
@@ -329,8 +493,6 @@ export function buildToolDefinitionsSection(
       tokens: tool.tokens,
       content: tool.content,
     });
-    totalTokens += tool.tokens;
-    totalChars += tool.chars;
   }
 
   const label = activeSet
@@ -344,6 +506,8 @@ export function buildToolDefinitionsSection(
     tools: {
       active: activeEntries,
       inactive: inactiveEntries,
+      variants,
+      countedEnvelope,
     },
     children,
   };

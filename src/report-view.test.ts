@@ -1,10 +1,11 @@
+import { DisableMode } from "./enums.js";
 import {
   getEditor,
   isReadOnlySection,
   showReport,
   buildTableItems,
 } from "./report-view.js";
-import type { ParsedPrompt } from "./types.js";
+import type { ParsedPrompt, SkillInfo } from "./types.js";
 
 describe("report-view", () => {
   it("exports showReport function", () => {
@@ -53,7 +54,8 @@ type OverlayFactory = (
 ) => OverlayComponent;
 
 async function mountOverlayWithTui(
-  parsed: ParsedPrompt
+  parsed: ParsedPrompt,
+  discoveredSkills: SkillInfo[] = []
 ): Promise<MountedOverlay> {
   let component: OverlayComponent | undefined;
   let tui: MockTui | undefined;
@@ -71,7 +73,7 @@ async function mountOverlayWithTui(
     },
   };
 
-  await showReport(parsed, undefined, ctx as never);
+  await showReport(parsed, undefined, ctx as never, discoveredSkills);
 
   if (!component) {
     throw new Error("Overlay component was not created");
@@ -84,8 +86,11 @@ async function mountOverlayWithTui(
   return { overlay: component, tui };
 }
 
-async function mountOverlay(parsed: ParsedPrompt): Promise<OverlayComponent> {
-  const { overlay } = await mountOverlayWithTui(parsed);
+async function mountOverlay(
+  parsed: ParsedPrompt,
+  discoveredSkills: SkillInfo[] = []
+): Promise<OverlayComponent> {
+  const { overlay } = await mountOverlayWithTui(parsed, discoveredSkills);
   return overlay;
 }
 
@@ -186,6 +191,42 @@ describe("buildTableItems — table items", () => {
         },
       ]
     `);
+  });
+
+  it("should keep an empty Skills section drillable for discovered hidden skills", async () => {
+    const parsed: ParsedPrompt = {
+      sections: [
+        { label: "Base prompt", chars: 100, tokens: 25 },
+        { label: "Metadata (date/time, cwd)", chars: 30, tokens: 5 },
+      ],
+      totalChars: 130,
+      totalTokens: 30,
+      skills: [],
+    };
+    const hiddenSkill: SkillInfo = {
+      name: "hidden-skill",
+      description: "Hidden skill",
+      filePath: "/skills/hidden-skill/SKILL.md",
+      allPaths: ["/skills/hidden-skill/SKILL.md"],
+      mode: DisableMode.Hidden,
+      tokens: 10,
+      hasDuplicates: false,
+    };
+
+    const overlay = await mountOverlay(parsed, [hiddenSkill]);
+    const text = overlay.render(120).join("\n");
+    const items = buildTableItems({
+      ...parsed,
+      sections: [
+        ...parsed.sections,
+        { label: "Skills (0)", chars: 0, tokens: 0 },
+      ],
+    });
+
+    expect(text).toContain("Skills (0)");
+    expect(
+      items.find((item) => item.label === "Skills (0)")?.drillable
+    ).toBeTruthy();
   });
 
   it("should sort sections by tokens descending", () => {

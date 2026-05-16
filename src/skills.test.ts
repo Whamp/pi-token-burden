@@ -5,6 +5,7 @@ import * as path from "node:path";
 import fc from "fast-check";
 
 import { DisableMode } from "./enums.js";
+import { estimateTokens } from "./parser.js";
 import {
   parseFrontmatter,
   scanSkillDir,
@@ -86,6 +87,27 @@ describe("parseFrontmatter()", () => {
     const result = parseFrontmatter(content, "fallback");
 
     expect(result.disableModelInvocation).toBeFalsy();
+  });
+
+  it("should parse YAML multiline and quoted frontmatter like pi", () => {
+    const content = [
+      "---",
+      'name: "yaml-skill"',
+      "description: |",
+      "  First line",
+      "  Second line with: colon",
+      "disable-model-invocation: true",
+      "---",
+      "# Content",
+    ].join("\n");
+
+    const result = parseFrontmatter(content, "fallback");
+
+    expect(result).toStrictEqual({
+      name: "yaml-skill",
+      description: "First line\nSecond line with: colon\n",
+      disableModelInvocation: true,
+    });
   });
 });
 
@@ -273,6 +295,71 @@ describe("scanSkillDir()", () => {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
   });
+
+  it("should treat a directory with SKILL.md as a skill root and stop scanning below it", () => {
+    const tmpDir = makeTmpDir();
+    try {
+      fs.writeFileSync(
+        path.join(tmpDir, "SKILL.md"),
+        "---\nname: root\ndescription: Root skill\n---\n# Root"
+      );
+      fs.writeFileSync(
+        path.join(tmpDir, "extra.md"),
+        "---\nname: extra\ndescription: Extra root md\n---\n# Extra"
+      );
+      const nested = path.join(tmpDir, "nested");
+      fs.mkdirSync(nested);
+      fs.writeFileSync(
+        path.join(nested, "SKILL.md"),
+        "---\nname: nested\ndescription: Nested skill\n---\n# Nested"
+      );
+
+      const skills: {
+        name: string;
+        description: string;
+        filePath: string;
+        disableModelInvocation: boolean;
+      }[] = [];
+      scanSkillDir(tmpDir, skills, new Set(), undefined, true);
+
+      expect(skills.map((skill) => skill.name)).toStrictEqual(["root"]);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it("should honor ignore files when discovering skills", () => {
+    const tmpDir = makeTmpDir();
+    try {
+      fs.writeFileSync(path.join(tmpDir, ".gitignore"), "ignored-skill/\n");
+      const ignored = path.join(tmpDir, "ignored-skill");
+      fs.mkdirSync(ignored);
+      fs.writeFileSync(
+        path.join(ignored, "SKILL.md"),
+        "---\nname: ignored-skill\ndescription: Ignored\n---\n"
+      );
+      const visible = path.join(tmpDir, "visible-skill");
+      fs.mkdirSync(visible);
+      fs.writeFileSync(
+        path.join(visible, "SKILL.md"),
+        "---\nname: visible-skill\ndescription: Visible\n---\n"
+      );
+
+      const skills: {
+        name: string;
+        description: string;
+        filePath: string;
+        disableModelInvocation: boolean;
+      }[] = [];
+      scanSkillDir(tmpDir, skills, new Set(), undefined, true);
+
+      expect(skills.map((skill) => skill.name)).toStrictEqual([
+        "visible-skill",
+      ]);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
 });
 
 // -- loadAllSkills ------------------------------------------------------------
@@ -359,6 +446,53 @@ describe("loadAllSkills()", () => {
         const { byName } = loadAllSkills(settings, [agentSkillsDir]);
         expect(byName.get("my-skill")?.mode).toBe(DisableMode.Disabled);
       });
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it("should mark skills disabled with pi !pattern overrides", () => {
+    const { tmpDir, userSkillsDir } = makeTmpDir();
+    try {
+      for (const name of ["keep-skill", "excluded-skill"]) {
+        const skillDir = path.join(userSkillsDir, name);
+        fs.mkdirSync(skillDir);
+        fs.writeFileSync(
+          path.join(skillDir, "SKILL.md"),
+          `---\nname: ${name}\ndescription: Test\n---\n`
+        );
+      }
+
+      const { byName } = loadAllSkills({ skills: ["!excluded-skill"] }, [
+        userSkillsDir,
+      ]);
+
+      expect(byName.get("excluded-skill")?.mode).toBe(DisableMode.Disabled);
+      expect(byName.get("keep-skill")?.mode).toBe(DisableMode.Enabled);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it("should not load root markdown files from .agents skills directories", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "agent-skills-"));
+    try {
+      const agentsSkillsDir = path.join(tmpDir, ".agents", "skills");
+      const nestedSkillDir = path.join(agentsSkillsDir, "nested-skill");
+      fs.mkdirSync(nestedSkillDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(agentsSkillsDir, "root.md"),
+        "---\nname: root-md\ndescription: Root md\n---\n"
+      );
+      fs.writeFileSync(
+        path.join(nestedSkillDir, "SKILL.md"),
+        "---\nname: nested-skill\ndescription: Nested\n---\n"
+      );
+
+      const { byName } = loadAllSkills({}, [agentsSkillsDir]);
+
+      expect(byName.has("root-md")).toBeFalsy();
+      expect(byName.has("nested-skill")).toBeTruthy();
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
@@ -466,6 +600,34 @@ describe("loadAllSkills()", () => {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
   });
+
+  it("should apply configured package skill filters", () => {
+    const tmpDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "skill-package-filter-")
+    );
+
+    try {
+      const packageDir = path.join(tmpDir, "pkg-skill-source");
+      for (const name of ["keep-skill", "excluded-skill"]) {
+        const skillDir = path.join(packageDir, "skills", name);
+        fs.mkdirSync(skillDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(skillDir, "SKILL.md"),
+          `---\nname: ${name}\ndescription: Package skill\n---\n`
+        );
+      }
+
+      const settings: Settings = {
+        packages: [{ source: packageDir, skills: ["!excluded-skill"] }],
+      };
+
+      const { byName } = loadAllSkills(settings, []);
+      expect(byName.get("excluded-skill")?.mode).toBe(DisableMode.Disabled);
+      expect(byName.get("keep-skill")?.mode).toBe(DisableMode.Enabled);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
 });
 
 // -- estimateSkillPromptTokens ------------------------------------------------
@@ -479,6 +641,23 @@ describe("estimateSkillPromptTokens()", () => {
     });
 
     expect(tokens).toBeGreaterThan(0);
+  });
+
+  it("should match pi's escaped XML prompt entry", () => {
+    const skill = {
+      name: "api-helper",
+      description: "Use A&B < C > D \"quoted\" and 'single'",
+      filePath: "/home/user/.pi/agent/skills/api-helper/SKILL.md",
+    };
+    const expectedXml = [
+      "  <skill>",
+      "    <name>api-helper</name>",
+      "    <description>Use A&amp;B &lt; C &gt; D &quot;quoted&quot; and &apos;single&apos;</description>",
+      "    <location>/home/user/.pi/agent/skills/api-helper/SKILL.md</location>",
+      "  </skill>",
+    ].join("\n");
+
+    expect(estimateSkillPromptTokens(skill)).toBe(estimateTokens(expectedXml));
   });
 });
 

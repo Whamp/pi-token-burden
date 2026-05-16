@@ -6,6 +6,7 @@ type CommandHandler = (
     getSystemPrompt(): string;
     getContextUsage(): { contextWindow?: number } | null;
     hasUI: boolean;
+    model?: { provider?: string; contextWindow?: number };
   }
 ) => Promise<void>;
 
@@ -19,9 +20,11 @@ interface ParserModule {
   parseSystemPrompt(prompt: string): ParsedPrompt;
   buildToolDefinitionsSection(
     tools: ToolDefinition[],
-    activeToolNames?: string[]
+    activeToolNames?: string[],
+    countedEnvelope?: string
   ): PromptSection | null;
   estimateTokens(text: string): number;
+  toolEnvelopeForProvider(provider: string | undefined): string;
 }
 
 interface ReportViewModule {
@@ -40,12 +43,15 @@ const parseSystemPromptMock = vi.fn<ParserModule["parseSystemPrompt"]>();
 const buildToolDefinitionsSectionMock =
   vi.fn<ParserModule["buildToolDefinitionsSection"]>();
 const estimateTokensMock = vi.fn<ParserModule["estimateTokens"]>();
+const toolEnvelopeForProviderMock =
+  vi.fn<ParserModule["toolEnvelopeForProvider"]>();
 const showReportMock = vi.fn<ReportViewModule["showReport"]>();
 
 vi.mock<ParserModule>(import("./parser.js"), () => ({
   parseSystemPrompt: parseSystemPromptMock,
   buildToolDefinitionsSection: buildToolDefinitionsSectionMock,
   estimateTokens: estimateTokensMock,
+  toolEnvelopeForProvider: toolEnvelopeForProviderMock,
 }));
 
 vi.mock<ReportViewModule>(import("./report-view.js"), () => ({
@@ -66,6 +72,7 @@ describe("extension", () => {
       skills: [],
     });
     buildToolDefinitionsSectionMock.mockReturnValue(null);
+    toolEnvelopeForProviderMock.mockReturnValue("anthropic");
 
     const tools = [
       { name: "read", description: "Read files", parameters: {} },
@@ -97,10 +104,14 @@ describe("extension", () => {
       getSystemPrompt: () => "prompt",
       getContextUsage: () => null,
       hasUI: false,
+      model: { provider: "anthropic" },
     });
 
-    expect(buildToolDefinitionsSectionMock).toHaveBeenCalledWith(tools, [
-      "read",
-    ]);
+    expect(toolEnvelopeForProviderMock).toHaveBeenCalledWith("anthropic");
+    expect(buildToolDefinitionsSectionMock).toHaveBeenCalledWith(
+      tools,
+      ["read"],
+      "anthropic"
+    );
   });
 });

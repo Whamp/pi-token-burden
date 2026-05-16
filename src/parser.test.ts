@@ -1,4 +1,10 @@
-import { estimateTokens, parseSystemPrompt } from "./parser.js";
+import { ToolEnvelope } from "./enums.js";
+import {
+  estimateTokens,
+  parseSystemPrompt,
+  buildToolDefinitionsSection,
+  toolEnvelopeForProvider,
+} from "./parser.js";
 import type { ParsedPrompt } from "./parser.js";
 
 describe("estimateTokens()", () => {
@@ -82,6 +88,12 @@ describe("parseSystemPrompt()", () => {
 
   const metadata =
     "\nCurrent date and time: Thursday, February 26, 2026\nCurrent working directory: /home/user/project";
+  const currentMetadata =
+    "\nCurrent date: 2026-05-15\nCurrent working directory: /home/user/project";
+
+  function sectionTokenSum(result: ParsedPrompt): number {
+    return result.sections.reduce((sum, section) => sum + section.tokens, 0);
+  }
 
   it("parses a full system prompt into sections", () => {
     const prompt =
@@ -105,6 +117,46 @@ describe("parseSystemPrompt()", () => {
     const labels = result.sections.map((s) => s.label);
     expect(labels).toContain("Skills (2)");
     expect(labels).toContain("Metadata (date/time, cwd)");
+  });
+
+  it("parses the current pi date footer as metadata", () => {
+    const prompt =
+      basePrompt + agentsBlock + skillsPreamble + skillsBlock + currentMetadata;
+    const result = parseSystemPrompt(prompt);
+
+    const metadataSection = result.sections.find((s) =>
+      s.label.startsWith("Metadata")
+    );
+    expect(metadataSection?.content).toContain("Current date: 2026-05-15");
+    expect(metadataSection?.content).toContain(
+      "Current working directory: /home/user/project"
+    );
+  });
+
+  it("does not include current pi metadata in the final AGENTS.md child", () => {
+    const prompt = basePrompt + agentsBlock + currentMetadata;
+    const result = parseSystemPrompt(prompt);
+
+    const agentsSection = result.sections.find((s) =>
+      s.label.includes("AGENTS.md")
+    );
+    const lastChild = agentsSection?.children?.at(-1);
+
+    expect(lastChild?.label).toBe("/home/user/project/AGENTS.md");
+    expect(agentsSection?.content).not.toContain("Current date: 2026-05-15");
+    expect(lastChild?.tokens).toBe(
+      estimateTokens(
+        "## /home/user/project/AGENTS.md\n\n# Project Rules\n\n- Follow TDD."
+      )
+    );
+  });
+
+  it("reconciles section tokens to the total prompt token count", () => {
+    const prompt =
+      basePrompt + agentsBlock + skillsPreamble + skillsBlock + currentMetadata;
+    const result = parseSystemPrompt(prompt);
+
+    expect(sectionTokenSum(result)).toBe(result.totalTokens);
   });
 
   it("parses AGENTS.md files into children", () => {
@@ -187,17 +239,47 @@ describe("parseSystemPrompt()", () => {
     expect(systemMdSection?.content).toBeDefined();
     expect(systemMdSection?.content?.length).toBe(systemMdSection?.chars);
   });
+
+  it("reconciles section tokens when SYSTEM.md content is present", () => {
+    const appendContent =
+      "\n\nCustom SYSTEM.md instructions here.\nMore custom content.";
+    const prompt = basePrompt + appendContent + agentsBlock + currentMetadata;
+    const result = parseSystemPrompt(prompt);
+
+    expect(sectionTokenSum(result)).toBe(result.totalTokens);
+  });
+});
+
+function toolPayload(tool: {
+  name: string;
+  description: string;
+  parameters: unknown;
+}) {
+  return {
+    name: tool.name,
+    description: tool.description,
+    parameters: tool.parameters,
+  };
+}
+
+describe("toolEnvelopeForProvider()", () => {
+  it("maps pi providers to provider-specific tool envelopes", () => {
+    expect(toolEnvelopeForProvider("anthropic")).toBe(ToolEnvelope.Anthropic);
+    expect(toolEnvelopeForProvider("google-vertex")).toBe(ToolEnvelope.Google);
+    expect(toolEnvelopeForProvider("mistral")).toBe(ToolEnvelope.Mistral);
+    expect(toolEnvelopeForProvider("openai")).toBe(
+      ToolEnvelope.OpenAiResponses
+    );
+  });
 });
 
 describe("buildToolDefinitionsSection()", () => {
-  it("returns null for empty tools array", async () => {
-    const { buildToolDefinitionsSection } = await import("./parser.js");
+  it("returns null for empty tools array", () => {
     const result = buildToolDefinitionsSection([]);
     expect(result).toBeNull();
   });
 
-  it("counts only active tools while exposing active and total counts in the label", async () => {
-    const { buildToolDefinitionsSection } = await import("./parser.js");
+  it("counts only active tools while exposing active and total counts in the label", () => {
     const tools = [
       {
         name: "read",
@@ -225,16 +307,14 @@ describe("buildToolDefinitionsSection()", () => {
       "write",
     ]);
 
-    const expectedTokens = ["read", "write"]
-      .map((name) => tools.find((tool) => tool.name === name))
-      .filter((tool): tool is (typeof tools)[number] => tool !== undefined)
-      .reduce((sum, tool) => sum + estimateTokens(JSON.stringify(tool)), 0);
-
-    expect(section?.tokens).toBe(expectedTokens);
+    expect(section?.tokens).toBe(
+      estimateTokens(
+        JSON.stringify([toolPayload(tools[0]), toolPayload(tools[2])])
+      )
+    );
   });
 
-  it("preserves inactive tool costs as counterfactual data without counting them", async () => {
-    const { buildToolDefinitionsSection } = await import("./parser.js");
+  it("preserves inactive tool costs as counterfactual data without counting them", () => {
     const tools = [
       {
         name: "read",
@@ -253,14 +333,15 @@ describe("buildToolDefinitionsSection()", () => {
     ];
 
     const section = buildToolDefinitionsSection(tools, ["read"]);
-    const activeContent = JSON.stringify(tools[0], null, 2);
-    const inactiveContent = JSON.stringify(tools[1], null, 2);
-    const activePayload = JSON.stringify(tools[0]);
-    const inactivePayload = JSON.stringify(tools[1]);
+    const activeContent = JSON.stringify(toolPayload(tools[0]), null, 2);
+    const inactiveContent = JSON.stringify(toolPayload(tools[1]), null, 2);
+    const activePayload = JSON.stringify(toolPayload(tools[0]));
+    const activeEnvelope = JSON.stringify([toolPayload(tools[0])]);
+    const inactivePayload = JSON.stringify(toolPayload(tools[1]));
 
     expect(section).toMatchObject({
-      chars: activeContent.length,
-      tokens: estimateTokens(activePayload),
+      chars: JSON.stringify([toolPayload(tools[0])], null, 2).length,
+      tokens: estimateTokens(activeEnvelope),
       children: [{ label: "read" }],
       tools: {
         active: [
@@ -283,8 +364,7 @@ describe("buildToolDefinitionsSection()", () => {
     });
   });
 
-  it("counts only the compact LLM-visible tool schema payload", async () => {
-    const { buildToolDefinitionsSection } = await import("./parser.js");
+  it("counts only the compact LLM-visible tool schema payload", () => {
     const tool = {
       name: "read",
       description: "Read files",
@@ -303,11 +383,7 @@ describe("buildToolDefinitionsSection()", () => {
     };
 
     const section = buildToolDefinitionsSection([tool]);
-    const llmVisiblePayload = {
-      name: tool.name,
-      description: tool.description,
-      parameters: tool.parameters,
-    };
+    const llmVisiblePayload = toolPayload(tool);
     const prettyContent = JSON.stringify(llmVisiblePayload, null, 2);
 
     expect(section?.children?.[0].content).toBe(prettyContent);
@@ -316,12 +392,67 @@ describe("buildToolDefinitionsSection()", () => {
       estimateTokens(JSON.stringify(llmVisiblePayload))
     );
     expect(section?.tokens).toBe(
-      estimateTokens(JSON.stringify(llmVisiblePayload))
+      estimateTokens(JSON.stringify([llmVisiblePayload]))
     );
   });
 
-  it("creates a section with correct label and children count", async () => {
-    const { buildToolDefinitionsSection } = await import("./parser.js");
+  it("counts a provider-specific active tool envelope when requested", () => {
+    const tools = [
+      {
+        name: "lookup",
+        description: "Lookup a value",
+        parameters: {
+          type: "object",
+          properties: { q: { type: "string" } },
+          required: ["q"],
+        },
+      },
+    ];
+
+    const section = buildToolDefinitionsSection(
+      tools,
+      undefined,
+      ToolEnvelope.OpenAiResponses
+    );
+    const openAiResponsesEnvelope = [
+      {
+        type: "function",
+        name: "lookup",
+        description: "Lookup a value",
+        parameters: tools[0].parameters,
+        strict: false,
+      },
+    ];
+
+    expect(section?.tokens).toBe(
+      estimateTokens(JSON.stringify(openAiResponsesEnvelope))
+    );
+  });
+
+  it("counts the active tool section as one canonical compact array payload", () => {
+    const tools = [
+      { name: "a", description: "Tool A", parameters: { type: "object" } },
+      {
+        name: "b",
+        description: "Tool B",
+        parameters: { type: "object", properties: { x: { type: "number" } } },
+      },
+    ];
+
+    const section = buildToolDefinitionsSection(tools);
+
+    expect(section?.children?.map((child) => child.tokens)).toStrictEqual(
+      tools.map((tool) => estimateTokens(JSON.stringify(toolPayload(tool))))
+    );
+    expect(section?.tokens).toBe(
+      estimateTokens(JSON.stringify(tools.map(toolPayload)))
+    );
+    expect(section?.tokens).not.toBe(
+      section?.children?.reduce((sum, child) => sum + child.tokens, 0)
+    );
+  });
+
+  it("creates a section with correct label and children count", () => {
     const tools = [
       {
         name: "read",
@@ -344,8 +475,7 @@ describe("buildToolDefinitionsSection()", () => {
     expect(section?.children).toHaveLength(2);
   });
 
-  it("labels children by tool name", async () => {
-    const { buildToolDefinitionsSection } = await import("./parser.js");
+  it("labels children by tool name", () => {
     const tools = [
       {
         name: "read",
@@ -363,8 +493,7 @@ describe("buildToolDefinitionsSection()", () => {
     expect(section?.children?.[1].label).toBe("bash");
   });
 
-  it("counts tokens for each tool based on JSON serialization", async () => {
-    const { buildToolDefinitionsSection } = await import("./parser.js");
+  it("counts tokens for each tool based on JSON serialization", () => {
     const tools = [
       {
         name: "my_tool",
@@ -381,20 +510,18 @@ describe("buildToolDefinitionsSection()", () => {
     expect(section?.children?.[0].tokens).toBeGreaterThan(0);
   });
 
-  it("matches token count to compact serialized JSON", async () => {
-    const { buildToolDefinitionsSection } = await import("./parser.js");
+  it("matches child token count to compact serialized JSON", () => {
     const tool = {
       name: "my_tool",
       description: "Does something useful",
       parameters: { type: "object", properties: { input: { type: "string" } } },
     };
     const section = buildToolDefinitionsSection([tool]);
-    const serialized = JSON.stringify(tool);
+    const serialized = JSON.stringify(toolPayload(tool));
     expect(section?.children?.[0].tokens).toBe(estimateTokens(serialized));
   });
 
-  it("sums child tokens for the section total", async () => {
-    const { buildToolDefinitionsSection } = await import("./parser.js");
+  it("counts section tokens from the compact serialized tool array", () => {
     const tools = [
       { name: "a", description: "Tool A", parameters: { type: "object" } },
       {
@@ -406,8 +533,8 @@ describe("buildToolDefinitionsSection()", () => {
     const section = buildToolDefinitionsSection(tools);
     expect(section).not.toBeNull();
     expect(section?.children).toHaveLength(2);
-    const tokenA = section?.children?.[0].tokens;
-    const tokenB = section?.children?.[1].tokens;
-    expect(section?.tokens).toBe(Number(tokenA) + Number(tokenB));
+    expect(section?.tokens).toBe(
+      estimateTokens(JSON.stringify(tools.map(toolPayload)))
+    );
   });
 });

@@ -1,4 +1,4 @@
-import type { DisableMode } from "./enums.js";
+import type { DisableMode, ToolEnvelope } from "./enums.js";
 
 export interface SkillEntry {
   name: string;
@@ -34,6 +34,8 @@ export interface ToolEntry {
 export interface ToolSectionData {
   active: ToolEntry[];
   inactive: ToolEntry[];
+  variants?: ToolEntry[];
+  countedEnvelope?: ToolEnvelope;
 }
 
 export interface PromptSection {

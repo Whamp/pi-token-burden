@@ -1,4 +1,5 @@
 import { DisableMode } from "./enums.js";
+import { estimateSkillsPromptSectionTokens } from "./skills.js";
 import type { SkillInfo } from "./types.js";
 
 function nextVisibilityState(mode: DisableMode): DisableMode {
@@ -75,25 +76,18 @@ export class SkillManagementSession {
     this.pendingChanges.clear();
   }
 
+  effectiveSkills(): SkillInfo[] {
+    return this.skillsList.map((skill) => ({
+      ...skill,
+      mode: this.effectiveMode(skill.name) ?? skill.mode,
+    }));
+  }
+
   get tokenDelta(): number {
-    let delta = 0;
-
-    for (const [name, newMode] of this.pendingChanges) {
-      const skill = this.skillsByName.get(name);
-      if (!skill) {
-        continue;
-      }
-
-      const wasInPrompt = skill.mode === DisableMode.Enabled;
-      const willBeInPrompt = newMode === DisableMode.Enabled;
-
-      if (wasInPrompt && !willBeInPrompt) {
-        delta -= skill.tokens;
-      } else if (!wasInPrompt && willBeInPrompt) {
-        delta += skill.tokens;
-      }
-    }
-
-    return delta;
+    const beforeTokens = estimateSkillsPromptSectionTokens(this.skillsList);
+    const afterTokens = estimateSkillsPromptSectionTokens(
+      this.effectiveSkills()
+    );
+    return afterTokens - beforeTokens;
   }
 }

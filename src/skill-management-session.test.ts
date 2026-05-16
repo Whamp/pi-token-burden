@@ -1,5 +1,7 @@
 import { DisableMode } from "./enums.js";
+import { estimateTokens } from "./parser.js";
 import { SkillManagementSession } from "./skill-management-session.js";
+import { formatSkillsPromptSection } from "./skills.js";
 import type { SkillInfo } from "./types.js";
 
 interface SessionSnapshot {
@@ -38,52 +40,76 @@ function snapshot(
 
 describe("skill management session", () => {
   it("cycles a skill through visibility states while tracking pending token impact", () => {
-    const session = new SkillManagementSession([
-      skill({ name: "tdd", mode: DisableMode.Enabled, tokens: 25 }),
-    ]);
-    const states = [snapshot(session, "tdd", 100)];
+    const tddSkill = skill({
+      name: "tdd",
+      mode: DisableMode.Enabled,
+      tokens: 25,
+    });
+    const session = new SkillManagementSession([tddSkill]);
+    const baseTokens = 100;
+    const originalTotal =
+      baseTokens + estimateTokens(formatSkillsPromptSection([tddSkill]));
+    const states = [snapshot(session, "tdd", originalTotal)];
 
     session.cycle("tdd");
-    states.push(snapshot(session, "tdd", 100));
+    states.push(snapshot(session, "tdd", originalTotal));
 
     session.cycle("tdd");
-    states.push(snapshot(session, "tdd", 100));
+    states.push(snapshot(session, "tdd", originalTotal));
 
     session.cycle("tdd");
-    states.push(snapshot(session, "tdd", 100));
+    states.push(snapshot(session, "tdd", originalTotal));
 
     expect(states).toStrictEqual([
-      { pendingCount: 0, mode: DisableMode.Enabled, totalTokens: 100 },
-      { pendingCount: 1, mode: DisableMode.Hidden, totalTokens: 75 },
-      { pendingCount: 1, mode: DisableMode.Disabled, totalTokens: 75 },
-      { pendingCount: 0, mode: DisableMode.Enabled, totalTokens: 100 },
+      {
+        pendingCount: 0,
+        mode: DisableMode.Enabled,
+        totalTokens: originalTotal,
+      },
+      { pendingCount: 1, mode: DisableMode.Hidden, totalTokens: baseTokens },
+      { pendingCount: 1, mode: DisableMode.Disabled, totalTokens: baseTokens },
+      {
+        pendingCount: 0,
+        mode: DisableMode.Enabled,
+        totalTokens: originalTotal,
+      },
     ]);
   });
 
   it("can discard pending edits or rebase them after save", () => {
-    const session = new SkillManagementSession([
-      skill({ name: "browser-use", mode: DisableMode.Enabled, tokens: 40 }),
-    ]);
+    const browserSkill = skill({
+      name: "browser-use",
+      mode: DisableMode.Enabled,
+      tokens: 40,
+    });
+    const session = new SkillManagementSession([browserSkill]);
+    const baseTokens = 160;
+    const originalTotal =
+      baseTokens + estimateTokens(formatSkillsPromptSection([browserSkill]));
     const states: SessionSnapshot[] = [];
 
     session.cycle("browser-use");
-    states.push(snapshot(session, "browser-use", 200));
+    states.push(snapshot(session, "browser-use", originalTotal));
 
     session.discardPending();
-    states.push(snapshot(session, "browser-use", 200));
+    states.push(snapshot(session, "browser-use", originalTotal));
 
     session.cycle("browser-use");
     session.commitPending();
-    states.push(snapshot(session, "browser-use", 160));
+    states.push(snapshot(session, "browser-use", baseTokens));
 
     session.cycle("browser-use");
-    states.push(snapshot(session, "browser-use", 160));
+    states.push(snapshot(session, "browser-use", baseTokens));
 
     expect(states).toStrictEqual([
-      { pendingCount: 1, mode: DisableMode.Hidden, totalTokens: 160 },
-      { pendingCount: 0, mode: DisableMode.Enabled, totalTokens: 200 },
-      { pendingCount: 0, mode: DisableMode.Hidden, totalTokens: 160 },
-      { pendingCount: 1, mode: DisableMode.Disabled, totalTokens: 160 },
+      { pendingCount: 1, mode: DisableMode.Hidden, totalTokens: baseTokens },
+      {
+        pendingCount: 0,
+        mode: DisableMode.Enabled,
+        totalTokens: originalTotal,
+      },
+      { pendingCount: 0, mode: DisableMode.Hidden, totalTokens: baseTokens },
+      { pendingCount: 1, mode: DisableMode.Disabled, totalTokens: baseTokens },
     ]);
   });
 
@@ -106,5 +132,38 @@ describe("skill management session", () => {
 
     changes.set("github", DisableMode.Disabled);
     expect(session.effectiveMode("github")).toBe(DisableMode.Hidden);
+  });
+
+  it("counts the full skills section when toggles cross zero visible skills", () => {
+    const onlySkill = skill({
+      name: "only-skill",
+      description: "Do the thing",
+      filePath: "/skills/only-skill/SKILL.md",
+      mode: DisableMode.Enabled,
+      tokens: 10,
+    });
+    const hiddenSkill = skill({
+      name: "hidden-skill",
+      description: "Use hidden skill",
+      filePath: "/skills/hidden-skill/SKILL.md",
+      mode: DisableMode.Hidden,
+      tokens: 10,
+    });
+    const originalSectionTokens = estimateTokens(
+      formatSkillsPromptSection([onlySkill])
+    );
+    const hiddenSectionTokens = estimateTokens(
+      formatSkillsPromptSection([{ ...hiddenSkill, mode: DisableMode.Enabled }])
+    );
+
+    const removeLast = new SkillManagementSession([onlySkill]);
+    removeLast.cycle("only-skill");
+
+    const addFirst = new SkillManagementSession([hiddenSkill]);
+    addFirst.cycle("hidden-skill");
+    addFirst.cycle("hidden-skill");
+
+    expect(removeLast.tokenDelta).toBe(-originalSectionTokens);
+    expect(addFirst.tokenDelta).toBe(hiddenSectionTokens);
   });
 });

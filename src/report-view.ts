@@ -14,11 +14,14 @@ import type { TUI } from "@mariozechner/pi-tui";
 
 import type { BasePromptTraceResult, TraceBucket } from "./base-trace/index.js";
 import { DisableMode } from "./enums.js";
+import { estimateTokens } from "./parser.js";
 import { SkillManagementSession } from "./skill-management-session.js";
+import { formatSkillPromptEntry, formatSkillsPromptSection } from "./skills.js";
 import { SourceTraceReportCache } from "./source-trace-report-cache.js";
 import type { SourceTraceReport } from "./source-trace-report.js";
 import type {
   ParsedPrompt,
+  PromptSection,
   SkillInfo,
   SkillToggleResult,
   TableItem,
@@ -138,6 +141,46 @@ function sanitizeLabel(label: string): string {
 // ---------------------------------------------------------------------------
 
 /** Convert ParsedPrompt sections into TableItems sorted by tokens desc. */
+function buildSkillsPromptSection(skills: SkillInfo[]): PromptSection {
+  const visibleSkills = skills.filter(
+    (skill) => skill.mode === DisableMode.Enabled
+  );
+  const content = formatSkillsPromptSection(skills);
+
+  return {
+    label: `Skills (${String(visibleSkills.length)})`,
+    chars: content.length,
+    tokens: estimateTokens(content),
+    content,
+    children: visibleSkills.map((skill) => {
+      const childContent = formatSkillPromptEntry(skill);
+      return {
+        label: skill.name,
+        chars: childContent.length,
+        tokens: estimateTokens(childContent),
+        content: childContent,
+      };
+    }),
+  };
+}
+
+function ensureSkillsSectionForManagement(
+  parsed: ParsedPrompt,
+  discoveredSkills: SkillInfo[]
+): ParsedPrompt {
+  if (
+    discoveredSkills.length === 0 ||
+    parsed.sections.some((section) => section.label.startsWith("Skills"))
+  ) {
+    return parsed;
+  }
+
+  return {
+    ...parsed,
+    sections: [...parsed.sections, buildSkillsPromptSection(discoveredSkills)],
+  };
+}
+
 export function buildTableItems(parsed: ParsedPrompt): TableItem[] {
   return parsed.sections
     .map((section): TableItem => {
@@ -169,7 +212,10 @@ export function buildTableItems(parsed: ParsedPrompt): TableItem[] {
         tokens: section.tokens,
         chars: section.chars,
         pct,
-        drillable: (children?.length ?? 0) > 0 || Boolean(section.tools),
+        drillable:
+          (children?.length ?? 0) > 0 ||
+          Boolean(section.tools) ||
+          section.label.startsWith("Skills"),
         content: section.content,
         tools: section.tools,
         children,
@@ -384,17 +430,22 @@ class BudgetOverlay {
     onToggleResult?: (result: SkillToggleResult) => boolean,
     onRunTrace?: () => Promise<BasePromptTraceResult>
   ) {
+    const parsedWithSkillManagement = ensureSkillsSectionForManagement(
+      parsed,
+      discoveredSkills
+    );
+
     this.tui = tui;
-    this.parsed = parsed;
+    this.parsed = parsedWithSkillManagement;
     this.originalParsed = {
-      ...parsed,
-      sections: parsed.sections.map((s) => ({ ...s })),
+      ...parsedWithSkillManagement,
+      sections: parsedWithSkillManagement.sections.map((s) => ({ ...s })),
     };
-    this.originalTotalTokens = parsed.totalTokens;
-    this.adjustedTotalTokens = parsed.totalTokens;
+    this.originalTotalTokens = parsedWithSkillManagement.totalTokens;
+    this.adjustedTotalTokens = parsedWithSkillManagement.totalTokens;
     this.contextWindow = contextWindow;
     this.skillSession = new SkillManagementSession(discoveredSkills);
-    this.tableItems = buildTableItems(parsed);
+    this.tableItems = buildTableItems(parsedWithSkillManagement);
     this.done = done;
     this.onToggleResult = onToggleResult;
     this.onRunTrace = onRunTrace;
@@ -797,16 +848,14 @@ class BudgetOverlay {
 
   private getAdjustedParsed(): ParsedPrompt {
     const sections = this.originalParsed.sections.map((s) => ({ ...s }));
+    const skillsSectionIndex = sections.findIndex((s) =>
+      s.label.startsWith("Skills")
+    );
 
-    // Find the skills section and adjust its token count
-    const skillsSection = sections.find((s) => s.label.startsWith("Skills"));
-    if (skillsSection) {
-      const originalSkillsTokens =
-        this.originalParsed.sections.find((s) => s.label.startsWith("Skills"))
-          ?.tokens ?? 0;
-
-      skillsSection.tokens =
-        originalSkillsTokens + this.skillSession.tokenDelta;
+    if (skillsSectionIndex !== -1) {
+      sections[skillsSectionIndex] = buildSkillsPromptSection(
+        this.skillSession.effectiveSkills()
+      );
     }
 
     return {

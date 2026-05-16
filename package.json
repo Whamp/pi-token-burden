@@ -37,7 +37,8 @@
     "compare-tokenizers": "tsx scripts/compare-tokenizers.ts"
   },
   "dependencies": {
-    "gpt-tokenizer": "^3.4.0"
+    "gpt-tokenizer": "^3.4.0",
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@types/node": "^25.3.2",

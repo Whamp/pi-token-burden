@@ -18,6 +18,7 @@ import {
   buildToolDefinitionsSection,
   estimateTokens,
   parseSystemPrompt,
+  toolEnvelopeForProvider,
 } from "./parser.js";
 import { showReport } from "./report-view.js";
 import { saveSkillToggleResult } from "./skill-save.js";
@@ -56,7 +57,11 @@ const extension: ExtensionFactory = (pi) => {
       // Add tool definitions section (function schemas sent via tool-calling API)
       const allTools = pi.getAllTools();
       const activeTools = pi.getActiveTools();
-      const toolSection = buildToolDefinitionsSection(allTools, activeTools);
+      const toolSection = buildToolDefinitionsSection(
+        allTools,
+        activeTools,
+        toolEnvelopeForProvider(ctx.model?.provider)
+      );
       if (toolSection) {
         parsed.sections.push(toolSection);
         parsed.totalTokens += toolSection.tokens;
