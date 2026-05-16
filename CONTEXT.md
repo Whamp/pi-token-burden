@@ -20,6 +20,10 @@ _Avoid_: skill toggle state, skill UI state
 The user-visible state of a skill: Enabled, Hidden, or Disabled.
 _Avoid_: disable mode, toggle value
 
+**Skill Visibility Store**:
+The durable persistence module for Skill Visibility State in pi settings and skill frontmatter.
+_Avoid_: skill persistence, toggle storage
+
 **Source Trace**:
 An attribution report that connects Base prompt lines back to built-in pi behavior or extension contributions.
 _Avoid_: provenance view, attribution mode
@@ -28,6 +32,7 @@ _Avoid_: provenance view, attribution mode
 
 - The **Token Budget Pipeline** produces **Budget Sections**.
 - A **Skill Management Session** changes **Skill Visibility State** values before persistence.
+- A **Skill Visibility Store** persists **Skill Visibility State** values after a **Skill Management Session** save.
 - **Skill Visibility State** affects the Skills **Budget Section** token count.
 - A **Source Trace** explains selected Base prompt **Budget Section** lines.
 

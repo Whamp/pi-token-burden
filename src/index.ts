@@ -21,7 +21,10 @@ import {
 } from "./parser.js";
 import { showReport } from "./report-view.js";
 import { saveSkillToggleResult } from "./skill-save.js";
-import { applyChanges, loadSettings } from "./skills-persistence.js";
+import {
+  SkillVisibilityStore,
+  loadSettings,
+} from "./skill-visibility-store.js";
 import { loadAllSkills } from "./skills.js";
 
 /**
@@ -69,6 +72,7 @@ const extension: ExtensionFactory = (pi) => {
 
       const agentDir = getAgentDir();
       const settingsPath = path.join(agentDir, "settings.json");
+      const visibilityStore = new SkillVisibilityStore(settingsPath, agentDir);
       const settings = loadSettings(settingsPath);
       const { skills, byName } = loadAllSkills(settings, undefined, agentDir);
 
@@ -126,7 +130,7 @@ const extension: ExtensionFactory = (pi) => {
         skills,
         (result) => {
           const outcome = saveSkillToggleResult(result, (changes) => {
-            applyChanges(changes, byName, settingsPath, agentDir);
+            visibilityStore.applyChanges(changes, byName);
           });
 
           if (!outcome.ok) {
