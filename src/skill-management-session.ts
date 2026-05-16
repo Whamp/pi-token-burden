@@ -1,6 +1,6 @@
 import { DisableMode } from "./enums.js";
 import { estimateSkillsPromptSectionTokens } from "./skills.js";
-import type { SkillInfo } from "./types.js";
+import type { SkillEntry, SkillInfo } from "./types.js";
 
 function nextVisibilityState(mode: DisableMode): DisableMode {
   if (mode === DisableMode.Enabled) {
@@ -10,6 +10,32 @@ function nextVisibilityState(mode: DisableMode): DisableMode {
     return DisableMode.Disabled;
   }
   return DisableMode.Enabled;
+}
+
+export function reconcileSkillsWithPrompt(
+  discoveredSkills: SkillInfo[],
+  promptSkills: SkillEntry[]
+): SkillInfo[] {
+  const promptByName = new Map(
+    promptSkills.map((skill) => [skill.name, skill])
+  );
+
+  return discoveredSkills.map((skill) => {
+    const promptSkill = promptByName.get(skill.name);
+    if (!promptSkill) {
+      return skill.mode === DisableMode.Enabled
+        ? { ...skill, mode: DisableMode.Hidden }
+        : { ...skill };
+    }
+
+    return {
+      ...skill,
+      description: promptSkill.description,
+      filePath: promptSkill.location,
+      mode: DisableMode.Enabled,
+      tokens: promptSkill.tokens,
+    };
+  });
 }
 
 export class SkillManagementSession {

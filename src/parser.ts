@@ -94,8 +94,10 @@ function findMetadataStart(prompt: string): number {
 /** Parse `## /path/to/AGENTS.md` blocks inside the Project Context section. */
 function parseAgentsFiles(contextBlock: string): AgentsFileEntry[] {
   const files: AgentsFileEntry[] = [];
-  // Match `## ` headings that look like file paths (start with `/`).
-  const headingPattern = /^## (\/.+)$/gm;
+  // Pi emits each project-context file under a `## /.../AGENTS.md` heading.
+  // Do not treat arbitrary path-looking markdown headings inside an AGENTS.md
+  // body as file separators.
+  const headingPattern = /^## (\/[^\r\n]*AGENTS\.md)$/gm;
   const matches = [...contextBlock.matchAll(headingPattern)];
 
   for (let i = 0; i < matches.length; i++) {
@@ -373,6 +375,19 @@ function buildToolEnvelopePayload(
     });
   }
 
+  if (envelope === ToolEnvelope.Bedrock) {
+    return {
+      tools: tools.map((tool) => ({
+        toolSpec: {
+          name: tool.name,
+          description: tool.description,
+          inputSchema: { json: tool.parameters },
+        },
+      })),
+      toolChoice: { auto: {} },
+    };
+  }
+
   return [
     {
       functionDeclarations: tools.map((tool) => ({
@@ -392,6 +407,12 @@ export function toolEnvelopeForProvider(
     return ToolEnvelope.Anthropic;
   }
   if (
+    normalizedProvider.includes("bedrock") ||
+    normalizedProvider.includes("amazon")
+  ) {
+    return ToolEnvelope.Bedrock;
+  }
+  if (
     normalizedProvider.includes("google") ||
     normalizedProvider.includes("gemini") ||
     normalizedProvider.includes("vertex")
@@ -404,6 +425,38 @@ export function toolEnvelopeForProvider(
   return ToolEnvelope.OpenAiResponses;
 }
 
+export function toolEnvelopeForModel(
+  api: string | undefined,
+  provider?: string
+): ToolEnvelope {
+  switch (api) {
+    case "anthropic-messages": {
+      return ToolEnvelope.Anthropic;
+    }
+    case "bedrock-converse-stream": {
+      return ToolEnvelope.Bedrock;
+    }
+    case "google-generative-ai":
+    case "google-vertex": {
+      return ToolEnvelope.Google;
+    }
+    case "mistral-conversations": {
+      return ToolEnvelope.Mistral;
+    }
+    case "openai-completions": {
+      return ToolEnvelope.OpenAiChat;
+    }
+    case "azure-openai-responses":
+    case "openai-codex-responses":
+    case "openai-responses": {
+      return ToolEnvelope.OpenAiResponses;
+    }
+    default: {
+      return toolEnvelopeForProvider(provider);
+    }
+  }
+}
+
 function buildToolEnvelopeVariants(
   tools: ToolDefinitionInput[]
 ): ToolEnvelopeVariantPayload[] {
@@ -412,6 +465,7 @@ function buildToolEnvelopeVariants(
     ToolEnvelope.OpenAiResponses,
     ToolEnvelope.OpenAiChat,
     ToolEnvelope.Anthropic,
+    ToolEnvelope.Bedrock,
     ToolEnvelope.Google,
     ToolEnvelope.Mistral,
   ].map((name) => ({
@@ -448,7 +502,10 @@ export function buildToolDefinitionsSection(
 
   function serializeTools(input: ToolDefinitionInput[]): ToolEntry[] {
     return input.map((tool) => {
-      const payload = createToolSchemaPayload(tool);
+      const payload =
+        countedEnvelope === ToolEnvelope.Compact
+          ? createToolSchemaPayload(tool)
+          : buildToolEnvelopePayload([tool], countedEnvelope);
       const content = JSON.stringify(payload, null, 2);
       const countedPayload = JSON.stringify(payload);
       return {

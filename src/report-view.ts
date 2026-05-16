@@ -15,7 +15,10 @@ import type { TUI } from "@mariozechner/pi-tui";
 import type { BasePromptTraceResult, TraceBucket } from "./base-trace/index.js";
 import { DisableMode } from "./enums.js";
 import { estimateTokens } from "./parser.js";
-import { SkillManagementSession } from "./skill-management-session.js";
+import {
+  reconcileSkillsWithPrompt,
+  SkillManagementSession,
+} from "./skill-management-session.js";
 import { formatSkillPromptEntry, formatSkillsPromptSection } from "./skills.js";
 import { SourceTraceReportCache } from "./source-trace-report-cache.js";
 import type { SourceTraceReport } from "./source-trace-report.js";
@@ -274,7 +277,7 @@ function renderContextWindowBar(
   divider: () => string
 ): void {
   const pct = (parsed.totalTokens / contextWindow) * 100;
-  const label = `${fmt(parsed.totalTokens)} / ${fmt(contextWindow)} tokens (${pct.toFixed(1)}%)`;
+  const label = `${fmt(parsed.totalTokens)} / ${fmt(contextWindow)} o200k-base tokens est. (${pct.toFixed(1)}%)`;
   lines.push(row(label));
 
   const barWidth = innerW - 4;
@@ -430,9 +433,13 @@ class BudgetOverlay {
     onToggleResult?: (result: SkillToggleResult) => boolean,
     onRunTrace?: () => Promise<BasePromptTraceResult>
   ) {
+    const reconciledSkills = reconcileSkillsWithPrompt(
+      discoveredSkills,
+      parsed.skills
+    );
     const parsedWithSkillManagement = ensureSkillsSectionForManagement(
       parsed,
-      discoveredSkills
+      reconciledSkills
     );
 
     this.tui = tui;
@@ -444,7 +451,7 @@ class BudgetOverlay {
     this.originalTotalTokens = parsedWithSkillManagement.totalTokens;
     this.adjustedTotalTokens = parsedWithSkillManagement.totalTokens;
     this.contextWindow = contextWindow;
-    this.skillSession = new SkillManagementSession(discoveredSkills);
+    this.skillSession = new SkillManagementSession(reconciledSkills);
     this.tableItems = buildTableItems(parsedWithSkillManagement);
     this.done = done;
     this.onToggleResult = onToggleResult;

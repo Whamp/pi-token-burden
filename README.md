@@ -97,7 +97,7 @@ Press `Enter` on any bucket to see line-level evidence with per-line token count
 
 ### Tool definitions
 
-Tool definitions are the function schemas (name, description, parameter JSON schema) sent to the LLM alongside the system prompt. They are not part of the system prompt text, but they still consume context window tokens through the tool-calling API. Counts are based on the compact LLM-visible schema payload, excluding Pi-internal metadata and pretty-printing used only for display.
+Tool definitions are the function schemas sent to the LLM alongside the system prompt. They are not part of the system prompt text, but they still consume context window tokens through the tool-calling API. Counts use the active model API's tool envelope when Pi exposes it, excluding Pi-internal metadata and pretty-printing used only for display.
 
 `/token-burden` compares Pi's full registered tool catalog with the current active tool set:
 
@@ -124,7 +124,9 @@ Tool-related guideline text remains accounted under **Base prompt**. The **Tool 
 
 Tokens are counted using [gpt-tokenizer](https://github.com/niieani/gpt-tokenizer)
 with the `o200k_base` encoding (used by GPT-4o, o1, o3, and other modern models).
-This gives exact BPE token counts rather than a character-based approximation.
+Treat counts as `o200k_base` estimates when using Claude, Gemini, Mistral, or other
+models with different tokenizers. They are still exact BPE counts for this encoding,
+not character-based approximations.
 
 ## Development
 

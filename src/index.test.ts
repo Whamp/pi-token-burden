@@ -6,7 +6,7 @@ type CommandHandler = (
     getSystemPrompt(): string;
     getContextUsage(): { contextWindow?: number } | null;
     hasUI: boolean;
-    model?: { provider?: string; contextWindow?: number };
+    model?: { api?: string; provider?: string; contextWindow?: number };
   }
 ) => Promise<void>;
 
@@ -24,7 +24,7 @@ interface ParserModule {
     countedEnvelope?: string
   ): PromptSection | null;
   estimateTokens(text: string): number;
-  toolEnvelopeForProvider(provider: string | undefined): string;
+  toolEnvelopeForModel(api: string | undefined, provider?: string): string;
 }
 
 interface ReportViewModule {
@@ -43,15 +43,14 @@ const parseSystemPromptMock = vi.fn<ParserModule["parseSystemPrompt"]>();
 const buildToolDefinitionsSectionMock =
   vi.fn<ParserModule["buildToolDefinitionsSection"]>();
 const estimateTokensMock = vi.fn<ParserModule["estimateTokens"]>();
-const toolEnvelopeForProviderMock =
-  vi.fn<ParserModule["toolEnvelopeForProvider"]>();
+const toolEnvelopeForModelMock = vi.fn<ParserModule["toolEnvelopeForModel"]>();
 const showReportMock = vi.fn<ReportViewModule["showReport"]>();
 
 vi.mock<ParserModule>(import("./parser.js"), () => ({
   parseSystemPrompt: parseSystemPromptMock,
   buildToolDefinitionsSection: buildToolDefinitionsSectionMock,
   estimateTokens: estimateTokensMock,
-  toolEnvelopeForProvider: toolEnvelopeForProviderMock,
+  toolEnvelopeForModel: toolEnvelopeForModelMock,
 }));
 
 vi.mock<ReportViewModule>(import("./report-view.js"), () => ({
@@ -72,7 +71,7 @@ describe("extension", () => {
       skills: [],
     });
     buildToolDefinitionsSectionMock.mockReturnValue(null);
-    toolEnvelopeForProviderMock.mockReturnValue("anthropic");
+    toolEnvelopeForModelMock.mockReturnValue("anthropic");
 
     const tools = [
       { name: "read", description: "Read files", parameters: {} },
@@ -104,10 +103,13 @@ describe("extension", () => {
       getSystemPrompt: () => "prompt",
       getContextUsage: () => null,
       hasUI: false,
-      model: { provider: "anthropic" },
+      model: { api: "anthropic-messages", provider: "openrouter" },
     });
 
-    expect(toolEnvelopeForProviderMock).toHaveBeenCalledWith("anthropic");
+    expect(toolEnvelopeForModelMock).toHaveBeenCalledWith(
+      "anthropic-messages",
+      "openrouter"
+    );
     expect(buildToolDefinitionsSectionMock).toHaveBeenCalledWith(
       tools,
       ["read"],

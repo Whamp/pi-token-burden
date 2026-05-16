@@ -18,7 +18,7 @@ import {
   buildToolDefinitionsSection,
   estimateTokens,
   parseSystemPrompt,
-  toolEnvelopeForProvider,
+  toolEnvelopeForModel,
 } from "./parser.js";
 import { showReport } from "./report-view.js";
 import { saveSkillToggleResult } from "./skill-save.js";
@@ -60,7 +60,7 @@ const extension: ExtensionFactory = (pi) => {
       const toolSection = buildToolDefinitionsSection(
         allTools,
         activeTools,
-        toolEnvelopeForProvider(ctx.model?.provider)
+        toolEnvelopeForModel(ctx.model?.api, ctx.model?.provider)
       );
       if (toolSection) {
         parsed.sections.push(toolSection);

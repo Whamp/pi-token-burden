@@ -3,6 +3,7 @@ import {
   estimateTokens,
   parseSystemPrompt,
   buildToolDefinitionsSection,
+  toolEnvelopeForModel,
   toolEnvelopeForProvider,
 } from "./parser.js";
 import type { ParsedPrompt } from "./parser.js";
@@ -175,6 +176,51 @@ describe("parseSystemPrompt()", () => {
     );
   });
 
+  it("does not split AGENTS.md children on internal path-like markdown headings", () => {
+    const agentsWithInternalPathHeading = [
+      "",
+      "",
+      "# Project Context",
+      "",
+      "Project-specific instructions and guidelines:",
+      "",
+      "## /home/user/project/AGENTS.md",
+      "",
+      "# Project Rules",
+      "",
+      "## /not/a/file",
+      "This is an internal markdown heading, not an AGENTS file separator.",
+      "",
+      "## /home/user/project/nested/AGENTS.md",
+      "",
+      "# Nested Rules",
+    ].join("\n");
+    const prompt = basePrompt + agentsWithInternalPathHeading + metadata;
+    const result = parseSystemPrompt(prompt);
+
+    const agentsSection = result.sections.find((s) =>
+      s.label.includes("AGENTS.md")
+    );
+
+    expect(agentsSection?.children?.map((child) => child.label)).toStrictEqual([
+      "/home/user/project/AGENTS.md",
+      "/home/user/project/nested/AGENTS.md",
+    ]);
+    expect(agentsSection?.children?.[0].tokens).toBe(
+      estimateTokens(
+        [
+          "## /home/user/project/AGENTS.md",
+          "",
+          "# Project Rules",
+          "",
+          "## /not/a/file",
+          "This is an internal markdown heading, not an AGENTS file separator.",
+          "",
+        ].join("\n")
+      )
+    );
+  });
+
   it("parses individual skills from XML", () => {
     const prompt = basePrompt + skillsPreamble + skillsBlock + metadata;
     const result = parseSystemPrompt(prompt);
@@ -262,14 +308,45 @@ function toolPayload(tool: {
   };
 }
 
-describe("toolEnvelopeForProvider()", () => {
-  it("maps pi providers to provider-specific tool envelopes", () => {
-    expect(toolEnvelopeForProvider("anthropic")).toBe(ToolEnvelope.Anthropic);
-    expect(toolEnvelopeForProvider("google-vertex")).toBe(ToolEnvelope.Google);
-    expect(toolEnvelopeForProvider("mistral")).toBe(ToolEnvelope.Mistral);
-    expect(toolEnvelopeForProvider("openai")).toBe(
+describe("toolEnvelopeForModel()", () => {
+  it("maps non-OpenAI pi model APIs to API-specific tool envelopes", () => {
+    expect(toolEnvelopeForModel("anthropic-messages", "openrouter")).toBe(
+      ToolEnvelope.Anthropic
+    );
+    expect(
+      toolEnvelopeForModel("bedrock-converse-stream", "amazon-bedrock")
+    ).toBe(ToolEnvelope.Bedrock);
+    expect(toolEnvelopeForModel("google-generative-ai", "openrouter")).toBe(
+      ToolEnvelope.Google
+    );
+    expect(toolEnvelopeForModel("google-vertex", "google-vertex")).toBe(
+      ToolEnvelope.Google
+    );
+    expect(toolEnvelopeForModel("mistral-conversations", "openrouter")).toBe(
+      ToolEnvelope.Mistral
+    );
+  });
+
+  it("maps OpenAI-family pi model APIs to their API-specific envelopes", () => {
+    expect(toolEnvelopeForModel("openai-completions", "openrouter")).toBe(
+      ToolEnvelope.OpenAiChat
+    );
+    expect(toolEnvelopeForModel("openai-responses", "openrouter")).toBe(
       ToolEnvelope.OpenAiResponses
     );
+    expect(toolEnvelopeForModel("azure-openai-responses", "azure")).toBe(
+      ToolEnvelope.OpenAiResponses
+    );
+    expect(toolEnvelopeForModel("openai-codex-responses", "openai-codex")).toBe(
+      ToolEnvelope.OpenAiResponses
+    );
+  });
+
+  it("falls back to provider hints for custom APIs", () => {
+    expect(toolEnvelopeForModel("custom-anthropic-api", "anthropic")).toBe(
+      ToolEnvelope.Anthropic
+    );
+    expect(toolEnvelopeForProvider("mistral")).toBe(ToolEnvelope.Mistral);
   });
 });
 
@@ -429,7 +506,7 @@ describe("buildToolDefinitionsSection()", () => {
     );
   });
 
-  it("counts the active tool section as one canonical compact array payload", () => {
+  it("counts tool children with the selected single-tool envelope", () => {
     const tools = [
       { name: "a", description: "Tool A", parameters: { type: "object" } },
       {
@@ -439,16 +516,38 @@ describe("buildToolDefinitionsSection()", () => {
       },
     ];
 
-    const section = buildToolDefinitionsSection(tools);
+    const section = buildToolDefinitionsSection(
+      tools,
+      undefined,
+      ToolEnvelope.OpenAiChat
+    );
+    const openAiChatEnvelopeForOne = (tool: (typeof tools)[number]) => [
+      {
+        type: "function",
+        function: {
+          name: tool.name,
+          description: tool.description,
+          parameters: tool.parameters,
+          strict: false,
+        },
+      },
+    ];
 
     expect(section?.children?.map((child) => child.tokens)).toStrictEqual(
-      tools.map((tool) => estimateTokens(JSON.stringify(toolPayload(tool))))
+      tools.map((tool) =>
+        estimateTokens(JSON.stringify(openAiChatEnvelopeForOne(tool)))
+      )
+    );
+    expect(section?.children?.[0].content).toBe(
+      JSON.stringify(openAiChatEnvelopeForOne(tools[0]), null, 2)
     );
     expect(section?.tokens).toBe(
-      estimateTokens(JSON.stringify(tools.map(toolPayload)))
-    );
-    expect(section?.tokens).not.toBe(
-      section?.children?.reduce((sum, child) => sum + child.tokens, 0)
+      estimateTokens(
+        JSON.stringify([
+          ...openAiChatEnvelopeForOne(tools[0]),
+          ...openAiChatEnvelopeForOne(tools[1]),
+        ])
+      )
     );
   });
 

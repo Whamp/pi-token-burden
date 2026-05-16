@@ -1,6 +1,9 @@
 import { DisableMode } from "./enums.js";
 import { estimateTokens } from "./parser.js";
-import { SkillManagementSession } from "./skill-management-session.js";
+import {
+  reconcileSkillsWithPrompt,
+  SkillManagementSession,
+} from "./skill-management-session.js";
 import { formatSkillsPromptSection } from "./skills.js";
 import type { SkillInfo } from "./types.js";
 
@@ -165,5 +168,60 @@ describe("skill management session", () => {
 
     expect(removeLast.tokenDelta).toBe(-originalSectionTokens);
     expect(addFirst.tokenDelta).toBe(hiddenSectionTokens);
+  });
+
+  it("reconciles discovered enabled skills against the active prompt skills", () => {
+    const activePromptSkill = {
+      name: "tdd",
+      description: "Prompt description",
+      location: "/prompt/tdd/SKILL.md",
+      chars: 120,
+      tokens: 30,
+    };
+    const discovered = [
+      skill({
+        name: "extra",
+        mode: DisableMode.Enabled,
+        tokens: 50,
+      }),
+      skill({
+        name: "tdd",
+        description: "Filesystem description",
+        filePath: "/filesystem/tdd/SKILL.md",
+        mode: DisableMode.Hidden,
+        tokens: 10,
+      }),
+    ];
+
+    const reconciled = reconcileSkillsWithPrompt(discovered, [
+      activePromptSkill,
+    ]);
+    const session = new SkillManagementSession(reconciled);
+
+    expect(
+      reconciled.map(({ name, mode, description, filePath, tokens }) => ({
+        name,
+        mode,
+        description,
+        filePath,
+        tokens,
+      }))
+    ).toStrictEqual([
+      {
+        name: "extra",
+        mode: DisableMode.Hidden,
+        description: "extra description",
+        filePath: "/skills/extra/SKILL.md",
+        tokens: 50,
+      },
+      {
+        name: "tdd",
+        mode: DisableMode.Enabled,
+        description: "Prompt description",
+        filePath: "/prompt/tdd/SKILL.md",
+        tokens: 30,
+      },
+    ]);
+    expect(session.tokenDelta).toBe(0);
   });
 });
