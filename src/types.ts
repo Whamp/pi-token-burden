@@ -8,12 +8,6 @@ export interface SkillEntry {
   tokens: number;
 }
 
-export interface AgentsFileEntry {
-  path: string;
-  chars: number;
-  tokens: number;
-}
-
 export interface FilterItem {
   label: string;
   tokens: number;

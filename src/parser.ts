@@ -13,7 +13,6 @@ import { encode } from "gpt-tokenizer/encoding/o200k_base";
 
 import { ToolEnvelope } from "./enums.js";
 import type {
-  AgentsFileEntry,
   ParsedPrompt,
   PromptSection,
   SkillEntry,
@@ -25,6 +24,24 @@ export type { ParsedPrompt };
 /** Token count using BPE tokenization (o200k_base encoding). */
 export function estimateTokens(text: string): number {
   return encode(text).length;
+}
+
+interface ChildRow {
+  label: string;
+  chars: number;
+  tokens: number;
+  content?: string;
+}
+
+interface ContextFileSpan {
+  path: string;
+  start: number;
+  end: number;
+}
+
+interface ParsedSkillEntry extends SkillEntry {
+  start: number;
+  end: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -72,9 +89,16 @@ function findBasePromptEnd(
   skillsPreambleIdx: number,
   dateLineIdx: number
 ): number {
+  const fallbackBoundary = firstPositive(
+    projectCtxIdx,
+    skillsPreambleIdx,
+    dateLineIdx
+  );
+  const searchEnd = fallbackBoundary >= 0 ? fallbackBoundary : prompt.length;
+  const baseRegion = prompt.slice(0, searchEnd);
   const piDocsMarker = /^- (?:Always read pi|When working on pi).+$/gm;
   let lastPiDocsEnd = -1;
-  for (const match of prompt.matchAll(piDocsMarker)) {
+  for (const match of baseRegion.matchAll(piDocsMarker)) {
     lastPiDocsEnd = match.index + match[0].length;
   }
 
@@ -82,7 +106,7 @@ function findBasePromptEnd(
     return lastPiDocsEnd;
   }
 
-  return firstPositive(projectCtxIdx, skillsPreambleIdx, dateLineIdx);
+  return fallbackBoundary;
 }
 
 function findMetadataStart(prompt: string): number {
@@ -91,33 +115,30 @@ function findMetadataStart(prompt: string): number {
   return Math.max(currentDateIdx, legacyDateTimeIdx);
 }
 
-/** Parse `## /path/to/AGENTS.md` blocks inside the Project Context section. */
-function parseAgentsFiles(contextBlock: string): AgentsFileEntry[] {
-  const files: AgentsFileEntry[] = [];
-  // Pi emits each project-context file under a `## /.../AGENTS.md` heading.
-  // Do not treat arbitrary path-looking markdown headings inside an AGENTS.md
-  // body as file separators.
-  const headingPattern = /^## (\/[^\r\n]*AGENTS\.md)$/gm;
-  const matches = [...contextBlock.matchAll(headingPattern)];
+function isPiContextFilePath(filePath: string): boolean {
+  return /(?:^|\/)(?:AGENTS|CLAUDE)\.md$/i.test(filePath);
+}
 
-  for (let i = 0; i < matches.length; i++) {
-    const [, path] = matches[i];
-    const blockStart = matches[i].index;
-    const blockEnd =
-      i + 1 < matches.length ? matches[i + 1].index : contextBlock.length;
-    const blockText = contextBlock.slice(blockStart, blockEnd);
-    files.push({
-      path,
-      chars: blockText.length,
-      tokens: estimateTokens(blockText),
-    });
-  }
+/** Parse pi context-file headings inside the Project Context section. */
+function parseContextFileSpans(contextBlock: string): ContextFileSpan[] {
+  const headingPattern = /^## (\/[^\r\n]+)$/gm;
+  const matches = [...contextBlock.matchAll(headingPattern)].filter((match) =>
+    isPiContextFilePath(match[1])
+  );
 
-  return files;
+  return matches.map((match, index) => ({
+    path: match[1],
+    start: match.index,
+    end:
+      index + 1 < matches.length
+        ? matches[index + 1].index
+        : contextBlock.length,
+  }));
 }
 
 /** Parse `<skill>` entries from the `<available_skills>` XML block. */
-function parseSkillEntries(xmlBlock: string, out: SkillEntry[]): void {
+function parseSkillEntries(xmlBlock: string): ParsedSkillEntry[] {
+  const entries: ParsedSkillEntry[] = [];
   const skillPattern = /<skill>([\s\S]*?)<\/skill>/g;
   const namePattern = /<name>([\s\S]*?)<\/name>/;
   const descPattern = /<description>([\s\S]*?)<\/description>/;
@@ -129,14 +150,42 @@ function parseSkillEntries(xmlBlock: string, out: SkillEntry[]): void {
     const description = inner.match(descPattern)?.[1]?.trim() ?? "";
     const location = inner.match(locPattern)?.[1]?.trim() ?? "";
 
-    out.push({
+    entries.push({
       name,
       description,
       location,
       chars: fullEntry.length,
       tokens: estimateTokens(fullEntry),
+      start: match.index,
+      end: match.index + fullEntry.length,
     });
   }
+
+  return entries;
+}
+
+function appendReconciliationChild(
+  children: ChildRow[],
+  parent: PromptSection,
+  label: string
+): ChildRow[] {
+  const childTokens = children.reduce((sum, child) => sum + child.tokens, 0);
+  const childChars = children.reduce((sum, child) => sum + child.chars, 0);
+  const overheadTokens = parent.tokens - childTokens;
+  const overheadChars = Math.max(0, parent.chars - childChars);
+
+  if (overheadTokens === 0 && overheadChars === 0) {
+    return children;
+  }
+
+  return [
+    ...children,
+    {
+      label,
+      chars: overheadChars,
+      tokens: overheadTokens,
+    },
+  ];
 }
 
 /** Compute the skills section end index, avoiding nested ternaries. */
@@ -218,24 +267,43 @@ export function parseSystemPrompt(prompt: string): ParsedPrompt {
     );
   }
 
-  // 2. Project Context / AGENTS.md files
+  // 2. Project Context / AGENTS.md and CLAUDE.md files
   if (projectCtxIdx !== -1) {
     const contextStart = projectCtxIdx;
     const contextEndBoundary = firstPositive(skillsPreambleIdx, dateLineIdx);
     const contextEnd =
       contextEndBoundary >= 0 ? contextEndBoundary : prompt.length;
     const contextBlock = prompt.slice(contextStart, contextEnd);
+    const contextSection = measureSpan(
+      "Context files (AGENTS.md / CLAUDE.md)",
+      prompt,
+      contextStart,
+      contextEnd
+    );
 
-    const agentsFiles = parseAgentsFiles(contextBlock);
-    const children = agentsFiles.map((f) => ({
-      label: f.path,
-      chars: f.chars,
-      tokens: f.tokens,
-    }));
+    const contextFiles = parseContextFileSpans(contextBlock);
+    const children = contextFiles.map((file): ChildRow => {
+      const child = measureSpan(
+        file.path,
+        prompt,
+        contextStart + file.start,
+        contextStart + file.end
+      );
+      return {
+        label: child.label,
+        chars: child.chars,
+        tokens: child.tokens,
+        content: child.content,
+      };
+    });
 
     sections.push({
-      ...measureSpan("AGENTS.md files", prompt, contextStart, contextEnd),
-      children,
+      ...contextSection,
+      children: appendReconciliationChild(
+        children,
+        contextSection,
+        "Context wrapper / overhead"
+      ),
     });
   }
 
@@ -247,28 +315,56 @@ export function parseSystemPrompt(prompt: string): ParsedPrompt {
       dateLineIdx,
       prompt.length
     );
+    const parsedSkillEntries: ParsedSkillEntry[] = [];
     if (availableSkillsStart !== -1 && availableSkillsEnd !== -1) {
       const xmlBlock = prompt.slice(
         availableSkillsStart,
         availableSkillsEnd + "</available_skills>".length
       );
-      parseSkillEntries(xmlBlock, skills);
+      parsedSkillEntries.push(...parseSkillEntries(xmlBlock));
+      skills.push(
+        ...parsedSkillEntries.map((entry) => ({
+          name: entry.name,
+          description: entry.description,
+          location: entry.location,
+          chars: entry.chars,
+          tokens: entry.tokens,
+        }))
+      );
     }
 
-    const children = skills.map((s) => ({
-      label: s.name,
-      chars: s.chars,
-      tokens: s.tokens,
-    }));
+    const skillsSection = measureSpan(
+      `Skills (${String(skills.length)})`,
+      prompt,
+      skillsSectionStart,
+      skillsSectionEnd
+    );
+    const children = parsedSkillEntries.map((entry): ChildRow => {
+      const child = measureSpan(
+        entry.name,
+        prompt,
+        availableSkillsStart + entry.start,
+        availableSkillsStart + entry.end
+      );
+      const promptSkill = skills.find((skill) => skill.name === entry.name);
+      if (promptSkill) {
+        promptSkill.tokens = child.tokens;
+      }
+      return {
+        label: child.label,
+        chars: child.chars,
+        tokens: child.tokens,
+        content: child.content,
+      };
+    });
 
     sections.push({
-      ...measureSpan(
-        `Skills (${String(skills.length)})`,
-        prompt,
-        skillsSectionStart,
-        skillsSectionEnd
+      ...skillsSection,
+      children: appendReconciliationChild(
+        children,
+        skillsSection,
+        "Skills preamble / XML overhead"
       ),
-      children,
     });
   }
 
@@ -327,29 +423,29 @@ function toolParametersObject(parameters: unknown): Record<string, unknown> {
     : {};
 }
 
-function buildToolEnvelopePayload(
-  tools: ToolDefinitionInput[],
+function buildToolEnvelopeChildPayload(
+  tool: ToolDefinitionInput,
   envelope: ToolEnvelope
 ): unknown {
   if (envelope === ToolEnvelope.Compact) {
-    return tools.map(createToolSchemaPayload);
+    return createToolSchemaPayload(tool);
   }
 
   if (envelope === ToolEnvelope.OpenAiResponses) {
-    return tools.map((tool) => ({
+    return {
       type: "function",
       name: tool.name,
       description: tool.description,
       parameters: tool.parameters,
       strict: false,
-    }));
+    };
   }
 
   if (
     envelope === ToolEnvelope.OpenAiChat ||
     envelope === ToolEnvelope.Mistral
   ) {
-    return tools.map((tool) => ({
+    return {
       type: "function",
       function: {
         name: tool.name,
@@ -357,46 +453,63 @@ function buildToolEnvelopePayload(
         parameters: tool.parameters,
         strict: false,
       },
-    }));
+    };
   }
 
   if (envelope === ToolEnvelope.Anthropic) {
-    return tools.map((tool) => {
-      const parameters = toolParametersObject(tool.parameters);
-      return {
-        name: tool.name,
-        description: tool.description,
-        input_schema: {
-          type: "object",
-          properties: parameters.properties ?? {},
-          required: parameters.required ?? [],
-        },
-      };
-    });
+    const parameters = toolParametersObject(tool.parameters);
+    return {
+      name: tool.name,
+      description: tool.description,
+      input_schema: {
+        type: "object",
+        properties: parameters.properties ?? {},
+        required: parameters.required ?? [],
+      },
+    };
   }
 
   if (envelope === ToolEnvelope.Bedrock) {
     return {
-      tools: tools.map((tool) => ({
-        toolSpec: {
-          name: tool.name,
-          description: tool.description,
-          inputSchema: { json: tool.parameters },
-        },
-      })),
+      toolSpec: {
+        name: tool.name,
+        description: tool.description,
+        inputSchema: { json: tool.parameters },
+      },
+    };
+  }
+
+  return {
+    name: tool.name,
+    description: tool.description,
+    parametersJsonSchema: tool.parameters,
+  };
+}
+
+function buildToolEnvelopePayload(
+  tools: ToolDefinitionInput[],
+  envelope: ToolEnvelope
+): unknown {
+  const childPayloads = tools.map((tool) =>
+    buildToolEnvelopeChildPayload(tool, envelope)
+  );
+
+  if (envelope === ToolEnvelope.Bedrock) {
+    return {
+      tools: childPayloads,
       toolChoice: { auto: {} },
     };
   }
 
-  return [
-    {
-      functionDeclarations: tools.map((tool) => ({
-        name: tool.name,
-        description: tool.description,
-        parametersJsonSchema: tool.parameters,
-      })),
-    },
-  ];
+  if (envelope === ToolEnvelope.Google) {
+    return [
+      {
+        functionDeclarations: childPayloads,
+      },
+    ];
+  }
+
+  return childPayloads;
 }
 
 export function toolEnvelopeForProvider(
@@ -502,10 +615,7 @@ export function buildToolDefinitionsSection(
 
   function serializeTools(input: ToolDefinitionInput[]): ToolEntry[] {
     return input.map((tool) => {
-      const payload =
-        countedEnvelope === ToolEnvelope.Compact
-          ? createToolSchemaPayload(tool)
-          : buildToolEnvelopePayload([tool], countedEnvelope);
+      const payload = buildToolEnvelopeChildPayload(tool, countedEnvelope);
       const content = JSON.stringify(payload, null, 2);
       const countedPayload = JSON.stringify(payload);
       return {
@@ -552,6 +662,16 @@ export function buildToolDefinitionsSection(
     });
   }
 
+  const reconciledChildren = appendReconciliationChild(
+    children,
+    {
+      label: "Tool definitions",
+      chars: totalChars,
+      tokens: totalTokens,
+    },
+    "Tool envelope overhead"
+  );
+
   const label = activeSet
     ? `Tool definitions (${String(countedTools.length)} active, ${String(tools.length)} total)`
     : `Tool definitions (${String(tools.length)})`;
@@ -566,6 +686,6 @@ export function buildToolDefinitionsSection(
       variants,
       countedEnvelope,
     },
-    children,
+    children: reconciledChildren,
   };
 }

@@ -12,8 +12,8 @@ See where your system prompt tokens go.
 
 A [pi](https://github.com/mariozechner/pi) extension that parses the assembled
 system prompt and shows a token-budget breakdown by section. Run `/token-burden`
-to see how much of your context window is consumed by the base prompt, AGENTS.md
-files, skills, SYSTEM.md overrides, and metadata.
+to see how much of your context window is consumed by the base prompt, context
+files (AGENTS.md / CLAUDE.md), skills, SYSTEM.md overrides, and metadata.
 
 ## Install
 
@@ -43,19 +43,19 @@ and a drill-down table:
 </p>
 
 The table is sorted by token count (descending). Use arrow keys to navigate,
-Enter to drill down into children (e.g., individual skills or AGENTS.md files),
+Enter to drill down into children (e.g., individual skills or context files),
 and `/` to fuzzy-search items.
 
 **Drill-down views:**
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Whamp/pi-token-burden/main/screenshot-drilldown-agents.png" alt="AGENTS.md drilldown" width="720" />
-  <br/><em>AGENTS.md files with per-file token counts</em>
+  <img src="https://raw.githubusercontent.com/Whamp/pi-token-burden/main/screenshot-drilldown-agents.png" alt="Context files drilldown" width="720" />
+  <br/><em>AGENTS.md and CLAUDE.md context files with per-file token counts</em>
 </p>
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Whamp/pi-token-burden/main/screenshot-drilldown-tools.png" alt="Tool definitions drilldown" width="720" />
-  <br/><em>Tool definitions with per-tool JSON schemas</em>
+  <br/><em>Tool definitions with per-tool JSON schemas and envelope overhead</em>
 </p>
 
 <p align="center">
@@ -65,22 +65,22 @@ and `/` to fuzzy-search items.
 
 ### Keyboard shortcuts
 
-| Key       | Context            | Action                                       |
-| --------- | ------------------ | -------------------------------------------- |
-| `↑` / `↓` | All modes          | Navigate rows                                |
-| `Enter`   | Sections           | Drill into children or enter skill-toggle    |
-| `/`       | Sections/skills    | Fuzzy search                                 |
-| `e`       | Sections           | Open the selected section in `$EDITOR`       |
-| `e`       | Drilldown (AGENTS) | Open the AGENTS.md file in `$EDITOR`         |
-| `Enter`   | Tools view         | Expand/collapse the Inactive group           |
-| `e`       | Tools view         | Open tool JSON definition in `$EDITOR`       |
-| `t`       | Sections           | Trace Base prompt sources (attribution view) |
-| `s`       | Sections           | Enter skill-toggle mode                      |
-| `Enter`   | Skill-toggle       | Cycle skill state (on → hidden → disabled)   |
-| `Ctrl+S`  | Skill-toggle       | Save pending skill changes                   |
-| `Enter`   | Trace view         | Drill into bucket (line-level evidence)      |
-| `r`       | Trace view         | Refresh trace                                |
-| `Esc`     | Any                | Go back / close overlay                      |
+| Key       | Context           | Action                                       |
+| --------- | ----------------- | -------------------------------------------- |
+| `↑` / `↓` | All modes         | Navigate rows                                |
+| `Enter`   | Sections          | Drill into children or enter skill-toggle    |
+| `/`       | Sections/skills   | Fuzzy search                                 |
+| `e`       | Sections          | Open the selected section in `$EDITOR`       |
+| `e`       | Context drilldown | Open the context file in `$EDITOR`           |
+| `Enter`   | Tools view        | Expand/collapse the Inactive group           |
+| `e`       | Tools view        | Open tool JSON definition in `$EDITOR`       |
+| `t`       | Sections          | Trace Base prompt sources (attribution view) |
+| `s`       | Sections          | Enter skill-toggle mode                      |
+| `Enter`   | Skill-toggle      | Cycle skill state (on → hidden → disabled)   |
+| `Ctrl+S`  | Skill-toggle      | Save pending skill changes                   |
+| `Enter`   | Trace view        | Drill into bucket (line-level evidence)      |
+| `r`       | Trace view        | Refresh trace                                |
+| `Esc`     | Any               | Go back / close overlay                      |
 
 ### Base prompt source tracing
 
@@ -115,7 +115,7 @@ Tool-related guideline text remains accounted under **Base prompt**. The **Tool 
 | -------------------------------- | ---------------------------------------------------------------------------------------- |
 | **Base prompt**                  | pi's built-in instructions, tool descriptions, guidelines                                |
 | **SYSTEM.md / APPEND_SYSTEM.md** | Your custom system prompt overrides                                                      |
-| **AGENTS.md files**              | Each AGENTS.md file, listed individually                                                 |
+| **Context files**                | Each AGENTS.md / CLAUDE.md file, listed individually                                     |
 | **Skills**                       | The `<available_skills>` block, with per-skill breakdown                                 |
 | **Tool definitions**             | Active LLM function schemas; inactive schemas shown as counterfactual `if enabled` costs |
 | **Metadata**                     | The `Current date and time` / `Current working directory` footer                         |
@@ -134,8 +134,8 @@ not character-based approximations.
 git clone https://github.com/Whamp/pi-token-burden.git
 cd pi-token-burden
 pnpm install
-pnpm run test     # 111 unit tests
-pnpm run test:e2e # 29 e2e tests (requires tmux)
+pnpm run test     # 153 unit tests
+pnpm run test:e2e # 33 e2e tests (requires tmux)
 pnpm run check    # lint, typecheck, format, dead code, duplicates, tests
 ```
 

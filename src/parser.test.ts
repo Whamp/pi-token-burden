@@ -96,6 +96,24 @@ describe("parseSystemPrompt()", () => {
     return result.sections.reduce((sum, section) => sum + section.tokens, 0);
   }
 
+  function childTokenSum(section?: {
+    children?: { tokens: number }[];
+  }): number {
+    return (
+      section?.children?.reduce((sum, child) => sum + child.tokens, 0) ?? 0
+    );
+  }
+
+  function pathChildLabels(section?: {
+    children?: { label: string }[];
+  }): string[] {
+    return (
+      section?.children
+        ?.map((child) => child.label)
+        .filter((label) => label.startsWith("/")) ?? []
+    );
+  }
+
   it("parses a full system prompt into sections", () => {
     const prompt =
       basePrompt + agentsBlock + skillsPreamble + skillsBlock + metadata;
@@ -107,7 +125,7 @@ describe("parseSystemPrompt()", () => {
 
     const labels = result.sections.map((s) => s.label);
     expect(labels).toContain("Base prompt");
-    expect(labels).toContain("AGENTS.md files");
+    expect(labels).toContain("Context files (AGENTS.md / CLAUDE.md)");
   });
 
   it("parses a full system prompt with correct section labels", () => {
@@ -141,7 +159,9 @@ describe("parseSystemPrompt()", () => {
     const agentsSection = result.sections.find((s) =>
       s.label.includes("AGENTS.md")
     );
-    const lastChild = agentsSection?.children?.at(-1);
+    const lastChild = agentsSection?.children?.find(
+      (child) => child.label === "/home/user/project/AGENTS.md"
+    );
 
     expect(lastChild?.label).toBe("/home/user/project/AGENTS.md");
     expect(agentsSection?.content).not.toContain("Current date: 2026-05-15");
@@ -160,6 +180,45 @@ describe("parseSystemPrompt()", () => {
     expect(sectionTokenSum(result)).toBe(result.totalTokens);
   });
 
+  it("bounds base prompt marker detection before project context", () => {
+    const agentsWithPiLikeBullet = [
+      "",
+      "",
+      "# Project Context",
+      "",
+      "Project-specific instructions and guidelines:",
+      "",
+      "## /home/user/project/AGENTS.md",
+      "",
+      "# Project Rules",
+      "",
+      "- Always read pi custom agent rule before acting.",
+    ].join("\n");
+    const prompt = basePrompt + agentsWithPiLikeBullet + currentMetadata;
+    const result = parseSystemPrompt(prompt);
+    const baseSection = result.sections.find((s) => s.label === "Base prompt");
+
+    expect(baseSection?.content).not.toContain("# Project Context");
+    expect(baseSection?.content).not.toContain("custom agent rule");
+    expect(sectionTokenSum(result)).toBe(result.totalTokens);
+  });
+
+  it("reconciles context child rows to the context section total", () => {
+    const prompt = basePrompt + agentsBlock + currentMetadata;
+    const result = parseSystemPrompt(prompt);
+    const contextSection = result.sections.find((s) =>
+      s.label.startsWith("Context files")
+    );
+
+    expect(contextSection).toBeDefined();
+    expect(childTokenSum(contextSection)).toBe(contextSection?.tokens);
+    expect(
+      contextSection?.children?.some((child) =>
+        child.label.includes("overhead")
+      )
+    ).toBeTruthy();
+  });
+
   it("parses AGENTS.md files into children", () => {
     const prompt = basePrompt + agentsBlock + metadata;
     const result = parseSystemPrompt(prompt);
@@ -167,13 +226,44 @@ describe("parseSystemPrompt()", () => {
     const agentsSection = result.sections.find((s) =>
       s.label.includes("AGENTS.md")
     );
-    expect(agentsSection?.children).toHaveLength(2);
-    expect(agentsSection?.children?.[0].label).toBe(
-      "/home/user/.pi/agent/AGENTS.md"
+    expect(pathChildLabels(agentsSection)).toStrictEqual([
+      "/home/user/.pi/agent/AGENTS.md",
+      "/home/user/project/AGENTS.md",
+    ]);
+  });
+
+  it("parses all pi context file names into children", () => {
+    const contextWithAllPiFileNames = [
+      "",
+      "",
+      "# Project Context",
+      "",
+      "Project-specific instructions and guidelines:",
+      "",
+      "## /home/user/global/AGENTS.MD",
+      "",
+      "# Uppercase Agents",
+      "",
+      "## /home/user/project/CLAUDE.md",
+      "",
+      "# Claude Rules",
+      "",
+      "## /home/user/project/nested/CLAUDE.MD",
+      "",
+      "# Uppercase Claude",
+    ].join("\n");
+    const prompt = basePrompt + contextWithAllPiFileNames + currentMetadata;
+    const result = parseSystemPrompt(prompt);
+    const contextSection = result.sections.find((s) =>
+      s.label.startsWith("Context files")
     );
-    expect(agentsSection?.children?.[1].label).toBe(
-      "/home/user/project/AGENTS.md"
-    );
+
+    expect(pathChildLabels(contextSection)).toStrictEqual([
+      "/home/user/global/AGENTS.MD",
+      "/home/user/project/CLAUDE.md",
+      "/home/user/project/nested/CLAUDE.MD",
+    ]);
+    expect(childTokenSum(contextSection)).toBe(contextSection?.tokens);
   });
 
   it("does not split AGENTS.md children on internal path-like markdown headings", () => {
@@ -202,11 +292,14 @@ describe("parseSystemPrompt()", () => {
       s.label.includes("AGENTS.md")
     );
 
-    expect(agentsSection?.children?.map((child) => child.label)).toStrictEqual([
+    expect(pathChildLabels(agentsSection)).toStrictEqual([
       "/home/user/project/AGENTS.md",
       "/home/user/project/nested/AGENTS.md",
     ]);
-    expect(agentsSection?.children?.[0].tokens).toBe(
+    const firstPathChild = agentsSection?.children?.find(
+      (child) => child.label === "/home/user/project/AGENTS.md"
+    );
+    expect(firstPathChild?.tokens).toBe(
       estimateTokens(
         [
           "## /home/user/project/AGENTS.md",
@@ -238,7 +331,23 @@ describe("parseSystemPrompt()", () => {
     const skillsSection = result.sections.find((s) =>
       s.label.startsWith("Skills")
     );
-    expect(skillsSection?.children).toHaveLength(2);
+    expect(skillsSection?.children?.map((child) => child.label)).toStrictEqual(
+      expect.arrayContaining(["brainstorming", "tdd"])
+    );
+  });
+
+  it("reconciles skill child rows to the skills section total", () => {
+    const prompt = basePrompt + skillsPreamble + skillsBlock + metadata;
+    const result = parseSystemPrompt(prompt);
+    const skillsSection = result.sections.find((s) =>
+      s.label.startsWith("Skills")
+    );
+
+    expect(skillsSection).toBeDefined();
+    expect(childTokenSum(skillsSection)).toBe(skillsSection?.tokens);
+    expect(
+      skillsSection?.children?.some((child) => child.label.includes("overhead"))
+    ).toBeTruthy();
   });
 
   it("handles a minimal prompt with no optional sections", () => {
@@ -379,10 +488,9 @@ describe("buildToolDefinitionsSection()", () => {
 
     expect(section).not.toBeNull();
     expect(section?.label).toBe("Tool definitions (2 active, 3 total)");
-    expect(section?.children?.map((child) => child.label)).toStrictEqual([
-      "read",
-      "write",
-    ]);
+    expect(section?.children?.map((child) => child.label)).toStrictEqual(
+      expect.arrayContaining(["read", "write", "Tool envelope overhead"])
+    );
 
     expect(section?.tokens).toBe(
       estimateTokens(
@@ -419,7 +527,6 @@ describe("buildToolDefinitionsSection()", () => {
     expect(section).toMatchObject({
       chars: JSON.stringify([toolPayload(tools[0])], null, 2).length,
       tokens: estimateTokens(activeEnvelope),
-      children: [{ label: "read" }],
       tools: {
         active: [
           {
@@ -506,7 +613,7 @@ describe("buildToolDefinitionsSection()", () => {
     );
   });
 
-  it("counts tool children with the selected single-tool envelope", () => {
+  it("counts tool children with the selected per-tool envelope", () => {
     const tools = [
       { name: "a", description: "Tool A", parameters: { type: "object" } },
       {
@@ -533,14 +640,32 @@ describe("buildToolDefinitionsSection()", () => {
       },
     ];
 
-    expect(section?.children?.map((child) => child.tokens)).toStrictEqual(
+    const toolChildren = section?.children?.filter((child) =>
+      ["a", "b"].includes(child.label)
+    );
+    const openAiChatChildPayload = (tool: (typeof tools)[number]) => ({
+      type: "function",
+      function: {
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters,
+        strict: false,
+      },
+    });
+
+    expect(toolChildren?.map((child) => child.tokens)).toStrictEqual(
       tools.map((tool) =>
-        estimateTokens(JSON.stringify(openAiChatEnvelopeForOne(tool)))
+        estimateTokens(JSON.stringify(openAiChatChildPayload(tool)))
       )
     );
-    expect(section?.children?.[0].content).toBe(
-      JSON.stringify(openAiChatEnvelopeForOne(tools[0]), null, 2)
+    expect(toolChildren?.[0].content).toBe(
+      JSON.stringify(openAiChatChildPayload(tools[0]), null, 2)
     );
+    expect(
+      section?.children?.some(
+        (child) => child.label === "Tool envelope overhead"
+      )
+    ).toBeTruthy();
     expect(section?.tokens).toBe(
       estimateTokens(
         JSON.stringify([
@@ -571,7 +696,9 @@ describe("buildToolDefinitionsSection()", () => {
     expect(section).not.toBeNull();
     expect(section?.label).toContain("Tool definitions");
     expect(section?.label).toContain("2");
-    expect(section?.children).toHaveLength(2);
+    expect(section?.children?.map((child) => child.label)).toStrictEqual(
+      expect.arrayContaining(["read", "bash"])
+    );
   });
 
   it("labels children by tool name", () => {
@@ -631,9 +758,35 @@ describe("buildToolDefinitionsSection()", () => {
     ];
     const section = buildToolDefinitionsSection(tools);
     expect(section).not.toBeNull();
-    expect(section?.children).toHaveLength(2);
+    expect(section?.children?.map((child) => child.label)).toStrictEqual(
+      expect.arrayContaining(["a", "b"])
+    );
     expect(section?.tokens).toBe(
       estimateTokens(JSON.stringify(tools.map(toolPayload)))
     );
+  });
+
+  it("reconciles active tool children and envelope overhead to the section total", () => {
+    const tools = [
+      { name: "a", description: "Tool A", parameters: { type: "object" } },
+      {
+        name: "b",
+        description: "Tool B with more text",
+        parameters: { type: "object", properties: { x: { type: "number" } } },
+      },
+    ];
+
+    for (const envelope of Object.values(ToolEnvelope)) {
+      const section = buildToolDefinitionsSection(tools, undefined, envelope);
+      const childSum = section?.children?.reduce(
+        (sum, child) => sum + child.tokens,
+        0
+      );
+
+      expect(childSum).toBe(section?.tokens);
+      expect(
+        section?.children?.some((child) => child.label.includes("overhead"))
+      ).toBeTruthy();
+    }
   });
 });
