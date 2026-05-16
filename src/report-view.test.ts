@@ -55,7 +55,8 @@ type OverlayFactory = (
 
 async function mountOverlayWithTui(
   parsed: ParsedPrompt,
-  discoveredSkills: SkillInfo[] = []
+  discoveredSkills: SkillInfo[] = [],
+  contextWindow?: number
 ): Promise<MountedOverlay> {
   let component: OverlayComponent | undefined;
   let tui: MockTui | undefined;
@@ -73,7 +74,7 @@ async function mountOverlayWithTui(
     },
   };
 
-  await showReport(parsed, undefined, ctx as never, discoveredSkills);
+  await showReport(parsed, contextWindow, ctx as never, discoveredSkills);
 
   if (!component) {
     throw new Error("Overlay component was not created");
@@ -88,13 +89,32 @@ async function mountOverlayWithTui(
 
 async function mountOverlay(
   parsed: ParsedPrompt,
-  discoveredSkills: SkillInfo[] = []
+  discoveredSkills: SkillInfo[] = [],
+  contextWindow?: number
 ): Promise<OverlayComponent> {
-  const { overlay } = await mountOverlayWithTui(parsed, discoveredSkills);
+  const { overlay } = await mountOverlayWithTui(
+    parsed,
+    discoveredSkills,
+    contextWindow
+  );
   return overlay;
 }
 
 describe("buildTableItems — table items", () => {
+  it("renders over-budget context window usage without crashing", async () => {
+    const parsed: ParsedPrompt = {
+      sections: [{ label: "Base prompt", chars: 1000, tokens: 150 }],
+      totalChars: 1000,
+      totalTokens: 150,
+      skills: [],
+    };
+
+    const overlay = await mountOverlay(parsed, [], 100);
+
+    expect(() => overlay.render(120)).not.toThrow();
+    expect(overlay.render(120).join("\n")).toContain("150 / 100");
+  });
+
   it("should mark Skills section as drillable", () => {
     const parsed: ParsedPrompt = {
       sections: [

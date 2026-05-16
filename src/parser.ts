@@ -497,7 +497,6 @@ function buildToolEnvelopePayload(
   if (envelope === ToolEnvelope.Bedrock) {
     return {
       tools: childPayloads,
-      toolChoice: { auto: {} },
     };
   }
 

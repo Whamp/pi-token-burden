@@ -281,8 +281,11 @@ function renderContextWindowBar(
   lines.push(row(label));
 
   const barWidth = innerW - 4;
-  const filled = Math.max(1, Math.round((pct / 100) * barWidth));
-  const empty = barWidth - filled;
+  const filled = Math.min(
+    barWidth,
+    Math.max(0, Math.round((pct / 100) * barWidth))
+  );
+  const empty = Math.max(0, barWidth - filled);
   const bar = `${sgr("36", "█".repeat(filled))}${dim("░".repeat(empty))}`;
   lines.push(row(bar));
 

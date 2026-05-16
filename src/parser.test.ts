@@ -613,6 +613,41 @@ describe("buildToolDefinitionsSection()", () => {
     );
   });
 
+  it("matches Bedrock's default tool config without an explicit tool choice", () => {
+    const tools = [
+      {
+        name: "lookup",
+        description: "Lookup a value",
+        parameters: {
+          type: "object",
+          properties: { q: { type: "string" } },
+          required: ["q"],
+        },
+      },
+    ];
+
+    const section = buildToolDefinitionsSection(
+      tools,
+      undefined,
+      ToolEnvelope.Bedrock
+    );
+    const bedrockEnvelope = {
+      tools: [
+        {
+          toolSpec: {
+            name: "lookup",
+            description: "Lookup a value",
+            inputSchema: { json: tools[0].parameters },
+          },
+        },
+      ],
+    };
+
+    expect(section?.tokens).toBe(
+      estimateTokens(JSON.stringify(bedrockEnvelope))
+    );
+  });
+
   it("counts tool children with the selected per-tool envelope", () => {
     const tools = [
       { name: "a", description: "Tool A", parameters: { type: "object" } },

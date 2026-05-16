@@ -224,4 +224,37 @@ describe("skill management session", () => {
     ]);
     expect(session.tokenDelta).toBe(0);
   });
+
+  it("uses decoded prompt skill fields when estimating toggle deltas", () => {
+    const promptSkill = {
+      name: "api-helper",
+      description: "Use A&amp;B &lt; C",
+      location: "/skills/A&amp;B/SKILL.md",
+      chars: 120,
+      tokens: 30,
+    };
+    const discovered = [
+      skill({
+        name: "api-helper",
+        description: "Filesystem description",
+        filePath: "/filesystem/api-helper/SKILL.md",
+        mode: DisableMode.Enabled,
+        tokens: 10,
+      }),
+    ];
+
+    const reconciled = reconcileSkillsWithPrompt(discovered, [promptSkill]);
+    const session = new SkillManagementSession(reconciled);
+    const baseTokens = 200;
+    const originalTotal =
+      baseTokens + estimateTokens(formatSkillsPromptSection(reconciled));
+
+    session.cycle("api-helper");
+
+    expect(reconciled[0]).toMatchObject({
+      description: "Use A&B < C",
+      filePath: "/skills/A&B/SKILL.md",
+    });
+    expect(session.adjustedTotalTokens(originalTotal)).toBe(baseTokens);
+  });
 });

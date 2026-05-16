@@ -12,6 +12,15 @@ function nextVisibilityState(mode: DisableMode): DisableMode {
   return DisableMode.Enabled;
 }
 
+function decodeXml(value: string): string {
+  return value
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&quot;", '"')
+    .replaceAll("&apos;", "'")
+    .replaceAll("&amp;", "&");
+}
+
 export function reconcileSkillsWithPrompt(
   discoveredSkills: SkillInfo[],
   promptSkills: SkillEntry[]
@@ -30,8 +39,8 @@ export function reconcileSkillsWithPrompt(
 
     return {
       ...skill,
-      description: promptSkill.description,
-      filePath: promptSkill.location,
+      description: decodeXml(promptSkill.description),
+      filePath: decodeXml(promptSkill.location),
       mode: DisableMode.Enabled,
       tokens: promptSkill.tokens,
     };
