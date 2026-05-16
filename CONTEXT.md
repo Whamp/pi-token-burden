@@ -28,6 +28,10 @@ _Avoid_: skill persistence, toggle storage
 An attribution report that connects Base prompt lines back to built-in pi behavior or extension contributions.
 _Avoid_: provenance view, attribution mode
 
+**Source Trace Report**:
+The interactive view model for Source Trace buckets, evidence lookup, labels, and cached trace results.
+_Avoid_: trace UI state, attribution helper
+
 ## Relationships
 
 - The **Token Budget Pipeline** produces **Budget Sections**.
@@ -35,6 +39,7 @@ _Avoid_: provenance view, attribution mode
 - A **Skill Visibility Store** persists **Skill Visibility State** values after a **Skill Management Session** save.
 - **Skill Visibility State** affects the Skills **Budget Section** token count.
 - A **Source Trace** explains selected Base prompt **Budget Section** lines.
+- A **Source Trace Report** presents **Source Trace** buckets and evidence to the overlay.
 
 ## Example dialogue
 

@@ -12,14 +12,11 @@ import {
 } from "@mariozechner/pi-tui";
 import type { TUI } from "@mariozechner/pi-tui";
 
-import { TraceCache } from "./base-trace/index.js";
-import type {
-  BasePromptTraceResult,
-  TraceBucket,
-  TraceLineEvidence,
-} from "./base-trace/index.js";
+import type { BasePromptTraceResult, TraceBucket } from "./base-trace/index.js";
 import { DisableMode } from "./enums.js";
 import { SkillManagementSession } from "./skill-management-session.js";
+import { SourceTraceReportCache } from "./source-trace-report-cache.js";
+import type { SourceTraceReport } from "./source-trace-report.js";
 import type {
   ParsedPrompt,
   SkillInfo,
@@ -334,7 +331,7 @@ interface OverlayState {
   toolsSection: TableItem | null;
   toolsInactiveExpanded: boolean;
   confirmingDiscard: boolean;
-  traceResult: BasePromptTraceResult | null;
+  traceReport: SourceTraceReport | null;
   traceLoading: boolean;
   traceDrilldownBucket: TraceBucket | null;
 }
@@ -357,7 +354,7 @@ class BudgetOverlay {
     toolsSection: null,
     toolsInactiveExpanded: false,
     confirmingDiscard: false,
-    traceResult: null,
+    traceReport: null,
     traceLoading: false,
     traceDrilldownBucket: null,
   };
@@ -372,7 +369,7 @@ class BudgetOverlay {
   private readonly tui: TUI;
   private done: (value: null) => void;
   private onToggleResult?: (result: SkillToggleResult) => boolean;
-  private traceCache = new TraceCache();
+  private traceCache = new SourceTraceReportCache();
   private onRunTrace?: () => Promise<BasePromptTraceResult>;
 
   private cachedWidth?: number;
@@ -529,10 +526,12 @@ class BudgetOverlay {
     } else if (this.state.mode === "tools") {
       itemCount = this.getToolsRows().length;
     } else if (this.state.mode === "trace") {
-      itemCount = this.state.traceResult?.buckets.length ?? 0;
+      itemCount = this.state.traceReport?.buckets.length ?? 0;
     } else if (this.state.mode === "trace-drilldown") {
       const bucket = this.state.traceDrilldownBucket;
-      itemCount = bucket ? this.getTraceEvidenceForBucket(bucket).length : 0;
+      itemCount = bucket
+        ? (this.state.traceReport?.evidenceForBucket(bucket).length ?? 0)
+        : 0;
     } else {
       itemCount = this.getVisibleItems().length;
     }
@@ -985,7 +984,7 @@ class BudgetOverlay {
 
     if (data === "r") {
       this.traceCache.clear();
-      this.runTrace();
+      this.runTrace({ refresh: true });
       return;
     }
 
@@ -995,30 +994,13 @@ class BudgetOverlay {
   }
 
   private traceDetailDrillIn(): void {
-    const result = this.state.traceResult;
-    if (!result) {
+    const report = this.state.traceReport;
+    if (!report) {
       return;
     }
 
-    const bucket = result.buckets[this.state.selectedIndex];
-    if (!bucket) {
-      return;
-    }
-
-    const evidenceForBucket = result.evidence.filter((e) => {
-      if (bucket.id === "built-in") {
-        return e.bucket === "built-in";
-      }
-      if (bucket.id === "shared") {
-        return e.bucket === "shared";
-      }
-      if (bucket.id === "unattributed") {
-        return e.bucket === "unattributed";
-      }
-      return e.bucket === "extension" && e.contributors.includes(bucket.id);
-    });
-
-    if (evidenceForBucket.length === 0) {
+    const bucket = report.buckets[this.state.selectedIndex];
+    if (!bucket || report.evidenceForBucket(bucket).length === 0) {
       return;
     }
 
@@ -1030,12 +1012,12 @@ class BudgetOverlay {
   }
 
   private openTraceBucketInEditor(): void {
-    const result = this.state.traceResult;
-    if (!result) {
+    const report = this.state.traceReport;
+    if (!report) {
       return;
     }
 
-    const bucket = result.buckets[this.state.selectedIndex];
+    const bucket = report.buckets[this.state.selectedIndex];
     if (
       !bucket ||
       bucket.id === "built-in" ||
@@ -1048,7 +1030,7 @@ class BudgetOverlay {
     this.launchEditor(bucket.id);
   }
 
-  private async runTrace(): Promise<void> {
+  private async runTrace(options?: { refresh?: boolean }): Promise<void> {
     if (!this.onRunTrace || this.state.traceLoading) {
       return;
     }
@@ -1066,9 +1048,10 @@ class BudgetOverlay {
     this.invalidate();
 
     try {
-      const result = await this.onRunTrace();
-      this.traceCache.set(result);
-      this.state.traceResult = result;
+      this.state.traceReport = await this.traceCache.getOrLoad(
+        this.onRunTrace,
+        options
+      );
       this.state.traceLoading = false;
       this.state.selectedIndex = 0;
       this.state.scrollOffset = 0;
@@ -1078,26 +1061,6 @@ class BudgetOverlay {
     }
     this.invalidate();
     this.tui.requestRender(true);
-  }
-
-  private getTraceEvidenceForBucket(bucket: TraceBucket): TraceLineEvidence[] {
-    const result = this.state.traceResult;
-    if (!result) {
-      return [];
-    }
-
-    return result.evidence.filter((e) => {
-      if (bucket.id === "built-in") {
-        return e.bucket === "built-in";
-      }
-      if (bucket.id === "shared") {
-        return e.bucket === "shared";
-      }
-      if (bucket.id === "unattributed") {
-        return e.bucket === "unattributed";
-      }
-      return e.bucket === "extension" && e.contributors.includes(bucket.id);
-    });
   }
 
   private renderTrace(
@@ -1115,8 +1078,8 @@ class BudgetOverlay {
       return;
     }
 
-    const result = this.state.traceResult;
-    if (!result) {
+    const report = this.state.traceReport;
+    if (!report) {
       lines.push(centerRow(dim(italic("No trace data"))));
       lines.push(emptyRow());
       return;
@@ -1132,10 +1095,10 @@ class BudgetOverlay {
 
     // Status line
     const status =
-      result.errors.length > 0
+      report.errors.length > 0
         ? sgr(
             "33",
-            `Trace partial (${result.errors.length} error${result.errors.length === 1 ? "" : "s"})`
+            `Trace partial (${report.errors.length} error${report.errors.length === 1 ? "" : "s"})`
           )
         : sgr("32", "Trace complete");
     const breadcrumb = `${bold("Base prompt")} → ${status}  ${dim("← esc")}`;
@@ -1143,7 +1106,7 @@ class BudgetOverlay {
     lines.push(emptyRow());
 
     // Bucket rows
-    const { buckets } = result;
+    const { buckets } = report;
     if (buckets.length === 0) {
       lines.push(centerRow(dim(italic("No attributable lines found"))));
       lines.push(emptyRow());
@@ -1168,7 +1131,7 @@ class BudgetOverlay {
       const gapMin = 2;
       const nameMaxWidth = innerW - prefixWidth - suffixWidth - gapMin - 3;
 
-      const label = this.getTraceBucketLabel(bucket);
+      const label = report.bucketLabel(bucket);
       const truncatedName = truncateToWidth(
         isSelected ? bold(sgr("36", label)) : label,
         nameMaxWidth,
@@ -1211,9 +1174,10 @@ class BudgetOverlay {
     if (!bucket) {
       return;
     }
-    const evidence = this.getTraceEvidenceForBucket(bucket);
+    const report = this.state.traceReport;
+    const evidence = report?.evidenceForBucket(bucket) ?? [];
 
-    const label = this.getTraceBucketLabel(bucket);
+    const label = report?.bucketLabel(bucket) ?? bucket.label;
     const breadcrumb = `${bold(label)}  ${dim("← esc to go back")}`;
     lines.push(row(breadcrumb));
     lines.push(emptyRow());
@@ -1283,25 +1247,6 @@ class BudgetOverlay {
         lines.push(emptyRow());
       }
     }
-  }
-
-  private getTraceBucketLabel(bucket: TraceBucket): string {
-    if (bucket.id === "built-in") {
-      return "Built-in/core";
-    }
-    if (bucket.id === "shared") {
-      return "Shared (multi-extension)";
-    }
-    if (bucket.id === "unattributed") {
-      return "Unattributed";
-    }
-
-    // Extract extension name from path
-    const parts = bucket.id.split("/");
-    const extDir = parts.findLast(
-      (p) => p !== "index.ts" && p !== "index.js" && p !== "src"
-    );
-    return extDir ?? bucket.id;
   }
 
   private renderSkillToggle(
