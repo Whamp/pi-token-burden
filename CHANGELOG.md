@@ -1,6 +1,29 @@
 # Changelog
 
 
+## v0.6.5
+
+[compare changes](https://github.com/Whamp/pi-token-burden/compare/v0.6.4...v0.6.5)
+
+### 🩹 Fixes
+
+- Reconcile prompt token drilldowns ([8869297](https://github.com/Whamp/pi-token-burden/commit/8869297))
+- Harden token burden accuracy ([a3dc36e](https://github.com/Whamp/pi-token-burden/commit/a3dc36e))
+
+### 💅 Refactors
+
+- Deepen skill management modules ([a5a559b](https://github.com/Whamp/pi-token-burden/commit/a5a559b))
+- Extract skill visibility store ([b3264a2](https://github.com/Whamp/pi-token-burden/commit/b3264a2))
+- Extract source trace report ([af8a3a4](https://github.com/Whamp/pi-token-burden/commit/af8a3a4))
+
+### 📖 Documentation
+
+- Migrate agent memory to napkin ([a021f52](https://github.com/Whamp/pi-token-burden/commit/a021f52))
+
+### ❤️ Contributors
+
+- Test ([@songkang666](https://github.com/songkang666))
+
 ## v0.6.4
 
 [compare changes](https://github.com/Whamp/pi-token-burden/compare/v0.6.3...v0.6.4)
