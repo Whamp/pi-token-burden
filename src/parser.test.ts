@@ -63,6 +63,29 @@ describe("parseSystemPrompt()", () => {
     "- Follow TDD.",
   ].join("\n");
 
+  const currentProjectContextBlock = [
+    "",
+    "",
+    "<project_context>",
+    "",
+    "Project-specific instructions and guidelines:",
+    "",
+    '<project_instructions path="/home/user/.pi/agent/AGENTS.md">',
+    "# Global Agent Guidelines",
+    "",
+    "## Before Acting",
+    "- Read files before editing.",
+    "</project_instructions>",
+    "",
+    '<project_instructions path="/home/user/project/AGENTS.md">',
+    "# Project Rules",
+    "",
+    "- Follow TDD.",
+    "</project_instructions>",
+    "",
+    "</project_context>",
+  ].join("\n");
+
   const skillsPreamble = [
     "",
     "",
@@ -264,6 +287,25 @@ describe("parseSystemPrompt()", () => {
       "/home/user/project/nested/CLAUDE.MD",
     ]);
     expect(childTokenSum(contextSection)).toBe(contextSection?.tokens);
+  });
+
+  it("parses current pi project_context instructions into context children", () => {
+    const prompt = basePrompt + currentProjectContextBlock + currentMetadata;
+    const result = parseSystemPrompt(prompt);
+    const contextSection = result.sections.find((s) =>
+      s.label.startsWith("Context files")
+    );
+
+    expect(contextSection).toBeDefined();
+    expect(pathChildLabels(contextSection)).toStrictEqual([
+      "/home/user/.pi/agent/AGENTS.md",
+      "/home/user/project/AGENTS.md",
+    ]);
+    expect(result.sections.map((section) => section.label)).not.toContain(
+      "SYSTEM.md / APPEND_SYSTEM.md"
+    );
+    expect(childTokenSum(contextSection)).toBe(contextSection?.tokens);
+    expect(sectionTokenSum(result)).toBe(result.totalTokens);
   });
 
   it("does not split AGENTS.md children on internal path-like markdown headings", () => {

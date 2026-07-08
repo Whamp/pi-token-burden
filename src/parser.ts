@@ -4,7 +4,8 @@
  * The system prompt built by pi follows a predictable structure:
  *   1. Base prompt (tools, guidelines, pi docs reference)
  *   2. Optional SYSTEM.md / APPEND_SYSTEM.md content
- *   3. Project Context (AGENTS.md files, each under `## <path>`)
+ *   3. Project Context (AGENTS.md files, each under `## <path>` or
+ *      `<project_instructions path="...">`)
  *   4. Skills preamble + <available_skills> block
  *   5. Date/time + cwd metadata
  */
@@ -115,25 +116,47 @@ function findMetadataStart(prompt: string): number {
   return Math.max(currentDateIdx, legacyDateTimeIdx);
 }
 
+function findProjectContextStart(prompt: string): number {
+  return firstPositive(
+    prompt.indexOf("\n\n# Project Context\n"),
+    prompt.indexOf("\n\n<project_context>")
+  );
+}
+
 function isPiContextFilePath(filePath: string): boolean {
   return /(?:^|\/)(?:AGENTS|CLAUDE)\.md$/i.test(filePath);
 }
 
-/** Parse pi context-file headings inside the Project Context section. */
+/** Parse pi context-file entries inside the Project Context section. */
 function parseContextFileSpans(contextBlock: string): ContextFileSpan[] {
   const headingPattern = /^## (\/[^\r\n]+)$/gm;
-  const matches = [...contextBlock.matchAll(headingPattern)].filter((match) =>
-    isPiContextFilePath(match[1])
+  const headingMatches = [...contextBlock.matchAll(headingPattern)].filter(
+    (match) => isPiContextFilePath(match[1])
   );
-
-  return matches.map((match, index) => ({
+  const headingSpans = headingMatches.map((match, index) => ({
     path: match[1],
     start: match.index,
     end:
-      index + 1 < matches.length
-        ? matches[index + 1].index
+      index + 1 < headingMatches.length
+        ? headingMatches[index + 1].index
         : contextBlock.length,
   }));
+
+  const projectInstructionsPattern =
+    /<project_instructions\s+path=(["'])([^"']+)\1>[\s\S]*?<\/project_instructions>/g;
+  const projectInstructionSpans = [
+    ...contextBlock.matchAll(projectInstructionsPattern),
+  ]
+    .filter((match) => isPiContextFilePath(match[2]))
+    .map((match) => ({
+      path: match[2],
+      start: match.index,
+      end: match.index + match[0].length,
+    }));
+
+  return [...headingSpans, ...projectInstructionSpans].toSorted(
+    (a, b) => a.start - b.start
+  );
 }
 
 /** Parse `<skill>` entries from the `<available_skills>` XML block. */
@@ -211,7 +234,7 @@ function findSkillsSectionEnd(
  * Parse a system prompt string into sections with token estimates.
  *
  * Uses known structural markers emitted by `buildSystemPrompt()`:
- *   - `# Project Context` heading
+ *   - `# Project Context` heading or `<project_context>` wrapper
  *   - `The following skills provide specialized instructions` preamble
  *   - `<available_skills>` / `</available_skills>` XML block
  *   - `Current date:` / `Current date and time:` footer
@@ -220,7 +243,7 @@ export function parseSystemPrompt(prompt: string): ParsedPrompt {
   const sections: PromptSection[] = [];
   const skills: SkillEntry[] = [];
 
-  const projectCtxIdx = prompt.indexOf("\n\n# Project Context\n");
+  const projectCtxIdx = findProjectContextStart(prompt);
   const skillsPreambleIdx = prompt.indexOf(
     "\n\nThe following skills provide specialized instructions"
   );
