@@ -20,6 +20,20 @@ stacked bar visualization, drill-down table, and fuzzy search.
 - **Planning**: For complex, multi-step tasks, create a plan and a to-do list
   before writing code.
 
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked in GitHub Issues for `Whamp/pi-token-burden`; external PRs are also a triage request surface. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the canonical triage labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context repo: read root `CONTEXT.md` and root `docs/adr/` when present. See `docs/agents/domain.md`.
+
 ## Commands
 
 | Command                 | Description                       | ~Time |
