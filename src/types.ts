@@ -87,6 +87,15 @@ export interface SkillInfo {
   hasDuplicates: boolean;
 }
 
+export interface SkillManagementRow {
+  skill: SkillInfo;
+  label: string;
+  mode: DisableMode;
+  hasChanged: boolean;
+  hasDuplicates: boolean;
+  tokens: number;
+}
+
 export interface Settings {
   skills?: string[];
   packages?: unknown[];

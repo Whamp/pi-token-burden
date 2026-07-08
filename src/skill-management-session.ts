@@ -1,6 +1,18 @@
 import { DisableMode } from "./enums.js";
-import { estimateSkillsPromptSectionTokens } from "./skills.js";
-import type { SkillEntry, SkillInfo } from "./types.js";
+import { estimateTokens } from "./parser.js";
+import {
+  estimateSkillsPromptSectionTokens,
+  formatSkillPromptEntry,
+  formatSkillsPromptSection,
+} from "./skills.js";
+import type {
+  ParsedPrompt,
+  PromptSection,
+  SkillEntry,
+  SkillInfo,
+  SkillManagementRow,
+} from "./types.js";
+import { fuzzyFilter } from "./utils.js";
 
 function nextVisibilityState(mode: DisableMode): DisableMode {
   if (mode === DisableMode.Enabled) {
@@ -10,6 +22,15 @@ function nextVisibilityState(mode: DisableMode): DisableMode {
     return DisableMode.Disabled;
   }
   return DisableMode.Enabled;
+}
+
+const SKILLS_BUDGET_SECTION_LABEL = "Skills";
+
+export function isSkillsBudgetSectionLabel(label: string): boolean {
+  return (
+    label === SKILLS_BUDGET_SECTION_LABEL ||
+    label.startsWith(`${SKILLS_BUDGET_SECTION_LABEL} (`)
+  );
 }
 
 function decodeXml(value: string): string {
@@ -45,6 +66,69 @@ export function reconcileSkillsWithPrompt(
       tokens: promptSkill.tokens,
     };
   });
+}
+
+export function buildSkillsBudgetSection(skills: SkillInfo[]): PromptSection {
+  const visibleSkills = skills.filter(
+    (skill) => skill.mode === DisableMode.Enabled
+  );
+  const content = formatSkillsPromptSection(skills);
+
+  return {
+    label: `Skills (${String(visibleSkills.length)})`,
+    chars: content.length,
+    tokens: estimateTokens(content),
+    content,
+    children: visibleSkills.map((skill) => {
+      const childContent = formatSkillPromptEntry(skill);
+      return {
+        label: skill.name,
+        chars: childContent.length,
+        tokens: estimateTokens(childContent),
+        content: childContent,
+      };
+    }),
+  };
+}
+
+export function ensureSkillsSectionForManagement(
+  parsed: ParsedPrompt,
+  discoveredSkills: SkillInfo[]
+): ParsedPrompt {
+  if (
+    discoveredSkills.length === 0 ||
+    parsed.sections.some((section) => isSkillsBudgetSectionLabel(section.label))
+  ) {
+    return parsed;
+  }
+
+  return {
+    ...parsed,
+    sections: [...parsed.sections, buildSkillsBudgetSection(discoveredSkills)],
+  };
+}
+
+export function applySkillManagementToParsed(
+  originalParsed: ParsedPrompt,
+  session: SkillManagementSession
+): ParsedPrompt {
+  const sections = originalParsed.sections.map((section) => ({ ...section }));
+  const skillsSectionIndex = sections.findIndex((section) =>
+    isSkillsBudgetSectionLabel(section.label)
+  );
+
+  if (skillsSectionIndex !== -1) {
+    sections[skillsSectionIndex] = buildSkillsBudgetSection(
+      session.effectiveSkills()
+    );
+  }
+
+  return {
+    sections,
+    totalChars: originalParsed.totalChars,
+    totalTokens: session.adjustedTotalTokens(originalParsed.totalTokens),
+    skills: originalParsed.skills,
+  };
 }
 
 export class SkillManagementSession {
@@ -116,6 +200,23 @@ export class SkillManagementSession {
       ...skill,
       mode: this.effectiveMode(skill.name) ?? skill.mode,
     }));
+  }
+
+  canManageSection(label: string): boolean {
+    return isSkillsBudgetSectionLabel(label) && this.skillsList.length > 0;
+  }
+
+  skillRows(query = ""): SkillManagementRow[] {
+    const rows = this.skillsList.map((skill) => ({
+      skill,
+      label: skill.name,
+      mode: this.effectiveMode(skill.name) ?? skill.mode,
+      hasChanged: this.pendingChanges.has(skill.name),
+      hasDuplicates: skill.hasDuplicates,
+      tokens: skill.tokens,
+    }));
+
+    return fuzzyFilter(rows, query);
   }
 
   get tokenDelta(): number {

@@ -13,18 +13,19 @@ import {
 import type { TUI } from "@mariozechner/pi-tui";
 
 import type { BasePromptTraceResult, TraceBucket } from "./base-trace/index.js";
+import { buildTableItems } from "./budget-table.js";
 import { DisableMode } from "./enums.js";
-import { estimateTokens } from "./parser.js";
 import {
+  applySkillManagementToParsed,
+  ensureSkillsSectionForManagement,
+  isSkillsBudgetSectionLabel,
   reconcileSkillsWithPrompt,
   SkillManagementSession,
 } from "./skill-management-session.js";
-import { formatSkillPromptEntry, formatSkillsPromptSection } from "./skills.js";
 import { SourceTraceReportCache } from "./source-trace-report-cache.js";
 import type { SourceTraceReport } from "./source-trace-report.js";
 import type {
   ParsedPrompt,
-  PromptSection,
   SkillInfo,
   SkillToggleResult,
   TableItem,
@@ -99,7 +100,7 @@ function shortenLabel(label: string): string {
   if (label.startsWith("AGENTS")) {
     return "AGENTS";
   }
-  if (label.startsWith("Skills")) {
+  if (isSkillsBudgetSectionLabel(label)) {
     return "Skills";
   }
   if (label.startsWith("Metadata")) {
@@ -137,94 +138,6 @@ function sanitizeLabel(label: string): string {
     .toLowerCase()
     .replaceAll(/[^a-z0-9]+/g, "-")
     .replaceAll(/^-|-$/g, "");
-}
-
-// ---------------------------------------------------------------------------
-// Data preparation
-// ---------------------------------------------------------------------------
-
-/** Convert ParsedPrompt sections into TableItems sorted by tokens desc. */
-function buildSkillsPromptSection(skills: SkillInfo[]): PromptSection {
-  const visibleSkills = skills.filter(
-    (skill) => skill.mode === DisableMode.Enabled
-  );
-  const content = formatSkillsPromptSection(skills);
-
-  return {
-    label: `Skills (${String(visibleSkills.length)})`,
-    chars: content.length,
-    tokens: estimateTokens(content),
-    content,
-    children: visibleSkills.map((skill) => {
-      const childContent = formatSkillPromptEntry(skill);
-      return {
-        label: skill.name,
-        chars: childContent.length,
-        tokens: estimateTokens(childContent),
-        content: childContent,
-      };
-    }),
-  };
-}
-
-function ensureSkillsSectionForManagement(
-  parsed: ParsedPrompt,
-  discoveredSkills: SkillInfo[]
-): ParsedPrompt {
-  if (
-    discoveredSkills.length === 0 ||
-    parsed.sections.some((section) => section.label.startsWith("Skills"))
-  ) {
-    return parsed;
-  }
-
-  return {
-    ...parsed,
-    sections: [...parsed.sections, buildSkillsPromptSection(discoveredSkills)],
-  };
-}
-
-export function buildTableItems(parsed: ParsedPrompt): TableItem[] {
-  return parsed.sections
-    .map((section): TableItem => {
-      const pct =
-        parsed.totalTokens > 0
-          ? (section.tokens / parsed.totalTokens) * 100
-          : 0;
-
-      const children: TableItem[] | undefined = section.children?.length
-        ? section.children
-            .map(
-              (child): TableItem => ({
-                label: child.label,
-                tokens: child.tokens,
-                chars: child.chars,
-                pct:
-                  parsed.totalTokens > 0
-                    ? (child.tokens / parsed.totalTokens) * 100
-                    : 0,
-                drillable: false,
-                content: child.content,
-              })
-            )
-            .toSorted((a, b) => b.tokens - a.tokens)
-        : undefined;
-
-      return {
-        label: section.label,
-        tokens: section.tokens,
-        chars: section.chars,
-        pct,
-        drillable:
-          (children?.length ?? 0) > 0 ||
-          Boolean(section.tools) ||
-          section.label.startsWith("Skills"),
-        content: section.content,
-        tools: section.tools,
-        children,
-      };
-    })
-    .toSorted((a, b) => b.tokens - a.tokens);
 }
 
 // ---------------------------------------------------------------------------
@@ -583,7 +496,7 @@ class BudgetOverlay {
   private moveSelection(delta: number): void {
     let itemCount: number;
     if (this.state.mode === "skill-toggle") {
-      itemCount = this.getFilteredSkills().length;
+      itemCount = this.getFilteredSkillRows().length;
     } else if (this.state.mode === "tools") {
       itemCount = this.getToolsRows().length;
     } else if (this.state.mode === "trace") {
@@ -629,10 +542,7 @@ class BudgetOverlay {
       return;
     }
 
-    if (
-      selected.label.startsWith("Skills") &&
-      this.skillSession.skills.length > 0
-    ) {
+    if (this.skillSession.canManageSection(selected.label)) {
       this.state.mode = "skill-toggle";
       this.state.selectedIndex = 0;
       this.state.scrollOffset = 0;
@@ -832,8 +742,8 @@ class BudgetOverlay {
   }
 
   private cycleSkillState(): void {
-    const visibleSkills = this.getFilteredSkills();
-    const skill = visibleSkills[this.state.selectedIndex];
+    const visibleRows = this.getFilteredSkillRows();
+    const skill = visibleRows[this.state.selectedIndex]?.skill;
     if (!skill) {
       return;
     }
@@ -843,37 +753,17 @@ class BudgetOverlay {
     this.invalidate();
   }
 
-  private getEffectiveMode(skill: SkillInfo): DisableMode {
-    return this.skillSession.effectiveMode(skill.name) ?? skill.mode;
-  }
-
   private recalculateTokens(): void {
-    this.adjustedTotalTokens = this.skillSession.adjustedTotalTokens(
-      this.originalTotalTokens
+    this.parsed = applySkillManagementToParsed(
+      {
+        ...this.originalParsed,
+        totalTokens: this.originalTotalTokens,
+      },
+      this.skillSession
     );
-    this.parsed = this.getAdjustedParsed();
+    this.adjustedTotalTokens = this.parsed.totalTokens;
     this.tableItems = buildTableItems(this.parsed);
     this.invalidate();
-  }
-
-  private getAdjustedParsed(): ParsedPrompt {
-    const sections = this.originalParsed.sections.map((s) => ({ ...s }));
-    const skillsSectionIndex = sections.findIndex((s) =>
-      s.label.startsWith("Skills")
-    );
-
-    if (skillsSectionIndex !== -1) {
-      sections[skillsSectionIndex] = buildSkillsPromptSection(
-        this.skillSession.effectiveSkills()
-      );
-    }
-
-    return {
-      sections,
-      totalChars: this.originalParsed.totalChars,
-      totalTokens: this.adjustedTotalTokens,
-      skills: this.originalParsed.skills,
-    };
   }
 
   private saveSkillChanges(): void {
@@ -907,8 +797,8 @@ class BudgetOverlay {
   }
 
   private openSkillInEditor(): void {
-    const visibleSkills = this.getFilteredSkills();
-    const skill = visibleSkills[this.state.selectedIndex];
+    const visibleRows = this.getFilteredSkillRows();
+    const skill = visibleRows[this.state.selectedIndex]?.skill;
     if (!skill?.filePath) {
       return;
     }
@@ -994,15 +884,10 @@ class BudgetOverlay {
     this.launchEditor(tempPath);
   }
 
-  private getFilteredSkills(): SkillInfo[] {
-    if (this.state.searchActive && this.state.searchQuery) {
-      const items = this.skillSession.skills.map((s) => ({
-        ...s,
-        label: s.name,
-      }));
-      return fuzzyFilter(items, this.state.searchQuery);
-    }
-    return this.skillSession.skills;
+  private getFilteredSkillRows() {
+    return this.skillSession.skillRows(
+      this.state.searchActive ? this.state.searchQuery : ""
+    );
   }
 
   // -----------------------------------------------------------------------
@@ -1346,22 +1231,20 @@ class BudgetOverlay {
     lines.push(emptyRow());
 
     // Skill rows
-    const skills = this.getFilteredSkills();
-    if (skills.length === 0) {
+    const skillRows = this.getFilteredSkillRows();
+    if (skillRows.length === 0) {
       lines.push(centerRow(dim(italic("No matching skills"))));
       lines.push(emptyRow());
       return;
     }
 
     const startIdx = this.state.scrollOffset;
-    const endIdx = Math.min(startIdx + MAX_VISIBLE_ROWS, skills.length);
-    const pendingChanges = this.skillSession.changes();
+    const endIdx = Math.min(startIdx + MAX_VISIBLE_ROWS, skillRows.length);
 
     for (let i = startIdx; i < endIdx; i++) {
-      const skill = skills[i];
+      const skillRow = skillRows[i];
       const isSelected = i === this.state.selectedIndex;
-      const mode = this.getEffectiveMode(skill);
-      const hasChanged = pendingChanges.has(skill.name);
+      const { hasChanged, mode, skill } = skillRow;
 
       const prefix = isSelected ? sgr("36", "▸") : dim("·");
 
@@ -1375,10 +1258,10 @@ class BudgetOverlay {
       }
 
       const changedMarker = hasChanged ? sgr("33", "*") : " ";
-      const dupMarker = skill.hasDuplicates ? sgr("35", "²") : " ";
+      const dupMarker = skillRow.hasDuplicates ? sgr("35", "²") : " ";
       const nameStr = isSelected ? bold(sgr("36", skill.name)) : skill.name;
 
-      const tokenStr = `${fmt(skill.tokens)} tok`;
+      const tokenStr = `${fmt(skillRow.tokens)} tok`;
       const suffixWidth = visibleWidth(tokenStr);
       const prefixWidth = 8;
       const nameMaxWidth = innerW - prefixWidth - suffixWidth - 4;
@@ -1406,12 +1289,12 @@ class BudgetOverlay {
     );
 
     // Scroll indicator
-    if (skills.length > MAX_VISIBLE_ROWS) {
+    if (skillRows.length > MAX_VISIBLE_ROWS) {
       const progress = Math.round(
-        ((this.state.selectedIndex + 1) / skills.length) * 10
+        ((this.state.selectedIndex + 1) / skillRows.length) * 10
       );
       const dots = rainbowDots(progress, 10);
-      const countStr = `${this.state.selectedIndex + 1}/${skills.length}`;
+      const countStr = `${this.state.selectedIndex + 1}/${skillRows.length}`;
       lines.push(row(`${dots}  ${dim(countStr)}`));
       lines.push(emptyRow());
     }
