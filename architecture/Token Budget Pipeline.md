@@ -17,7 +17,7 @@ index.ts ──→ parser.ts ──→ types.ts
    │              │
    ├──→ report-view.ts ──→ utils.ts ──→ types.ts
    │
-   └──→ base-trace/ ──→ attribution.ts, base-lines.ts, extension-inspector.ts, cache.ts
+   └──→ base-trace/ ──→ attribution.ts, extractBaseLines.ts, extractContributions.ts, cache.ts
 ```
 
 ## Data flow
