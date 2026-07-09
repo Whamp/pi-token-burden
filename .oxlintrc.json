@@ -55,7 +55,7 @@
 
     "@factory/no-exported-string-union-types": "error",
     "@factory/require-test-files": "error",
-    "@factory/structured-logging": "error",
+    "@factory/structured-logging": "off",
     "@factory/no-log-exception-with-throw": "error",
 
     "@factory/enum-file-organization": "error",
@@ -94,12 +94,6 @@
       "files": ["src/skills-persistence.ts"],
       "rules": {
         "@factory/filename-match-export": "off"
-      }
-    },
-    {
-      "files": ["src/e2e/tmux-harness.ts"],
-      "rules": {
-        "@factory/structured-logging": "off"
       }
     },
     {

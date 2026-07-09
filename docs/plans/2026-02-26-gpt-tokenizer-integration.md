@@ -178,11 +178,12 @@ git commit -m "test: relax totalTokens assertion to work with BPE"
 
 ---
 
-### Task 5: Run full checks
+### Task 5: Update knip config and run full checks
 
 **TDD scenario:** Trivial change — use judgment.
 
-**Files:** None expected.
+**Files:**
+- Possibly modify: `knip.json` (if knip flags `gpt-tokenizer` as unused — it shouldn't since it's imported in `src/parser.ts`, but verify)
 
 **Step 1: Run typecheck**
 
@@ -192,7 +193,17 @@ Expected: PASS with no errors.
 **Step 2: Run the full check suite**
 
 Run: `pnpm run check`
-Expected: All checks pass (lint, format, typecheck, duplicates, tests).
+Expected: All checks pass (lint, format, typecheck, test, deadcode, duplicates, secrets).
+
+If `knip` flags `gpt-tokenizer` as unused (unlikely since `src/parser.ts` imports it), add it to `ignoreDependencies` in `knip.json`.
+
+**Step 3: Commit any config changes**
+
+```bash
+# Only if knip.json was modified:
+git add knip.json
+git commit -m "chore: update knip config for gpt-tokenizer"
+```
 
 ---
 

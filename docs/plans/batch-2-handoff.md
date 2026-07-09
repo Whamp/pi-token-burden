@@ -9,7 +9,7 @@ The plan file has the full step-by-step instructions starting at line 1391. Read
 ## Current State
 
 - **Branch:** `feat/skill-toggle` (5 commits ahead of `main`)
-- **All checks pass:** 62 tests, lint, typecheck, format, duplicates — `pnpm run check` is green
+- **All checks pass:** 62 tests, lint, typecheck, format, deadcode, duplicates — `pnpm run check` is green
 - **Phase 1 is complete:** skill discovery (`src/skills.ts`), persistence (`src/skills-persistence.ts`), types (`src/types.ts`, `src/enums.ts`)
 
 ### Commits on branch

@@ -416,11 +416,20 @@ git commit -m "test: add e2e tests for open-skill-in-editor"
 **Step 1: Run the full check suite**
 
 Run: `pnpm run check`
-Expected: All checks pass (test, typecheck, lint, format, duplicates)
+Expected: All checks pass (test, typecheck, lint, format, deadcode, duplicates)
 
 **Step 2: Fix any issues**
 
 If lint or format fails, run: `pnpm run fix`
+
+If deadcode reports `getEditor` as unused export, add it to the knip config's
+ignore list. Check `knip.json`:
+
+```bash
+cat knip.json
+```
+
+If needed, add `getEditor` to the `ignore` array.
 
 **Step 3: Run e2e tests**
 

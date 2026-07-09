@@ -22,7 +22,7 @@
 - Language: TypeScript with strict mode.
 - Runtime/package manager: Node.js, pnpm.
 - Test framework: Vitest; e2e tests use tmux via `TmuxHarness`.
-- Lint/format: type-aware oxlint/tsgolint, oxfmt, and packaged Factory rules.
+- Quality gate: TypeScript 7, type-aware oxlint/tsgolint, oxfmt, knip 6.25+, and packaged Factory rules.
 - Tokenizer: `gpt-tokenizer` (`o200k_base`).
 - Agent docs: napkin vault in this repository.
 

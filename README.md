@@ -136,7 +136,7 @@ cd pi-token-burden
 pnpm install
 pnpm run test     # 166 unit tests
 pnpm run test:e2e # 34 e2e tests (requires tmux)
-pnpm run check    # lint, typecheck, format, duplicates, tests
+pnpm run check    # lint, typecheck, format, dead code, duplicates, tests
 ```
 
 Test locally: `pi -e ./src/index.ts`, then type `/token-burden`.

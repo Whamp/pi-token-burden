@@ -49,7 +49,7 @@ export interface BasePromptTraceResult {
 }
 
 /** An error encountered while inspecting an extension. */
-export interface TraceError {
+interface TraceError {
   source: string;
   message: string;
 }

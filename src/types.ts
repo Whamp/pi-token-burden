@@ -30,7 +30,7 @@ export interface ToolEntry {
 }
 
 /** Active, inactive, and provider-specific tool-definition costs. */
-export interface ToolSectionData {
+interface ToolSectionData {
   active: ToolEntry[];
   inactive: ToolEntry[];
   variants?: ToolEntry[];
@@ -80,9 +80,6 @@ export interface TableItem {
 // ---------------------------------------------------------------------------
 // Skill toggle types
 // ---------------------------------------------------------------------------
-
-/** Re-export the canonical skill visibility enum from its required enum module. */
-export type { DisableMode } from './enums.js';
 
 /** Discovered skill metadata plus its current visibility and token cost. */
 export interface SkillInfo {

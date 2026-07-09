@@ -45,6 +45,7 @@ Single-context repo: read root `CONTEXT.md` and root `docs/adr/` when present. S
 | `pnpm run lint:fix`     | Run oxlint with auto-fix                    | <1s   |
 | `pnpm run format`       | Format code with oxfmt                      | <1s   |
 | `pnpm run format:check` | Check formatting without writing            | <1s   |
+| `pnpm run deadcode`     | Detect unused exports with knip             | ~1s   |
 | `pnpm run duplicates`   | Detect duplicate code with jscpd            | ~1s   |
 | `pnpm run check`        | Run all checks and report summary           | ~8s   |
 | `pnpm run fix`          | Auto-fix lint and formatting                | <1s   |
@@ -111,6 +112,7 @@ pi-docs terminal markers. Token estimation uses BPE tokenization via `gpt-tokeni
 | TypeScript 7        | `tsconfig.json`                           | Strict type checking                    |
 | Vitest              | `vitest.config.ts`                        | Unit testing                            |
 | husky + lint-staged | `.husky/pre-commit`, `.lintstagedrc.json` | Pre-commit hooks                        |
+| knip 6.25+          | `knip.json`                               | Dead-export analysis for TypeScript 7   |
 | jscpd               | `.jscpd.json`                             | Duplicate code detection (1% threshold) |
 | GitHub Actions      | `.github/workflows/check.yml`             | CI pipeline                             |
 | changelogen         | `package.json` (`version` script)         | Changelog generation from commits       |

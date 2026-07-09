@@ -467,7 +467,7 @@ git commit -m "feat: register /token-burden command"
 **Step 1: Run full check suite**
 
 Run: `pnpm run check`
-Expected: All checks pass (lint, typecheck, format, duplicates, tests).
+Expected: All checks pass (lint, typecheck, format, dead code, duplicates, secrets, tests).
 
 **Step 2: Fix any issues**
 

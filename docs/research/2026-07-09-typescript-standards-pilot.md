@@ -12,6 +12,7 @@ Final proof:
   - type-aware lint: pass
   - TypeScript 7 strict typecheck: pass
   - formatting: pass
+  - knip 6.25.0 dead-code analysis: pass
   - duplicate detection: 0 clones
   - unit tests: 166 passed
 - `pnpm run test:e2e`: 34 passed
@@ -72,9 +73,9 @@ The old configuration extended Ultracite, loaded a vendored Factory bundle, omit
 | TS-29 | Enforced/reviewed | Machine bans enabled; no prototype tampering found. |
 | TS-30 | Reviewed | No `#private` fields found. |
 | TS-31 | Enforced | Factory `require-test-files`; added `src/e2e/agent-dir.test.ts`. |
-| TS-32 | Partial exception | Mock factories preserve actual exports with `importOriginal`. Relative typed paths remain pending coding-standards issue #17 because the standard defines no portable NodeNext alias contract. |
+| TS-32 | Compliant | Typed co-located relative mock paths follow the corrected no-alias contract; factories preserve actual exports with `importOriginal`. |
 | TS-33 | Compliant | Application code does not log. The tokenizer comparison CLI uses stdout as its user interface under a scoped exception. |
-| TS-34 | Scoped exception | Machine rule enabled except for the e2e timeout harness pending issue #15; Factory's undocumented `MetaError` branch has no portable contract. |
+| TS-34 | Reviewed | Structured logger-call arguments are reviewed; the overbroad Factory rule is disabled globally because its `Error` → `MetaError` branch exceeds the corrected standard. |
 | TS-35 | Enforced | Factory duplicate-log/throw rule. |
 | TS-36 | Enforced | Native `no-promise-executor-return`. |
 | TS-37 | Enforced | Native `no-param-reassign`. |
@@ -83,7 +84,7 @@ The old configuration extended Ultracite, loaded a vendored Factory bundle, omit
 | TS-40 | Enforced | Native `no-console`; tokenizer CLI is a documented stdout exception. |
 | TS-41 | Enforced | Native `import/no-cycle`; CodeGraph reports zero file/function cycles. |
 | TS-42 | Reviewed | No `for...in` or `export *` found. |
-| TS-43 | Not opted in | Knip was removed because latest knip crashes under TypeScript 7; issue #16 records the standards incompatibility. |
+| TS-43 | Opted in | Knip 6.25.0 runs under TypeScript 7.0.2 and is part of `pnpm run check`; dead public types were removed or un-exported and the deliberate external `tmux` binary is configured explicitly. |
 
 ### File organization
 
@@ -102,9 +103,11 @@ The old configuration extended Ultracite, loaded a vendored Factory bundle, omit
 
 ## Feedback returned to the standards repo
 
-- [#15 — TS-34 misstates structured-logging rule: it also requires MetaError](https://github.com/Whamp/coding-standards/issues/15)
-- [#16 — TS-43 knip 5.85 crashes under the TypeScript 7 toolchain](https://github.com/Whamp/coding-standards/issues/16)
-- [#17 — TS-32 absolute Vitest mock paths lack a portable alias contract](https://github.com/Whamp/coding-standards/issues/17)
+[Coding-standards PR #18](https://github.com/Whamp/coding-standards/pull/18) merged and closed all three findings:
+
+- [#15](https://github.com/Whamp/coding-standards/issues/15): TS-34 is review-only and the overbroad Factory rule is off by default.
+- [#16](https://github.com/Whamp/coding-standards/issues/16): knip 6.25.0 is the verified TypeScript 7 compatibility floor; upgrading fixed the 5.85.0 crash.
+- [#17](https://github.com/Whamp/coding-standards/issues/17): typed relative Vitest mocks are valid when the project has no source alias, provided the factory preserves actual exports.
 
 ## Residual risks
 
