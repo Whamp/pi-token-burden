@@ -9,5 +9,6 @@ coverage/
 
 .codegraph/
 .napkin/search-cache.json
+.pi-subagents/
 .obsidian/
 .trash/

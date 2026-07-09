@@ -18,7 +18,6 @@ run() {
 run "Lint"         pnpm run lint
 run "Typecheck"    pnpm run typecheck
 run "Format"       pnpm run format:check
-run "Dead code"    pnpm run deadcode
 run "Duplicates"   pnpm run duplicates
 run "Test"         pnpm run test
 

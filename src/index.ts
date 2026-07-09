@@ -1,32 +1,22 @@
-import * as os from "node:os";
-import * as path from "node:path";
+import * as os from 'node:os';
+import * as path from 'node:path';
 
-import {
-  discoverAndLoadExtensions,
-  SettingsManager,
-} from "@mariozechner/pi-coding-agent";
-import type { ExtensionFactory } from "@mariozechner/pi-coding-agent";
+import { discoverAndLoadExtensions, SettingsManager } from '@mariozechner/pi-coding-agent';
+import type { ExtensionFactory } from '@mariozechner/pi-coding-agent';
 
-import {
-  attributeBasePrompt,
-  extractBaseLines,
-  extractContributions,
-} from "./base-trace/index.js";
-import type { BasePromptTraceResult } from "./base-trace/index.js";
-import type { LoadedExtension } from "./base-trace/types.js";
+import { attributeBasePrompt, extractBaseLines, extractContributions } from './base-trace/index.js';
+import type { BasePromptTraceResult } from './base-trace/index.js';
 import {
   buildToolDefinitionsSection,
   estimateTokens,
   parseSystemPrompt,
   toolEnvelopeForModel,
-} from "./parser.js";
-import { showReport } from "./report-view.js";
-import { saveSkillToggleResult } from "./skill-save.js";
-import {
-  SkillVisibilityStore,
-  loadSettings,
-} from "./skill-visibility-store.js";
-import { loadAllSkills } from "./skills.js";
+} from './parser.js';
+import { showReport } from './report-view.js';
+import { saveSkillToggleResult } from './saveSkillToggleResult.js';
+import { SkillVisibilityStore, loadSettings } from './skill-visibility-store.js';
+import { loadAllSkills } from './skills.js';
+import { isRecord } from './utils.js';
 
 /**
  * Resolve the agent directory, matching pi's own resolution logic:
@@ -36,31 +26,35 @@ import { loadAllSkills } from "./skills.js";
 function getAgentDir(): string {
   const envDir = process.env.PI_CODING_AGENT_DIR;
   if (envDir) {
-    if (envDir === "~") {
+    if (envDir === '~') {
       return os.homedir();
     }
-    if (envDir.startsWith("~/")) {
+    if (envDir.startsWith('~/')) {
       return path.join(os.homedir(), envDir.slice(2));
     }
     return envDir;
   }
-  return path.join(os.homedir(), ".pi", "agent");
+  return path.join(os.homedir(), '.pi', 'agent');
 }
 
 const extension: ExtensionFactory = (pi) => {
-  pi.registerCommand("token-burden", {
-    description: "Show token budget breakdown and manage skills",
-    handler: async (_args, ctx) => {
+  pi.registerCommand('token-burden', {
+    description: 'Show token budget breakdown and manage skills',
+    handler: async (args, ctx) => {
       const prompt = ctx.getSystemPrompt();
       const parsed = parseSystemPrompt(prompt);
 
       // Add tool definitions section (function schemas sent via tool-calling API)
       const allTools = pi.getAllTools();
       const activeTools = pi.getActiveTools();
+      const rawModel: unknown = ctx.model;
+      const model = isRecord(rawModel) ? rawModel : {};
+      const modelApi = typeof model.api === 'string' ? model.api : undefined;
+      const modelProvider = typeof model.provider === 'string' ? model.provider : undefined;
       const toolSection = buildToolDefinitionsSection(
         allTools,
         activeTools,
-        toolEnvelopeForModel(ctx.model?.api, ctx.model?.provider)
+        toolEnvelopeForModel(modelApi, modelProvider),
       );
       if (toolSection) {
         parsed.sections.push(toolSection);
@@ -76,7 +70,7 @@ const extension: ExtensionFactory = (pi) => {
       }
 
       const agentDir = getAgentDir();
-      const settingsPath = path.join(agentDir, "settings.json");
+      const settingsPath = path.join(agentDir, 'settings.json');
       const visibilityStore = new SkillVisibilityStore(settingsPath, agentDir);
       const settings = loadSettings(settingsPath);
       const { skills, byName } = loadAllSkills(settings, undefined, agentDir);
@@ -84,21 +78,16 @@ const extension: ExtensionFactory = (pi) => {
       const onRunTrace = async (): Promise<BasePromptTraceResult> => {
         const sm = SettingsManager.create(process.cwd(), agentDir);
         const configuredPaths = sm.getExtensionPaths();
-        const { extensions, errors: loadErrors } =
-          await discoverAndLoadExtensions(
-            configuredPaths,
-            process.cwd(),
-            agentDir
-          );
-
-        const contributions = extractContributions(
-          extensions as unknown as LoadedExtension[]
+        const { extensions, errors: loadErrors } = await discoverAndLoadExtensions(
+          configuredPaths,
+          process.cwd(),
+          agentDir,
         );
 
-        const baseSection = parsed.sections.find((s) =>
-          s.label.startsWith("Base")
-        );
-        const baseText = baseSection?.content ?? "";
+        const contributions = extractContributions(extensions);
+
+        const baseSection = parsed.sections.find((s) => s.label.startsWith('Base'));
+        const baseText = baseSection?.content ?? '';
         const { toolLines, guidelineLines } = extractBaseLines(baseText);
         const baseTokens = estimateTokens(baseText);
 
@@ -107,7 +96,7 @@ const extension: ExtensionFactory = (pi) => {
           guidelineLines,
           contributions,
           baseTokens,
-          estimateTokens
+          estimateTokens,
         );
 
         const traceErrors = loadErrors.map((e) => ({
@@ -119,7 +108,7 @@ const extension: ExtensionFactory = (pi) => {
           fingerprint: extensions
             .map((e) => e.path)
             .toSorted()
-            .join("|"),
+            .join('|'),
           generatedAt: new Date().toISOString(),
           baseTokens,
           buckets,
@@ -139,23 +128,20 @@ const extension: ExtensionFactory = (pi) => {
           });
 
           if (!outcome.ok) {
-            ctx.ui.notify(
-              `Failed to save settings: ${outcome.errorMessage}`,
-              "error"
-            );
+            ctx.ui.notify(`Failed to save settings: ${outcome.errorMessage}`, 'error');
             return false;
           }
 
           if (outcome.saved) {
             ctx.ui.notify(
               `Skills updated: ${outcome.summary}. Use /reload or restart for changes to take effect.`,
-              "info"
+              'info',
             );
           }
 
           return true;
         },
-        onRunTrace
+        onRunTrace,
       );
     },
   });

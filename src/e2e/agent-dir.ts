@@ -1,6 +1,6 @@
-import * as fs from "node:fs";
-import * as os from "node:os";
-import * as path from "node:path";
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 
 /**
  * Create an isolated Pi agent directory with an empty settings.json.
@@ -10,11 +10,12 @@ import * as path from "node:path";
  * from conflicting with the local test extension.
  */
 export function createIsolatedAgentDir(): string {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "e2e-agent-"));
-  fs.writeFileSync(path.join(tmpDir, "settings.json"), "{}");
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'e2e-agent-'));
+  fs.writeFileSync(path.join(tmpDir, 'settings.json'), '{}');
   return tmpDir;
 }
 
+/** Remove an isolated test agent directory; repeated cleanup is safe. */
 export function removeIsolatedAgentDir(agentDir: string | undefined): void {
   if (!agentDir) {
     return;

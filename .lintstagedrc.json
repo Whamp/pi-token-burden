@@ -1,7 +1,4 @@
 {
-  "*.{ts,tsx}": [
-    "oxlint -c .oxlintrc.json --fix",
-    "oxfmt --config .oxfmtrc.jsonc"
-  ],
+  "*.{ts,tsx}": ["oxlint -c .oxlintrc.json --fix", "oxfmt --config .oxfmtrc.jsonc"],
   "*.json": "oxfmt --config .oxfmtrc.jsonc"
 }

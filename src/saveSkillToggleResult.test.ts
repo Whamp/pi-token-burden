@@ -1,13 +1,13 @@
-import { DisableMode } from "./enums.js";
-import { saveSkillToggleResult } from "./skill-save.js";
-import type { SkillToggleResult } from "./types.js";
+import { DisableMode } from './enums.js';
+import { saveSkillToggleResult } from './saveSkillToggleResult.js';
+import type { SkillToggleResult } from './types.js';
 
 function toggleResult(changes: Map<string, DisableMode>): SkillToggleResult {
   return { applied: true, changes };
 }
 
-describe("skill save", () => {
-  it("skips persistence when there are no applied changes", () => {
+describe('skill save', () => {
+  it('skips persistence when there are no applied changes', () => {
     const persist = vi.fn();
 
     const outcomes = [
@@ -22,12 +22,12 @@ describe("skill save", () => {
     expect(persist).not.toHaveBeenCalled();
   });
 
-  it("persists changes and summarizes saved skill visibility states", () => {
+  it('persists changes and summarizes saved skill visibility states', () => {
     const changes = new Map([
-      ["tdd", DisableMode.Enabled],
-      ["browser-use", DisableMode.Hidden],
-      ["github", DisableMode.Hidden],
-      ["legacy", DisableMode.Disabled],
+      ['tdd', DisableMode.Enabled],
+      ['browser-use', DisableMode.Hidden],
+      ['github', DisableMode.Hidden],
+      ['legacy', DisableMode.Disabled],
     ]);
     const persist = vi.fn();
 
@@ -36,25 +36,25 @@ describe("skill save", () => {
     expect(outcome).toStrictEqual({
       ok: true,
       saved: true,
-      summary: "1 enabled, 2 hidden, 1 disabled",
+      summary: '1 enabled, 2 hidden, 1 disabled',
     });
     expect(persist).toHaveBeenCalledWith(changes);
   });
 
-  it("returns an error outcome when persistence fails", () => {
+  it('returns an error outcome when persistence fails', () => {
     const persist = vi.fn(() => {
-      throw new Error("disk full");
+      throw new Error('disk full');
     });
 
     const outcome = saveSkillToggleResult(
-      toggleResult(new Map([["tdd", DisableMode.Hidden]])),
-      persist
+      toggleResult(new Map([['tdd', DisableMode.Hidden]])),
+      persist,
     );
 
     expect(outcome).toStrictEqual({
       ok: false,
       saved: false,
-      errorMessage: "disk full",
+      errorMessage: 'disk full',
     });
   });
 });

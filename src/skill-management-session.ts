@@ -1,18 +1,18 @@
-import { DisableMode } from "./enums.js";
-import { estimateTokens } from "./parser.js";
+import { DisableMode } from './enums.js';
+import { estimateTokens } from './parser.js';
 import {
   estimateSkillsPromptSectionTokens,
   formatSkillPromptEntry,
   formatSkillsPromptSection,
-} from "./skills.js";
+} from './skills.js';
 import type {
   ParsedPrompt,
   PromptSection,
   SkillEntry,
   SkillInfo,
   SkillManagementRow,
-} from "./types.js";
-import { fuzzyFilter } from "./utils.js";
+} from './types.js';
+import { fuzzyFilter } from './utils.js';
 
 function nextVisibilityState(mode: DisableMode): DisableMode {
   if (mode === DisableMode.Enabled) {
@@ -24,31 +24,30 @@ function nextVisibilityState(mode: DisableMode): DisableMode {
   return DisableMode.Enabled;
 }
 
-const SKILLS_BUDGET_SECTION_LABEL = "Skills";
+const SKILLS_BUDGET_SECTION_LABEL = 'Skills';
 
+/** Return whether a Budget Section label identifies the skill catalog. */
 export function isSkillsBudgetSectionLabel(label: string): boolean {
   return (
-    label === SKILLS_BUDGET_SECTION_LABEL ||
-    label.startsWith(`${SKILLS_BUDGET_SECTION_LABEL} (`)
+    label === SKILLS_BUDGET_SECTION_LABEL || label.startsWith(`${SKILLS_BUDGET_SECTION_LABEL} (`)
   );
 }
 
 function decodeXml(value: string): string {
   return value
-    .replaceAll("&lt;", "<")
-    .replaceAll("&gt;", ">")
-    .replaceAll("&quot;", '"')
-    .replaceAll("&apos;", "'")
-    .replaceAll("&amp;", "&");
+    .replaceAll('&lt;', '<')
+    .replaceAll('&gt;', '>')
+    .replaceAll('&quot;', '"')
+    .replaceAll('&apos;', "'")
+    .replaceAll('&amp;', '&');
 }
 
+/** Merge discovered skills with their current Combined System Prompt entries. */
 export function reconcileSkillsWithPrompt(
   discoveredSkills: SkillInfo[],
-  promptSkills: SkillEntry[]
+  promptSkills: SkillEntry[],
 ): SkillInfo[] {
-  const promptByName = new Map(
-    promptSkills.map((skill) => [skill.name, skill])
-  );
+  const promptByName = new Map(promptSkills.map((skill) => [skill.name, skill]));
 
   return discoveredSkills.map((skill) => {
     const promptSkill = promptByName.get(skill.name);
@@ -68,10 +67,9 @@ export function reconcileSkillsWithPrompt(
   });
 }
 
+/** Build the skill-catalog Budget Section for the current visibility states. */
 export function buildSkillsBudgetSection(skills: SkillInfo[]): PromptSection {
-  const visibleSkills = skills.filter(
-    (skill) => skill.mode === DisableMode.Enabled
-  );
+  const visibleSkills = skills.filter((skill) => skill.mode === DisableMode.Enabled);
   const content = formatSkillsPromptSection(skills);
 
   return {
@@ -91,9 +89,10 @@ export function buildSkillsBudgetSection(skills: SkillInfo[]): PromptSection {
   };
 }
 
+/** Add a manageable skill Budget Section when discovery found hidden skills. */
 export function ensureSkillsSectionForManagement(
   parsed: ParsedPrompt,
-  discoveredSkills: SkillInfo[]
+  discoveredSkills: SkillInfo[],
 ): ParsedPrompt {
   if (
     discoveredSkills.length === 0 ||
@@ -108,19 +107,18 @@ export function ensureSkillsSectionForManagement(
   };
 }
 
+/** Project pending Skill Management Session changes into parsed budget data. */
 export function applySkillManagementToParsed(
   originalParsed: ParsedPrompt,
-  session: SkillManagementSession
+  session: SkillManagementSession,
 ): ParsedPrompt {
   const sections = originalParsed.sections.map((section) => ({ ...section }));
   const skillsSectionIndex = sections.findIndex((section) =>
-    isSkillsBudgetSectionLabel(section.label)
+    isSkillsBudgetSectionLabel(section.label),
   );
 
   if (skillsSectionIndex !== -1) {
-    sections[skillsSectionIndex] = buildSkillsBudgetSection(
-      session.effectiveSkills()
-    );
+    sections[skillsSectionIndex] = buildSkillsBudgetSection(session.effectiveSkills());
   }
 
   return {
@@ -131,6 +129,7 @@ export function applySkillManagementToParsed(
   };
 }
 
+/** Own pending skill-visibility edits until the user saves or discards them. */
 export class SkillManagementSession {
   private readonly skillsList: SkillInfo[];
   private readonly skillsByName: Map<string, SkillInfo>;
@@ -154,10 +153,7 @@ export class SkillManagementSession {
   }
 
   effectiveMode(skillName: string): DisableMode | undefined {
-    return (
-      this.pendingChanges.get(skillName) ??
-      this.skillsByName.get(skillName)?.mode
-    );
+    return this.pendingChanges.get(skillName) ?? this.skillsByName.get(skillName)?.mode;
   }
 
   cycle(skillName: string): void {
@@ -166,9 +162,7 @@ export class SkillManagementSession {
       return;
     }
 
-    const nextMode = nextVisibilityState(
-      this.effectiveMode(skillName) ?? skill.mode
-    );
+    const nextMode = nextVisibilityState(this.effectiveMode(skillName) ?? skill.mode);
     if (nextMode === skill.mode) {
       this.pendingChanges.delete(skillName);
       return;
@@ -206,7 +200,7 @@ export class SkillManagementSession {
     return isSkillsBudgetSectionLabel(label) && this.skillsList.length > 0;
   }
 
-  skillRows(query = ""): SkillManagementRow[] {
+  skillRows(query = ''): SkillManagementRow[] {
     const rows = this.skillsList.map((skill) => ({
       skill,
       label: skill.name,
@@ -221,9 +215,7 @@ export class SkillManagementSession {
 
   get tokenDelta(): number {
     const beforeTokens = estimateSkillsPromptSectionTokens(this.skillsList);
-    const afterTokens = estimateSkillsPromptSectionTokens(
-      this.effectiveSkills()
-    );
+    const afterTokens = estimateSkillsPromptSectionTokens(this.effectiveSkills());
     return afterTokens - beforeTokens;
   }
 }

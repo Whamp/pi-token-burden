@@ -6,16 +6,17 @@
  * skill's disable state from settings.json + frontmatter.
  */
 
-import { spawnSync } from "node:child_process";
-import * as fs from "node:fs";
-import * as os from "node:os";
-import * as path from "node:path";
+import { spawnSync } from 'node:child_process';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 
-import { parse as parseYaml } from "yaml";
+import { parse as parseYaml } from 'yaml';
 
-import { DisableMode } from "./enums.js";
-import { estimateTokens } from "./parser.js";
-import type { Settings, SkillInfo } from "./types.js";
+import { DisableMode } from './enums.js';
+import { estimateTokens } from './parser.js';
+import type { Settings, SkillInfo } from './types.js';
+import { isRecord } from './utils.js';
 
 // ---------------------------------------------------------------------------
 // Frontmatter parsing
@@ -27,48 +28,43 @@ interface FrontmatterResult {
   disableModelInvocation: boolean;
 }
 
-export function parseFrontmatter(
-  content: string,
-  fallbackName: string
-): FrontmatterResult {
-  if (!content.startsWith("---")) {
+/** Decode the skill fields used by discovery from a SKILL.md document. */
+export function parseFrontmatter(content: string, fallbackName: string): FrontmatterResult {
+  if (!content.startsWith('---')) {
     return {
       name: fallbackName,
-      description: "",
+      description: '',
       disableModelInvocation: false,
     };
   }
 
-  const normalized = content.replaceAll("\r\n", "\n").replaceAll("\r", "\n");
-  const endIndex = normalized.indexOf("\n---", 3);
+  const normalized = content.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+  const endIndex = normalized.indexOf('\n---', 3);
   if (endIndex === -1) {
     return {
       name: fallbackName,
-      description: "",
+      description: '',
       disableModelInvocation: false,
     };
   }
 
   try {
-    const parsed = parseYaml(normalized.slice(4, endIndex));
-    const frontmatter =
-      parsed && typeof parsed === "object"
-        ? (parsed as Record<string, unknown>)
-        : {};
+    const parsed: unknown = parseYaml(normalized.slice(4, endIndex));
+    const frontmatter = isRecord(parsed) ? parsed : {};
 
     const nameValue = frontmatter.name;
     const descriptionValue = frontmatter.description;
-    const disableModelInvocationValue = frontmatter["disable-model-invocation"];
+    const disableModelInvocationValue = frontmatter['disable-model-invocation'];
 
     return {
-      name: typeof nameValue === "string" ? nameValue : fallbackName,
-      description: typeof descriptionValue === "string" ? descriptionValue : "",
+      name: typeof nameValue === 'string' ? nameValue : fallbackName,
+      description: typeof descriptionValue === 'string' ? descriptionValue : '',
       disableModelInvocation: disableModelInvocationValue === true,
     };
   } catch {
     return {
       name: fallbackName,
-      description: "",
+      description: '',
       disableModelInvocation: false,
     };
   }
@@ -113,13 +109,9 @@ interface IgnoreRule {
   rooted: boolean;
 }
 
-const IGNORE_FILE_NAMES = [".gitignore", ".ignore", ".fdignore"];
+const IGNORE_FILE_NAMES = ['.gitignore', '.ignore', '.fdignore'];
 
-function loadRawSkill(
-  filePath: string,
-  skills: RawSkill[],
-  visitedRealPaths: Set<string>
-): void {
+function loadRawSkill(filePath: string, skills: RawSkill[], visitedRealPaths: Set<string>): void {
   try {
     let realPath: string;
     try {
@@ -133,12 +125,9 @@ function loadRawSkill(
     }
     visitedRealPaths.add(realPath);
 
-    const content = fs.readFileSync(filePath, "utf8");
+    const content = fs.readFileSync(filePath, 'utf8');
     const parentDirName = path.basename(path.dirname(filePath));
-    const { name, description, disableModelInvocation } = parseFrontmatter(
-      content,
-      parentDirName
-    );
+    const { name, description, disableModelInvocation } = parseFrontmatter(content, parentDirName);
 
     if (!description) {
       return;
@@ -151,33 +140,33 @@ function loadRawSkill(
 }
 
 function toPosixPath(input: string): string {
-  return input.split(path.sep).join("/");
+  return input.split(path.sep).join('/');
 }
 
 function parseIgnoreRule(line: string, baseDir: string): IgnoreRule | null {
   const trimmed = line.trim();
-  if (!trimmed || (trimmed.startsWith("#") && !trimmed.startsWith("\\#"))) {
+  if (!trimmed || (trimmed.startsWith('#') && !trimmed.startsWith('\\#'))) {
     return null;
   }
 
   let pattern = trimmed;
   let negated = false;
-  if (pattern.startsWith("!")) {
+  if (pattern.startsWith('!')) {
     negated = true;
     pattern = pattern.slice(1);
-  } else if (pattern.startsWith("\\!")) {
+  } else if (pattern.startsWith('\\!')) {
     pattern = pattern.slice(1);
   }
-  if (pattern.startsWith("\\#")) {
+  if (pattern.startsWith('\\#')) {
     pattern = pattern.slice(1);
   }
 
-  const rooted = pattern.startsWith("/");
+  const rooted = pattern.startsWith('/');
   if (rooted) {
     pattern = pattern.slice(1);
   }
 
-  const directoryOnly = pattern.endsWith("/");
+  const directoryOnly = pattern.endsWith('/');
   if (directoryOnly) {
     pattern = pattern.slice(0, -1);
   }
@@ -199,7 +188,7 @@ function addIgnoreRules(dir: string, rules: IgnoreRule[]): void {
     }
 
     try {
-      const content = fs.readFileSync(ignorePath, "utf8");
+      const content = fs.readFileSync(ignorePath, 'utf8');
       for (const line of content.split(/\r?\n/)) {
         const rule = parseIgnoreRule(line, dir);
         if (rule) {
@@ -212,39 +201,24 @@ function addIgnoreRules(dir: string, rules: IgnoreRule[]): void {
   }
 }
 
-function ignoreRuleMatches(
-  rule: IgnoreRule,
-  entryPath: string,
-  isDirectory: boolean
-): boolean {
+function ignoreRuleMatches(rule: IgnoreRule, entryPath: string, isDirectory: boolean): boolean {
   if (rule.directoryOnly && !isDirectory) {
     return false;
   }
 
   const relativePath = toPosixPath(path.relative(rule.baseDir, entryPath));
-  if (
-    !relativePath ||
-    relativePath.startsWith("../") ||
-    relativePath === ".."
-  ) {
+  if (!relativePath || relativePath.startsWith('../') || relativePath === '..') {
     return false;
   }
 
-  if (rule.rooted || rule.pattern.includes("/")) {
-    return (
-      relativePath === rule.pattern ||
-      relativePath.startsWith(`${rule.pattern}/`)
-    );
+  if (rule.rooted || rule.pattern.includes('/')) {
+    return relativePath === rule.pattern || relativePath.startsWith(`${rule.pattern}/`);
   }
 
-  return relativePath.split("/").includes(rule.pattern);
+  return relativePath.split('/').includes(rule.pattern);
 }
 
-function isIgnored(
-  entryPath: string,
-  isDirectory: boolean,
-  rules: IgnoreRule[]
-): boolean {
+function isIgnored(entryPath: string, isDirectory: boolean, rules: IgnoreRule[]): boolean {
   let ignored = false;
   for (const rule of rules) {
     if (ignoreRuleMatches(rule, entryPath, isDirectory)) {
@@ -256,7 +230,7 @@ function isIgnored(
 
 function getEntryKind(
   entry: fs.Dirent,
-  entryPath: string
+  entryPath: string,
 ): { isDirectory: boolean; isFile: boolean } | null {
   let isDirectory = entry.isDirectory();
   let isFile = entry.isFile();
@@ -273,13 +247,14 @@ function getEntryKind(
   return { isDirectory, isFile };
 }
 
+/** Discover skill documents below one filesystem root without following cycles. */
 export function scanSkillDir(
   dir: string,
   skills: RawSkill[],
   visitedRealPaths: Set<string>,
   visitedDirs?: Set<string>,
   includeRootFiles?: boolean,
-  ignoreRules?: IgnoreRule[]
+  ignoreRules?: IgnoreRule[],
 ): void {
   if (!fs.existsSync(dir)) {
     return;
@@ -303,7 +278,7 @@ export function scanSkillDir(
   try {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
     for (const entry of entries) {
-      if (entry.name !== "SKILL.md") {
+      if (entry.name !== 'SKILL.md') {
         continue;
       }
 
@@ -318,10 +293,10 @@ export function scanSkillDir(
     }
 
     for (const entry of entries) {
-      if (entry.name.startsWith(".")) {
+      if (entry.name.startsWith('.')) {
         continue;
       }
-      if (entry.name === "node_modules") {
+      if (entry.name === 'node_modules') {
         continue;
       }
 
@@ -336,19 +311,8 @@ export function scanSkillDir(
       }
 
       if (kind.isDirectory) {
-        scanSkillDir(
-          entryPath,
-          skills,
-          visitedRealPaths,
-          visited,
-          false,
-          rules
-        );
-      } else if (
-        (includeRootFiles ?? false) &&
-        kind.isFile &&
-        entry.name.endsWith(".md")
-      ) {
+        scanSkillDir(entryPath, skills, visitedRealPaths, visited, false, rules);
+      } else if ((includeRootFiles ?? false) && kind.isFile && entry.name.endsWith('.md')) {
         loadRawSkill(entryPath, skills, visitedRealPaths);
       }
     }
@@ -358,13 +322,13 @@ export function scanSkillDir(
 }
 
 function shouldIncludeRootSkillFiles(sourcePath: string): boolean {
-  return !toPosixPath(path.normalize(sourcePath)).includes("/.agents/skills");
+  return !toPosixPath(path.normalize(sourcePath)).includes('/.agents/skills');
 }
 
 function scanSkillPath(
   sourcePath: string,
   skills: RawSkill[],
-  visitedRealPaths: Set<string>
+  visitedRealPaths: Set<string>,
 ): void {
   if (!fs.existsSync(sourcePath)) {
     return;
@@ -378,12 +342,12 @@ function scanSkillPath(
         skills,
         visitedRealPaths,
         undefined,
-        shouldIncludeRootSkillFiles(sourcePath)
+        shouldIncludeRootSkillFiles(sourcePath),
       );
       return;
     }
 
-    if (stats.isFile() && sourcePath.endsWith(".md")) {
+    if (stats.isFile() && sourcePath.endsWith('.md')) {
       loadRawSkill(sourcePath, skills, visitedRealPaths);
     }
   } catch {
@@ -395,69 +359,69 @@ function scanSkillPath(
 // Token estimation for skill prompt entries
 // ---------------------------------------------------------------------------
 
-/**
- * Estimate the token cost of a skill's XML entry in the system prompt.
- */
+/** Escape one value for the model-facing skill-catalog XML. */
 function escapeXml(value: string): string {
   return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&apos;");
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&apos;');
 }
 
+/** Render one skill as its model-facing XML catalog entry. */
 export function formatSkillPromptEntry(skill: {
   name: string;
   description: string;
   filePath: string;
 }): string {
   return [
-    "  <skill>",
+    '  <skill>',
     `    <name>${escapeXml(skill.name)}</name>`,
     `    <description>${escapeXml(skill.description)}</description>`,
     `    <location>${escapeXml(skill.filePath)}</location>`,
-    "  </skill>",
-  ].join("\n");
+    '  </skill>',
+  ].join('\n');
 }
 
+/** Render the complete model-facing catalog for enabled skills. */
 export function formatSkillsPromptSection(
   skills: {
     name: string;
     description: string;
     filePath: string;
     mode: DisableMode;
-  }[]
+  }[],
 ): string {
-  const visibleSkills = skills.filter(
-    (skill) => skill.mode === DisableMode.Enabled
-  );
+  const visibleSkills = skills.filter((skill) => skill.mode === DisableMode.Enabled);
   if (visibleSkills.length === 0) {
-    return "";
+    return '';
   }
 
   return [
-    "\n\nThe following skills provide specialized instructions for specific tasks.",
+    '\n\nThe following skills provide specialized instructions for specific tasks.',
     "Use the read tool to load a skill's file when the task matches its description.",
-    "When a skill file references a relative path, resolve it against the skill directory (parent of SKILL.md / dirname of the path) and use that absolute path in tool commands.",
-    "",
-    "<available_skills>",
+    'When a skill file references a relative path, resolve it against the skill directory (parent of SKILL.md / dirname of the path) and use that absolute path in tool commands.',
+    '',
+    '<available_skills>',
     ...visibleSkills.map(formatSkillPromptEntry),
-    "</available_skills>",
-  ].join("\n");
+    '</available_skills>',
+  ].join('\n');
 }
 
+/** Count the full skill catalog with the same tokenizer as the budget parser. */
 export function estimateSkillsPromptSectionTokens(
   skills: {
     name: string;
     description: string;
     filePath: string;
     mode: DisableMode;
-  }[]
+  }[],
 ): number {
   return estimateTokens(formatSkillsPromptSection(skills));
 }
 
+/** Count one model-facing skill catalog entry. */
 export function estimateSkillPromptTokens(skill: {
   name: string;
   description: string;
@@ -472,23 +436,23 @@ export function estimateSkillPromptTokens(skill: {
 
 function isPatternEntry(entry: string): boolean {
   return (
-    entry.startsWith("!") ||
-    entry.startsWith("+") ||
-    entry.startsWith("-") ||
-    entry.includes("*") ||
-    entry.includes("?")
+    entry.startsWith('!') ||
+    entry.startsWith('+') ||
+    entry.startsWith('-') ||
+    entry.includes('*') ||
+    entry.includes('?')
   );
 }
 
 function resolvePathFromBase(input: string, baseDir: string): string {
   const trimmed = input.trim();
-  if (trimmed === "~") {
+  if (trimmed === '~') {
     return os.homedir();
   }
-  if (trimmed.startsWith("~/")) {
+  if (trimmed.startsWith('~/')) {
     return path.join(os.homedir(), trimmed.slice(2));
   }
-  if (trimmed.startsWith("~")) {
+  if (trimmed.startsWith('~')) {
     return path.join(os.homedir(), trimmed.slice(1));
   }
   if (path.isAbsolute(trimmed)) {
@@ -497,10 +461,7 @@ function resolvePathFromBase(input: string, baseDir: string): string {
   return path.resolve(baseDir, trimmed);
 }
 
-function createSkillDisableRules(
-  settings: Settings,
-  settingsBaseDir: string
-): SkillDisableRules {
+function createSkillDisableRules(settings: Settings, settingsBaseDir: string): SkillDisableRules {
   const rules: SkillDisableRules = {
     exactPaths: new Set<string>(),
     excludes: [],
@@ -510,23 +471,23 @@ function createSkillDisableRules(
   };
 
   for (const entry of settings.skills ?? []) {
-    if (typeof entry !== "string") {
+    if (typeof entry !== 'string') {
       continue;
     }
 
-    if (entry.startsWith("!")) {
+    if (entry.startsWith('!')) {
       rules.excludes.push(entry.slice(1));
       continue;
     }
-    if (entry.startsWith("+")) {
+    if (entry.startsWith('+')) {
       rules.forceIncludes.push(entry.slice(1));
       continue;
     }
-    if (entry.startsWith("-")) {
+    if (entry.startsWith('-')) {
       const rawPath = entry.slice(1);
       const absolutePath = resolvePathFromBase(rawPath, settingsBaseDir);
       rules.exactPaths.add(path.normalize(absolutePath));
-      rules.exactPaths.add(path.normalize(path.join(absolutePath, "SKILL.md")));
+      rules.exactPaths.add(path.normalize(path.join(absolutePath, 'SKILL.md')));
       rules.forceExcludes.push(rawPath);
     }
   }
@@ -535,17 +496,17 @@ function createSkillDisableRules(
 }
 
 function globPatternToRegExp(pattern: string): RegExp {
-  const escaped = pattern.replaceAll(/[$()+./:=?[\\\]^{|}]/g, "\\$&");
-  return new RegExp(`^${escaped.replaceAll("*", ".*").replaceAll("?", ".")}$`);
+  const escaped = pattern.replaceAll(/[$()+./:=?[\\\]^{|}]/g, '\\$&');
+  return new RegExp(`^${escaped.replaceAll('*', '.*').replaceAll('?', '.')}$`);
 }
 
 function patternMatchesSkill(
   pattern: string,
   filePath: string,
   skillName: string,
-  settingsBaseDir: string
+  settingsBaseDir: string,
 ): boolean {
-  const normalizedPattern = toPosixPath(pattern.replace(/^\.\//, ""));
+  const normalizedPattern = toPosixPath(pattern.replace(/^\.\//, ''));
   const normalizedFilePath = toPosixPath(path.normalize(filePath));
   const normalizedDir = toPosixPath(path.dirname(filePath));
   const candidates = [
@@ -557,15 +518,13 @@ function patternMatchesSkill(
     toPosixPath(path.relative(settingsBaseDir, path.dirname(filePath))),
   ];
 
-  if (normalizedPattern.includes("*") || normalizedPattern.includes("?")) {
+  if (normalizedPattern.includes('*') || normalizedPattern.includes('?')) {
     const matcher = globPatternToRegExp(normalizedPattern);
     return candidates.some((candidate) => matcher.test(candidate));
   }
 
   return candidates.some(
-    (candidate) =>
-      candidate === normalizedPattern ||
-      candidate.endsWith(`/${normalizedPattern}`)
+    (candidate) => candidate === normalizedPattern || candidate.endsWith(`/${normalizedPattern}`),
   );
 }
 
@@ -574,21 +533,19 @@ function applyPatternRules(
   filePath: string,
   skillName: string,
   baseDir: string,
-  rules: SkillPatternRules
+  rules: SkillPatternRules,
 ): boolean {
   let nextDisabled = disabled;
 
   if (
-    rules.excludes.some((pattern) =>
-      patternMatchesSkill(pattern, filePath, skillName, baseDir)
-    )
+    rules.excludes.some((pattern) => patternMatchesSkill(pattern, filePath, skillName, baseDir))
   ) {
     nextDisabled = true;
   }
 
   if (
     rules.forceIncludes.some((pattern) =>
-      patternMatchesSkill(pattern, filePath, skillName, baseDir)
+      patternMatchesSkill(pattern, filePath, skillName, baseDir),
     )
   ) {
     nextDisabled = false;
@@ -596,7 +553,7 @@ function applyPatternRules(
 
   if (
     rules.forceExcludes.some((pattern) =>
-      patternMatchesSkill(pattern, filePath, skillName, baseDir)
+      patternMatchesSkill(pattern, filePath, skillName, baseDir),
     )
   ) {
     nextDisabled = true;
@@ -607,40 +564,24 @@ function applyPatternRules(
 
 function isUnderPath(filePath: string, baseDir: string): boolean {
   const relativePath = path.relative(baseDir, filePath);
-  return (
-    Boolean(relativePath) &&
-    !relativePath.startsWith("..") &&
-    !path.isAbsolute(relativePath)
-  );
+  return Boolean(relativePath) && !relativePath.startsWith('..') && !path.isAbsolute(relativePath);
 }
 
 function isSkillDisabled(
   filePath: string,
   skillName: string,
   rules: SkillDisableRules,
-  settingsBaseDir: string
+  settingsBaseDir: string,
 ): boolean {
   const normalized = path.normalize(filePath);
   const dir = path.dirname(filePath);
   let disabled = rules.exactPaths.has(normalized) || rules.exactPaths.has(dir);
 
-  disabled = applyPatternRules(
-    disabled,
-    filePath,
-    skillName,
-    settingsBaseDir,
-    rules
-  );
+  disabled = applyPatternRules(disabled, filePath, skillName, settingsBaseDir, rules);
 
   for (const scopedRules of rules.scoped) {
     if (isUnderPath(filePath, scopedRules.baseDir)) {
-      disabled = applyPatternRules(
-        disabled,
-        filePath,
-        skillName,
-        scopedRules.baseDir,
-        scopedRules
-      );
+      disabled = applyPatternRules(disabled, filePath, skillName, scopedRules.baseDir, scopedRules);
     }
   }
 
@@ -648,19 +589,19 @@ function isSkillDisabled(
 }
 
 function getPackageSource(entry: unknown): string | null {
-  if (typeof entry === "string") {
+  if (typeof entry === 'string') {
     return entry;
   }
-  if (!entry || typeof entry !== "object") {
+  if (!entry || typeof entry !== 'object') {
     return null;
   }
 
-  if (!("source" in entry)) {
+  if (!('source' in entry)) {
     return null;
   }
 
-  const { source } = entry as { source?: unknown };
-  if (typeof source !== "string") {
+  const { source } = entry;
+  if (typeof source !== 'string') {
     return null;
   }
 
@@ -668,32 +609,32 @@ function getPackageSource(entry: unknown): string | null {
 }
 
 function getPackageSkillPatterns(entry: unknown): string[] {
-  if (!entry || typeof entry !== "object" || !("skills" in entry)) {
+  if (!entry || typeof entry !== 'object' || !('skills' in entry)) {
     return [];
   }
 
-  const { skills } = entry as { skills?: unknown };
+  const { skills } = entry;
   if (!Array.isArray(skills)) {
     return [];
   }
 
-  return skills.filter((skill): skill is string => typeof skill === "string");
+  return skills.filter((skill): skill is string => typeof skill === 'string');
 }
 
 function createScopedSkillPatternRules(
   baseDir: string,
-  patterns: string[]
+  patterns: string[],
 ): ScopedSkillPatternRules {
   return {
     baseDir,
     excludes: patterns
-      .filter((pattern) => pattern.startsWith("!"))
+      .filter((pattern) => pattern.startsWith('!'))
       .map((pattern) => pattern.slice(1)),
     forceIncludes: patterns
-      .filter((pattern) => pattern.startsWith("+"))
+      .filter((pattern) => pattern.startsWith('+'))
       .map((pattern) => pattern.slice(1)),
     forceExcludes: patterns
-      .filter((pattern) => pattern.startsWith("-"))
+      .filter((pattern) => pattern.startsWith('-'))
       .map((pattern) => pattern.slice(1)),
   };
 }
@@ -701,10 +642,10 @@ function createScopedSkillPatternRules(
 function isLocalPathLike(source: string): boolean {
   const trimmed = source.trim();
   return (
-    trimmed.startsWith(".") ||
-    trimmed.startsWith("/") ||
-    trimmed === "~" ||
-    trimmed.startsWith("~/") ||
+    trimmed.startsWith('.') ||
+    trimmed.startsWith('/') ||
+    trimmed === '~' ||
+    trimmed.startsWith('~/') ||
     /^[A-Za-z]:[\\/]|^\\\\/.test(trimmed)
   );
 }
@@ -718,8 +659,8 @@ function parseNpmPackageName(spec: string): string {
 }
 
 function getGlobalNpmRoot(): string | null {
-  const result = spawnSync("npm", ["root", "-g"], {
-    encoding: "utf8",
+  const result = spawnSync('npm', ['root', '-g'], {
+    encoding: 'utf8',
   });
 
   if (result.status !== 0) {
@@ -736,36 +677,32 @@ function getGlobalNpmRoot(): string | null {
 
 function looksLikeGitSource(source: string): boolean {
   return (
-    source.startsWith("git:") ||
-    source.startsWith("http://") ||
-    source.startsWith("https://") ||
-    source.startsWith("ssh://") ||
-    source.startsWith("git@")
+    source.startsWith('git:') ||
+    source.startsWith('http://') ||
+    source.startsWith('https://') ||
+    source.startsWith('ssh://') ||
+    source.startsWith('git@')
   );
 }
 
-function parseGitSource(
-  source: string
-): { host: string; repoPath: string } | null {
+function parseGitSource(source: string): { host: string; repoPath: string } | null {
   const trimmed = source.trim();
-  const withoutPrefix = trimmed.startsWith("git:")
-    ? trimmed.slice("git:".length)
-    : trimmed;
-  const withoutRef = withoutPrefix.split("#")[0]?.trim() ?? "";
+  const withoutPrefix = trimmed.startsWith('git:') ? trimmed.slice('git:'.length) : trimmed;
+  const withoutRef = withoutPrefix.split('#')[0]?.trim() ?? '';
 
   if (!withoutRef) {
     return null;
   }
 
   if (
-    withoutRef.startsWith("http://") ||
-    withoutRef.startsWith("https://") ||
-    withoutRef.startsWith("ssh://")
+    withoutRef.startsWith('http://') ||
+    withoutRef.startsWith('https://') ||
+    withoutRef.startsWith('ssh://')
   ) {
     try {
       const parsed = new URL(withoutRef);
       const { host, pathname } = parsed;
-      const repoPath = pathname.replace(/^\/+/, "").replace(/\.git$/, "");
+      const repoPath = pathname.replace(/^\/+/, '').replace(/\.git$/, '');
 
       if (!host || !repoPath) {
         return null;
@@ -777,15 +714,15 @@ function parseGitSource(
     }
   }
 
-  if (withoutRef.startsWith("git@")) {
-    const atIndex = withoutRef.indexOf("@");
-    const colonIndex = withoutRef.indexOf(":");
+  if (withoutRef.startsWith('git@')) {
+    const atIndex = withoutRef.indexOf('@');
+    const colonIndex = withoutRef.indexOf(':');
     if (colonIndex === -1 || colonIndex <= atIndex) {
       return null;
     }
 
     const host = withoutRef.slice(atIndex + 1, colonIndex);
-    const repoPath = withoutRef.slice(colonIndex + 1).replace(/\.git$/, "");
+    const repoPath = withoutRef.slice(colonIndex + 1).replace(/\.git$/, '');
 
     if (!host || !repoPath) {
       return null;
@@ -794,13 +731,13 @@ function parseGitSource(
     return { host, repoPath };
   }
 
-  const firstSlash = withoutRef.indexOf("/");
+  const firstSlash = withoutRef.indexOf('/');
   if (firstSlash === -1) {
     return null;
   }
 
   const host = withoutRef.slice(0, firstSlash);
-  const repoPath = withoutRef.slice(firstSlash + 1).replace(/\.git$/, "");
+  const repoPath = withoutRef.slice(firstSlash + 1).replace(/\.git$/, '');
   if (!host || !repoPath) {
     return null;
   }
@@ -811,15 +748,15 @@ function parseGitSource(
 function resolvePackageRoot(
   source: string,
   settingsBaseDir: string,
-  npmRoot: string | null
+  npmRoot: string | null,
 ): string | null {
   const trimmed = source.trim();
 
-  if (trimmed.startsWith("npm:")) {
+  if (trimmed.startsWith('npm:')) {
     if (!npmRoot) {
       return null;
     }
-    const spec = trimmed.slice("npm:".length).trim();
+    const spec = trimmed.slice('npm:'.length).trim();
     const packageName = parseNpmPackageName(spec);
     return path.join(npmRoot, packageName);
   }
@@ -829,12 +766,7 @@ function resolvePackageRoot(
     if (!parsedGit) {
       return null;
     }
-    return path.join(
-      settingsBaseDir,
-      "git",
-      parsedGit.host,
-      parsedGit.repoPath
-    );
+    return path.join(settingsBaseDir, 'git', parsedGit.host, parsedGit.repoPath);
   }
 
   if (isLocalPathLike(trimmed)) {
@@ -846,20 +778,17 @@ function resolvePackageRoot(
 }
 
 function resolvePackageSkillPaths(packageRoot: string): string[] {
-  const packageJsonPath = path.join(packageRoot, "package.json");
+  const packageJsonPath = path.join(packageRoot, 'package.json');
   const resolvedPaths: string[] = [];
 
   if (fs.existsSync(packageJsonPath)) {
     try {
-      const parsed = JSON.parse(fs.readFileSync(packageJsonPath, "utf8")) as {
-        pi?: { skills?: unknown };
-      };
-      const manifestSkills = parsed.pi?.skills;
+      const parsed: unknown = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+      const manifestSkills = isRecord(parsed) && isRecord(parsed.pi) ? parsed.pi.skills : undefined;
 
       if (Array.isArray(manifestSkills)) {
         const plainEntries = manifestSkills.filter(
-          (entry): entry is string =>
-            typeof entry === "string" && !isPatternEntry(entry)
+          (entry): entry is string => typeof entry === 'string' && !isPatternEntry(entry),
         );
 
         for (const entry of plainEntries) {
@@ -875,7 +804,7 @@ function resolvePackageSkillPaths(packageRoot: string): string[] {
     return resolvedPaths;
   }
 
-  const conventionalSkillsDir = path.join(packageRoot, "skills");
+  const conventionalSkillsDir = path.join(packageRoot, 'skills');
   if (fs.existsSync(conventionalSkillsDir)) {
     return [conventionalSkillsDir];
   }
@@ -885,13 +814,13 @@ function resolvePackageSkillPaths(packageRoot: string): string[] {
 
 function collectConfiguredSkillSources(
   settings: Settings,
-  settingsBaseDir: string
+  settingsBaseDir: string,
 ): ConfiguredSkillSources {
   const configuredPaths: string[] = [];
   const scopedRules: ScopedSkillPatternRules[] = [];
 
   for (const entry of settings.skills ?? []) {
-    if (typeof entry !== "string") {
+    if (typeof entry !== 'string') {
       continue;
     }
 
@@ -906,7 +835,7 @@ function collectConfiguredSkillSources(
   const packageEntries = settings.packages ?? [];
   const hasNpmPackage = packageEntries.some((entry) => {
     const source = getPackageSource(entry);
-    return source?.startsWith("npm:") ?? false;
+    return source?.startsWith('npm:') ?? false;
   });
   const npmRoot = hasNpmPackage ? getGlobalNpmRoot() : null;
 
@@ -925,9 +854,7 @@ function collectConfiguredSkillSources(
 
     const skillPatterns = getPackageSkillPatterns(entry);
     if (skillPatterns.length > 0) {
-      scopedRules.push(
-        createScopedSkillPatternRules(packageRoot, skillPatterns)
-      );
+      scopedRules.push(createScopedSkillPatternRules(packageRoot, skillPatterns));
     }
   }
 
@@ -957,10 +884,10 @@ function uniquePaths(paths: string[]): string[] {
 function findGitRepoRoot(startDir: string): string | null {
   let dir = path.resolve(startDir);
   for (;;) {
-    if (fs.existsSync(path.join(dir, ".git"))) {
+    if (fs.existsSync(path.join(dir, '.git'))) {
       return dir;
     }
-    const parent = path.resolve(dir, "..");
+    const parent = path.resolve(dir, '..');
     if (parent === dir) {
       return null;
     }
@@ -975,7 +902,7 @@ function collectAncestorAgentsSkillDirs(startDir: string): string[] {
 
   let dir = resolved;
   for (;;) {
-    dirs.push(path.join(dir, ".agents", "skills"));
+    dirs.push(path.join(dir, '.agents', 'skills'));
     if (gitRoot && dir === gitRoot) {
       break;
     }
@@ -1001,29 +928,22 @@ function collectAncestorAgentsSkillDirs(startDir: string): string[] {
 export function loadAllSkills(
   settings: Settings,
   overrideDirs?: string[],
-  settingsBaseDir?: string
+  settingsBaseDir?: string,
 ): { skills: SkillInfo[]; byName: Map<string, SkillInfo> } {
-  const resolvedSettingsBaseDir =
-    settingsBaseDir ?? path.join(os.homedir(), ".pi", "agent");
+  const resolvedSettingsBaseDir = settingsBaseDir ?? path.join(os.homedir(), '.pi', 'agent');
 
-  const disableRules = createSkillDisableRules(
-    settings,
-    resolvedSettingsBaseDir
-  );
+  const disableRules = createSkillDisableRules(settings, resolvedSettingsBaseDir);
   const rawSkills: RawSkill[] = [];
   const visitedRealPaths = new Set<string>();
 
   const defaultScanDirs = [
-    path.join(process.cwd(), ".pi", "skills"),
+    path.join(process.cwd(), '.pi', 'skills'),
     ...collectAncestorAgentsSkillDirs(process.cwd()),
-    path.join(os.homedir(), ".pi", "agent", "skills"),
-    path.join(os.homedir(), ".agents", "skills"),
+    path.join(os.homedir(), '.pi', 'agent', 'skills'),
+    path.join(os.homedir(), '.agents', 'skills'),
   ];
 
-  const configuredSources = collectConfiguredSkillSources(
-    settings,
-    resolvedSettingsBaseDir
-  );
+  const configuredSources = collectConfiguredSkillSources(settings, resolvedSettingsBaseDir);
   disableRules.scoped.push(...configuredSources.scopedRules);
 
   const scanTargets = uniquePaths([
@@ -1065,12 +985,7 @@ export function loadAllSkills(
     skill.hasDuplicates = allPaths.length > 1;
 
     const allDisabled = allPaths.every((p) =>
-      isSkillDisabled(
-        path.resolve(p),
-        name,
-        disableRules,
-        resolvedSettingsBaseDir
-      )
+      isSkillDisabled(path.resolve(p), name, disableRules, resolvedSettingsBaseDir),
     );
 
     if (allDisabled) {
@@ -1080,8 +995,6 @@ export function loadAllSkills(
     }
   }
 
-  const skills = [...byName.values()].toSorted((a, b) =>
-    a.name.localeCompare(b.name)
-  );
+  const skills = [...byName.values()].toSorted((a, b) => a.name.localeCompare(b.name));
   return { skills, byName };
 }

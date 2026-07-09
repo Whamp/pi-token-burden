@@ -1,4 +1,6 @@
-import type { ParsedPrompt, PromptSection } from "./types.js";
+import { fromPartial } from '@total-typescript/shoehorn';
+
+import type { ParsedPrompt, PromptSection } from './types.js';
 
 type CommandHandler = (
   args: string[],
@@ -7,7 +9,7 @@ type CommandHandler = (
     getContextUsage(): { contextWindow?: number } | null;
     hasUI: boolean;
     model?: { api?: string; provider?: string; contextWindow?: number };
-  }
+  },
 ) => Promise<void>;
 
 interface ToolDefinition {
@@ -21,7 +23,7 @@ interface ParserModule {
   buildToolDefinitionsSection(
     tools: ToolDefinition[],
     activeToolNames?: string[],
-    countedEnvelope?: string
+    countedEnvelope?: string,
   ): PromptSection | null;
   estimateTokens(text: string): number;
   toolEnvelopeForModel(api: string | undefined, provider?: string): string;
@@ -33,37 +35,38 @@ interface ReportViewModule {
 
 function requireHandler(handler: CommandHandler | null): CommandHandler {
   if (handler === null) {
-    throw new Error("token-burden handler not registered");
+    throw new Error('token-burden handler not registered');
   }
 
   return handler;
 }
 
-const parseSystemPromptMock = vi.fn<ParserModule["parseSystemPrompt"]>();
-const buildToolDefinitionsSectionMock =
-  vi.fn<ParserModule["buildToolDefinitionsSection"]>();
-const estimateTokensMock = vi.fn<ParserModule["estimateTokens"]>();
-const toolEnvelopeForModelMock = vi.fn<ParserModule["toolEnvelopeForModel"]>();
-const showReportMock = vi.fn<ReportViewModule["showReport"]>();
+const parseSystemPromptMock = vi.fn<ParserModule['parseSystemPrompt']>();
+const buildToolDefinitionsSectionMock = vi.fn<ParserModule['buildToolDefinitionsSection']>();
+const estimateTokensMock = vi.fn<ParserModule['estimateTokens']>();
+const toolEnvelopeForModelMock = vi.fn<ParserModule['toolEnvelopeForModel']>();
+const showReportMock = vi.fn<ReportViewModule['showReport']>();
 
-vi.mock<ParserModule>(import("./parser.js"), () => ({
+vi.mock<ParserModule>(import('./parser.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
   parseSystemPrompt: parseSystemPromptMock,
   buildToolDefinitionsSection: buildToolDefinitionsSectionMock,
   estimateTokens: estimateTokensMock,
   toolEnvelopeForModel: toolEnvelopeForModelMock,
 }));
 
-vi.mock<ReportViewModule>(import("./report-view.js"), () => ({
+vi.mock<ReportViewModule>(import('./report-view.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
   showReport: showReportMock,
 }));
 
-describe("extension", () => {
-  it("exports a default function", async () => {
-    const mod = await import("./index.js");
+describe('extension', () => {
+  it('exports a default function', async () => {
+    const mod = await import('./index.js');
     expectTypeOf(mod.default).toBeFunction();
   });
 
-  it("passes active tool names when building the tools section", async () => {
+  it('passes active tool names when building the tools section', async () => {
     parseSystemPromptMock.mockReturnValue({
       sections: [],
       totalChars: 0,
@@ -71,49 +74,39 @@ describe("extension", () => {
       skills: [],
     });
     buildToolDefinitionsSectionMock.mockReturnValue(null);
-    toolEnvelopeForModelMock.mockReturnValue("anthropic");
+    toolEnvelopeForModelMock.mockReturnValue('anthropic');
 
     const tools = [
-      { name: "read", description: "Read files", parameters: {} },
-      { name: "bash", description: "Run commands", parameters: {} },
+      { name: 'read', description: 'Read files', parameters: {} },
+      { name: 'bash', description: 'Run commands', parameters: {} },
     ];
 
     let handler: CommandHandler | null = null;
     const pi = {
       registerCommand: vi.fn(
-        (
-          _name: string,
-          { handler: registeredHandler }: { handler: CommandHandler }
-        ) => {
+        (name: string, { handler: registeredHandler }: { handler: CommandHandler }) => {
           handler = registeredHandler;
-        }
+        },
       ),
       getAllTools: vi.fn(() => tools),
-      getActiveTools: vi.fn(() => ["read"]),
+      getActiveTools: vi.fn(() => ['read']),
     };
 
-    const { default: extension } = await import("./index.js");
-    extension(pi as never);
+    const { default: extension } = await import('./index.js');
+    await extension(fromPartial(pi));
 
-    expect(handler).toBeTypeOf("function");
+    expect(handler).toBeTypeOf('function');
 
     const runHandler = requireHandler(handler);
 
     await runHandler([], {
-      getSystemPrompt: () => "prompt",
+      getSystemPrompt: () => 'prompt',
       getContextUsage: () => null,
       hasUI: false,
-      model: { api: "anthropic-messages", provider: "openrouter" },
+      model: { api: 'anthropic-messages', provider: 'openrouter' },
     });
 
-    expect(toolEnvelopeForModelMock).toHaveBeenCalledWith(
-      "anthropic-messages",
-      "openrouter"
-    );
-    expect(buildToolDefinitionsSectionMock).toHaveBeenCalledWith(
-      tools,
-      ["read"],
-      "anthropic"
-    );
+    expect(toolEnvelopeForModelMock).toHaveBeenCalledWith('anthropic-messages', 'openrouter');
+    expect(buildToolDefinitionsSectionMock).toHaveBeenCalledWith(tools, ['read'], 'anthropic');
   });
 });

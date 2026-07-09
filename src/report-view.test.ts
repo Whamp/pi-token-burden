@@ -1,9 +1,11 @@
-import { DisableMode } from "./enums.js";
-import { getEditor, isReadOnlySection, showReport } from "./report-view.js";
-import type { ParsedPrompt, SkillInfo } from "./types.js";
+import { fromPartial } from '@total-typescript/shoehorn';
 
-describe("report-view", () => {
-  it("exports showReport function", () => {
+import { DisableMode } from './enums.js';
+import { getEditor, isReadOnlySection, showReport } from './report-view.js';
+import type { ParsedPrompt, SkillInfo } from './types.js';
+
+describe('report-view', () => {
+  it('exports showReport function', () => {
     expectTypeOf(showReport).toBeFunction();
   });
 });
@@ -29,13 +31,13 @@ type OverlayFactory = (
   tui: MockTui,
   theme: unknown,
   kb: unknown,
-  done: (value: null) => void
+  done: (value: null) => void,
 ) => OverlayComponent;
 
 async function mountOverlayWithTui(
   parsed: ParsedPrompt,
   discoveredSkills: SkillInfo[] = [],
-  contextWindow?: number
+  contextWindow?: number,
 ): Promise<MountedOverlay> {
   let component: OverlayComponent | undefined;
   let tui: MockTui | undefined;
@@ -53,14 +55,14 @@ async function mountOverlayWithTui(
     },
   };
 
-  await showReport(parsed, contextWindow, ctx as never, discoveredSkills);
+  await showReport(parsed, contextWindow, fromPartial(ctx), discoveredSkills);
 
   if (!component) {
-    throw new Error("Overlay component was not created");
+    throw new Error('Overlay component was not created');
   }
 
   if (!tui) {
-    throw new Error("Overlay TUI was not created");
+    throw new Error('Overlay TUI was not created');
   }
 
   return { overlay: component, tui };
@@ -69,20 +71,16 @@ async function mountOverlayWithTui(
 async function mountOverlay(
   parsed: ParsedPrompt,
   discoveredSkills: SkillInfo[] = [],
-  contextWindow?: number
+  contextWindow?: number,
 ): Promise<OverlayComponent> {
-  const { overlay } = await mountOverlayWithTui(
-    parsed,
-    discoveredSkills,
-    contextWindow
-  );
+  const { overlay } = await mountOverlayWithTui(parsed, discoveredSkills, contextWindow);
   return overlay;
 }
 
-describe("showReport — rendering", () => {
-  it("renders over-budget context window usage without crashing", async () => {
+describe('showReport — rendering', () => {
+  it('renders over-budget context window usage without crashing', async () => {
     const parsed: ParsedPrompt = {
-      sections: [{ label: "Base prompt", chars: 1000, tokens: 150 }],
+      sections: [{ label: 'Base prompt', chars: 1000, tokens: 150 }],
       totalChars: 1000,
       totalTokens: 150,
       skills: [],
@@ -91,49 +89,49 @@ describe("showReport — rendering", () => {
     const overlay = await mountOverlay(parsed, [], 100);
 
     expect(() => overlay.render(120)).not.toThrow();
-    expect(overlay.render(120).join("\n")).toContain("150 / 100");
+    expect(overlay.render(120).join('\n')).toContain('150 / 100');
   });
 
-  it("keeps an empty Skills section visible for discovered hidden skills", async () => {
+  it('keeps an empty Skills section visible for discovered hidden skills', async () => {
     const parsed: ParsedPrompt = {
       sections: [
-        { label: "Base prompt", chars: 100, tokens: 25 },
-        { label: "Metadata (date/time, cwd)", chars: 30, tokens: 5 },
+        { label: 'Base prompt', chars: 100, tokens: 25 },
+        { label: 'Metadata (date/time, cwd)', chars: 30, tokens: 5 },
       ],
       totalChars: 130,
       totalTokens: 30,
       skills: [],
     };
     const hiddenSkill: SkillInfo = {
-      name: "hidden-skill",
-      description: "Hidden skill",
-      filePath: "/skills/hidden-skill/SKILL.md",
-      allPaths: ["/skills/hidden-skill/SKILL.md"],
+      name: 'hidden-skill',
+      description: 'Hidden skill',
+      filePath: '/skills/hidden-skill/SKILL.md',
+      allPaths: ['/skills/hidden-skill/SKILL.md'],
       mode: DisableMode.Hidden,
       tokens: 10,
       hasDuplicates: false,
     };
 
     const overlay = await mountOverlay(parsed, [hiddenSkill]);
-    const text = overlay.render(120).join("\n");
+    const text = overlay.render(120).join('\n');
 
-    expect(text).toContain("Skills (0)");
+    expect(text).toContain('Skills (0)');
   });
 });
 
-describe("showReport — tools view", () => {
-  it("opens a dedicated tools view with Active expanded", async () => {
-    const parsed = {
+describe('showReport — tools view', () => {
+  it('opens a dedicated tools view with Active expanded', async () => {
+    const parsed: ParsedPrompt = {
       sections: [
         {
-          label: "Tool definitions (1 active, 2 total)",
+          label: 'Tool definitions (1 active, 2 total)',
           chars: 100,
           tokens: 10,
-          children: [{ label: "read", chars: 40, tokens: 10 }],
+          children: [{ label: 'read', chars: 40, tokens: 10 }],
           tools: {
             active: [
               {
-                name: "read",
+                name: 'read',
                 chars: 40,
                 tokens: 10,
                 content: '{"name":"read"}',
@@ -141,7 +139,7 @@ describe("showReport — tools view", () => {
             ],
             inactive: [
               {
-                name: "bash",
+                name: 'bash',
                 chars: 50,
                 tokens: 12,
                 content: '{"name":"bash"}',
@@ -153,31 +151,31 @@ describe("showReport — tools view", () => {
       totalChars: 100,
       totalTokens: 10,
       skills: [],
-    } as ParsedPrompt;
+    };
 
     const overlay = await mountOverlay(parsed);
-    overlay.handleInput("\r");
+    overlay.handleInput('\r');
 
-    const text = overlay.render(120).join("\n");
+    const text = overlay.render(120).join('\n');
 
-    expect(text).toContain("Active");
-    expect(text).toContain("read");
-    expect(text).toContain("10 tok");
-    expect(text).not.toContain("bash");
+    expect(text).toContain('Active');
+    expect(text).toContain('read');
+    expect(text).toContain('10 tok');
+    expect(text).not.toContain('bash');
   });
 
-  it("shows Inactive as a collapsed counterfactual group by default", async () => {
-    const parsed = {
+  it('shows Inactive as a collapsed counterfactual group by default', async () => {
+    const parsed: ParsedPrompt = {
       sections: [
         {
-          label: "Tool definitions (1 active, 2 total)",
+          label: 'Tool definitions (1 active, 2 total)',
           chars: 100,
           tokens: 10,
-          children: [{ label: "read", chars: 40, tokens: 10 }],
+          children: [{ label: 'read', chars: 40, tokens: 10 }],
           tools: {
             active: [
               {
-                name: "read",
+                name: 'read',
                 chars: 40,
                 tokens: 10,
                 content: '{"name":"read"}',
@@ -185,7 +183,7 @@ describe("showReport — tools view", () => {
             ],
             inactive: [
               {
-                name: "bash",
+                name: 'bash',
                 chars: 50,
                 tokens: 12,
                 content: '{"name":"bash"}',
@@ -197,29 +195,29 @@ describe("showReport — tools view", () => {
       totalChars: 100,
       totalTokens: 10,
       skills: [],
-    } as ParsedPrompt;
+    };
 
     const overlay = await mountOverlay(parsed);
-    overlay.handleInput("\r");
+    overlay.handleInput('\r');
 
-    const text = overlay.render(120).join("\n");
+    const text = overlay.render(120).join('\n');
 
-    expect(text).toContain("Inactive (1, +12 tok if enabled)");
-    expect(text).not.toContain("bash");
+    expect(text).toContain('Inactive (1, +12 tok if enabled)');
+    expect(text).not.toContain('bash');
   });
 
-  it("expands inactive tools after navigating past active tools", async () => {
-    const parsed = {
+  it('expands inactive tools after navigating past active tools', async () => {
+    const parsed: ParsedPrompt = {
       sections: [
         {
-          label: "Tool definitions (1 active, 2 total)",
+          label: 'Tool definitions (1 active, 2 total)',
           chars: 100,
           tokens: 10,
-          children: [{ label: "read", chars: 40, tokens: 10 }],
+          children: [{ label: 'read', chars: 40, tokens: 10 }],
           tools: {
             active: [
               {
-                name: "read",
+                name: 'read',
                 chars: 40,
                 tokens: 10,
                 content: '{"name":"read"}',
@@ -227,7 +225,7 @@ describe("showReport — tools view", () => {
             ],
             inactive: [
               {
-                name: "bash",
+                name: 'bash',
                 chars: 50,
                 tokens: 12,
                 content: '{"name":"bash"}',
@@ -239,24 +237,24 @@ describe("showReport — tools view", () => {
       totalChars: 100,
       totalTokens: 10,
       skills: [],
-    } as ParsedPrompt;
+    };
 
     const overlay = await mountOverlay(parsed);
-    overlay.handleInput("\r");
-    overlay.handleInput("\u001B[B");
-    overlay.handleInput("\r");
+    overlay.handleInput('\r');
+    overlay.handleInput('\u001B[B');
+    overlay.handleInput('\r');
 
-    const text = overlay.render(120).join("\n");
+    const text = overlay.render(120).join('\n');
 
-    expect(text).toContain("bash");
-    expect(text).toContain("+12 tok if enabled");
+    expect(text).toContain('bash');
+    expect(text).toContain('+12 tok if enabled');
   });
 
-  it("expands Inactive to show per-tool counterfactual rows", async () => {
-    const parsed = {
+  it('expands Inactive to show per-tool counterfactual rows', async () => {
+    const parsed: ParsedPrompt = {
       sections: [
         {
-          label: "Tool definitions (0 active, 1 total)",
+          label: 'Tool definitions (0 active, 1 total)',
           chars: 50,
           tokens: 0,
           children: [],
@@ -264,7 +262,7 @@ describe("showReport — tools view", () => {
             active: [],
             inactive: [
               {
-                name: "bash",
+                name: 'bash',
                 chars: 50,
                 tokens: 12,
                 content: '{"name":"bash"}',
@@ -276,23 +274,23 @@ describe("showReport — tools view", () => {
       totalChars: 50,
       totalTokens: 0,
       skills: [],
-    } as ParsedPrompt;
+    };
 
     const overlay = await mountOverlay(parsed);
-    overlay.handleInput("\r");
-    overlay.handleInput("\r");
+    overlay.handleInput('\r');
+    overlay.handleInput('\r');
 
-    const text = overlay.render(120).join("\n");
+    const text = overlay.render(120).join('\n');
 
-    expect(text).toContain("bash");
-    expect(text).toContain("+12 tok if enabled");
+    expect(text).toContain('bash');
+    expect(text).toContain('+12 tok if enabled');
   });
 
-  it("allows selecting inactive tools when no active tools are present", async () => {
-    const parsed = {
+  it('allows selecting inactive tools when no active tools are present', async () => {
+    const parsed: ParsedPrompt = {
       sections: [
         {
-          label: "Tool definitions (0 active, 1 total)",
+          label: 'Tool definitions (0 active, 1 total)',
           chars: 50,
           tokens: 0,
           children: [],
@@ -300,7 +298,7 @@ describe("showReport — tools view", () => {
             active: [],
             inactive: [
               {
-                name: "bash",
+                name: 'bash',
                 chars: 50,
                 tokens: 12,
                 content: '{"name":"bash"}',
@@ -312,36 +310,36 @@ describe("showReport — tools view", () => {
       totalChars: 50,
       totalTokens: 0,
       skills: [],
-    } as ParsedPrompt;
+    };
 
     const overlay = await mountOverlay(parsed);
-    overlay.handleInput("\r");
-    overlay.handleInput("\r");
-    overlay.handleInput("\u001B[B");
+    overlay.handleInput('\r');
+    overlay.handleInput('\r');
+    overlay.handleInput('\u001B[B');
 
-    const selectedLine = overlay.render(120).find((line) => line.includes("▸"));
+    const selectedLine = overlay.render(120).find((line) => line.includes('▸'));
 
-    expect(selectedLine).toContain("bash");
+    expect(selectedLine).toContain('bash');
   });
 
-  it("opens the selected tool definition in the editor", async () => {
+  it('opens the selected tool definition in the editor', async () => {
     const savedVisual = process.env.VISUAL;
     const savedEditor = process.env.EDITOR;
-    process.env.VISUAL = "";
-    process.env.EDITOR = "true";
+    process.env.VISUAL = '';
+    process.env.EDITOR = 'true';
 
     try {
-      const parsed = {
+      const parsed: ParsedPrompt = {
         sections: [
           {
-            label: "Tool definitions (1 active, 2 total)",
+            label: 'Tool definitions (1 active, 2 total)',
             chars: 100,
             tokens: 10,
-            children: [{ label: "read", chars: 40, tokens: 10 }],
+            children: [{ label: 'read', chars: 40, tokens: 10 }],
             tools: {
               active: [
                 {
-                  name: "read",
+                  name: 'read',
                   chars: 40,
                   tokens: 10,
                   content: '{"name":"read"}',
@@ -349,7 +347,7 @@ describe("showReport — tools view", () => {
               ],
               inactive: [
                 {
-                  name: "bash",
+                  name: 'bash',
                   chars: 50,
                   tokens: 12,
                   content: '{"name":"bash"}',
@@ -361,11 +359,11 @@ describe("showReport — tools view", () => {
         totalChars: 100,
         totalTokens: 10,
         skills: [],
-      } as ParsedPrompt;
+      };
 
       const { overlay, tui } = await mountOverlayWithTui(parsed);
-      overlay.handleInput("\r");
-      overlay.handleInput("e");
+      overlay.handleInput('\r');
+      overlay.handleInput('e');
 
       expect(tui.stop).toHaveBeenCalledWith();
       expect(tui.start).toHaveBeenCalledWith();
@@ -376,18 +374,18 @@ describe("showReport — tools view", () => {
     }
   });
 
-  it("shows a view hint when a tool row is selected", async () => {
-    const parsed = {
+  it('shows a view hint when a tool row is selected', async () => {
+    const parsed: ParsedPrompt = {
       sections: [
         {
-          label: "Tool definitions (1 active, 2 total)",
+          label: 'Tool definitions (1 active, 2 total)',
           chars: 100,
           tokens: 10,
-          children: [{ label: "read", chars: 40, tokens: 10 }],
+          children: [{ label: 'read', chars: 40, tokens: 10 }],
           tools: {
             active: [
               {
-                name: "read",
+                name: 'read',
                 chars: 40,
                 tokens: 10,
                 content: '{"name":"read"}',
@@ -395,7 +393,7 @@ describe("showReport — tools view", () => {
             ],
             inactive: [
               {
-                name: "bash",
+                name: 'bash',
                 chars: 50,
                 tokens: 12,
                 content: '{"name":"bash"}',
@@ -407,31 +405,28 @@ describe("showReport — tools view", () => {
       totalChars: 100,
       totalTokens: 10,
       skills: [],
-    } as ParsedPrompt;
+    };
 
     const overlay = await mountOverlay(parsed);
-    overlay.handleInput("\r");
+    overlay.handleInput('\r');
 
-    const text = overlay.render(120).join("\n");
+    const text = overlay.render(120).join('\n');
 
-    expect(text).toContain("view");
+    expect(text).toContain('view');
   });
 });
 
-describe("getEditor — editor resolution", () => {
-  function withEnv(
-    env: { VISUAL?: string; EDITOR?: string },
-    fn: () => void
-  ): void {
+describe('getEditor — editor resolution', () => {
+  function withEnv(env: { VISUAL?: string; EDITOR?: string }, fn: () => void): void {
     const savedVisual = process.env.VISUAL;
     const savedEditor = process.env.EDITOR;
     try {
-      if ("VISUAL" in env) {
+      if ('VISUAL' in env) {
         process.env.VISUAL = env.VISUAL;
       } else {
         delete process.env.VISUAL;
       }
-      if ("EDITOR" in env) {
+      if ('EDITOR' in env) {
         process.env.EDITOR = env.EDITOR;
       } else {
         delete process.env.EDITOR;
@@ -443,40 +438,40 @@ describe("getEditor — editor resolution", () => {
     }
   }
 
-  it("should prefer $VISUAL over $EDITOR", () => {
-    withEnv({ VISUAL: "code", EDITOR: "vim" }, () => {
-      expect(getEditor()).toBe("code");
+  it('should prefer $VISUAL over $EDITOR', () => {
+    withEnv({ VISUAL: 'code', EDITOR: 'vim' }, () => {
+      expect(getEditor()).toBe('code');
     });
   });
 
-  it("should fall back to $EDITOR when $VISUAL is unset", () => {
-    withEnv({ EDITOR: "nano" }, () => {
-      expect(getEditor()).toBe("nano");
+  it('should fall back to $EDITOR when $VISUAL is unset', () => {
+    withEnv({ EDITOR: 'nano' }, () => {
+      expect(getEditor()).toBe('nano');
     });
   });
 
-  it("should fall back to vi when both are unset", () => {
+  it('should fall back to vi when both are unset', () => {
     withEnv({}, () => {
-      expect(getEditor()).toBe("vi");
+      expect(getEditor()).toBe('vi');
     });
   });
 
-  it("should skip empty string $VISUAL", () => {
-    withEnv({ VISUAL: "", EDITOR: "nano" }, () => {
-      expect(getEditor()).toBe("nano");
+  it('should skip empty string $VISUAL', () => {
+    withEnv({ VISUAL: '', EDITOR: 'nano' }, () => {
+      expect(getEditor()).toBe('nano');
     });
   });
 });
 
-describe("isReadOnlySection — read-only detection", () => {
-  it("returns true for generated sections", () => {
-    expect(isReadOnlySection("Base prompt")).toBeTruthy();
-    expect(isReadOnlySection("Metadata (date/time, cwd)")).toBeTruthy();
-    expect(isReadOnlySection("SYSTEM.md / APPEND_SYSTEM.md")).toBeTruthy();
+describe('isReadOnlySection — read-only detection', () => {
+  it('returns true for generated sections', () => {
+    expect(isReadOnlySection('Base prompt')).toBeTruthy();
+    expect(isReadOnlySection('Metadata (date/time, cwd)')).toBeTruthy();
+    expect(isReadOnlySection('SYSTEM.md / APPEND_SYSTEM.md')).toBeTruthy();
   });
 
-  it("returns false for file-backed sections", () => {
-    expect(isReadOnlySection("AGENTS.md files")).toBeFalsy();
-    expect(isReadOnlySection("Skills (3)")).toBeFalsy();
+  it('returns false for file-backed sections', () => {
+    expect(isReadOnlySection('AGENTS.md files')).toBeFalsy();
+    expect(isReadOnlySection('Skills (3)')).toBeFalsy();
   });
 });

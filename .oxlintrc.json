@@ -1,95 +1,79 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "extends": ["./node_modules/ultracite/config/oxlint/core/.oxlintrc.json"],
-  "ignorePatterns": [
-    "docs/",
-    "node_modules/",
-    "vendor/",
-    "scripts/",
-    ".napkin/",
-    "src/e2e/**"
-  ],
+  "plugins": ["typescript", "import", "jsdoc", "promise"],
+  "ignorePatterns": [".napkin/**", ".pi-subagents/**", "dist/**", "docs/**", "node_modules/**"],
   "jsPlugins": [
-    { "name": "@factory", "specifier": "./vendor/factory-rules/plugin.cjs" }
+    "@factory/eslint-plugin",
+    { "name": "eslint-js", "specifier": "oxlint-plugin-eslint" }
   ],
   "rules": {
-    "eslint/max-statements": ["warn", { "max": 60 }],
-    "eslint/complexity": ["warn", { "max": 30 }],
-    "eslint/func-style": "off",
-    "eslint/class-methods-use-this": "off",
-    "eslint/no-alert": "off",
-    "eslint/no-plusplus": "off",
-    "eslint/no-empty-function": "warn",
-    "eslint/no-inner-declarations": "off",
-    "eslint/no-inline-comments": "off",
-    "eslint/require-await": "warn",
-    "eslint/default-case": "warn",
-    "eslint/sort-keys": "off",
-    "eslint/prefer-template": "warn",
-    "eslint/no-restricted-syntax": [
-      "error",
-      {
-        "selector": "ForInStatement",
-        "message": "for..in loops iterate over the entire prototype chain. Use Object.{keys,values,entries} instead."
-      },
-      {
-        "selector": "LabeledStatement",
-        "message": "Labels are a form of GOTO; using them makes code confusing."
-      },
-      {
-        "selector": "WithStatement",
-        "message": "`with` is disallowed in strict mode."
-      },
-      {
-        "selector": "ExportAllDeclaration",
-        "message": "Export all doesn't work well with ESM and can expose internal methods."
-      }
-    ],
-    "eslint-plugin-unicorn/prefer-query-selector": "off",
-    "eslint-plugin-unicorn/prefer-add-event-listener": "off",
-    "eslint-plugin-unicorn/no-array-for-each": "warn",
-    "eslint-plugin-unicorn/no-lonely-if": "off",
-    "eslint-plugin-unicorn/consistent-function-scoping": "warn",
-    "eslint-plugin-vitest/prefer-describe-function-title": "off",
-    "eslint-plugin-vitest/prefer-called-times": "off",
-    "eslint-plugin-jest/prefer-called-with": "off",
-    "eslint-plugin-jest/require-hook": "off",
-    "eslint-plugin-jest/no-hooks": "off",
-    "eslint-plugin-jest/max-expects": "off",
-    "eslint-plugin-jest/no-conditional-in-test": "off",
-    "eslint-plugin-import/consistent-type-specifier-style": "off",
-    "eslint-plugin-promise/avoid-new": "off",
-    "typescript-eslint/no-explicit-any": "error",
-    "typescript-eslint/no-non-null-assertion": "warn",
-    "typescript-eslint/no-inferrable-types": "off",
-    "no-barrel-file": "off",
-    "oxc/no-async-endpoint-handlers": "off",
+    "no-var": "error",
+    "prefer-const": "error",
+    "eqeqeq": ["error", "always", { "null": "ignore" }],
+    "curly": ["error", "all"],
+    "default-case": "error",
+    "no-fallthrough": "error",
+    "no-eval": "error",
+    "no-with": "error",
+    "no-debugger": "error",
+    "no-new-wrappers": "error",
+    "no-array-constructor": "error",
+
+    "typescript/no-namespace": "error",
+    "typescript/consistent-type-imports": ["error", { "prefer": "type-imports" }],
+    "typescript/consistent-type-definitions": ["error", "interface"],
+    "typescript/consistent-type-assertions": ["error", { "assertionStyle": "never" }],
+    "typescript/no-explicit-any": "error",
+    "typescript/no-unsafe-assignment": "error",
+    "typescript/no-unsafe-member-access": "error",
+    "typescript/no-unsafe-call": "error",
+    "typescript/no-unsafe-return": "error",
+    "typescript/no-unsafe-argument": "error",
+    "typescript/no-floating-promises": "error",
+    "typescript/only-throw-error": "error",
+    "typescript/use-unknown-in-catch-callback-variable": "error",
+    "typescript/ban-ts-comment": "error",
+    "typescript/no-wrapper-object-types": "error",
+    "typescript/no-empty-object-type": "error",
+    "typescript/no-unsafe-enum-comparison": "error",
+    "typescript/prefer-readonly": "warn",
+
+    "no-unused-vars": ["error", { "args": "after-used" }],
+
+    "import/no-default-export": "error",
+    "import/no-mutable-exports": "error",
+    "import/no-cycle": "error",
+
+    "jsdoc/check-tag-names": "error",
+    "promise/prefer-await-to-then": "warn",
+
+    "no-promise-executor-return": "error",
+    "no-param-reassign": "error",
+    "prefer-promise-reject-errors": "error",
+    "no-labels": "error",
+    "no-console": "error",
+
+    "@factory/no-exported-string-union-types": "error",
+    "@factory/require-test-files": "error",
+    "@factory/structured-logging": "error",
+    "@factory/no-log-exception-with-throw": "error",
+
     "@factory/enum-file-organization": "error",
+    "@factory/errors-file-organization": "error",
+    "@factory/test-file-location": "error",
+    "@factory/test-utils-organization": "error",
+    "@factory/filename-match-export": "error",
+    "@factory/no-exported-function-expressions": "error",
+
     "@factory/types-file-organization": "error",
     "@factory/constants-file-organization": "error",
-    "@factory/errors-file-organization": "error",
-    "@factory/no-exported-string-union-types": "error",
-    "@factory/no-exported-function-expressions": "off",
-    "@factory/structured-logging": "off",
-    "@factory/no-log-exception-with-throw": "error",
-    "@factory/test-utils-organization": "error",
-    "@factory/test-file-location": "error",
-    "@factory/require-test-files": "error",
-    "@factory/jest-mock-require-actual": "error",
-    "@factory/no-unstable-mock-module": "error"
+
+    "eslint-js/no-restricted-syntax": "off"
   },
   "overrides": [
     {
-      "files": [
-        "**/*.test.ts",
-        "**/*.test.tsx",
-        "**/*.spec.ts",
-        "**/*.spec.tsx"
-      ],
+      "files": ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"],
       "rules": {
-        "eslint/no-empty-function": "off",
-        "eslint/require-await": "off",
-        "eslint-plugin-unicorn/consistent-function-scoping": "off",
         "@factory/constants-file-organization": "off"
       }
     },
@@ -101,22 +85,41 @@
       }
     },
     {
-      "files": ["**/errors.ts"],
+      "files": ["src/index.ts"],
       "rules": {
-        "eslint/max-classes-per-file": "off"
+        "import/no-default-export": "off"
       }
     },
     {
-      "files": ["**/index.ts", "**/index.tsx"],
+      "files": ["src/skills-persistence.ts"],
       "rules": {
-        "no-barrel-file": "off"
+        "@factory/filename-match-export": "off"
+      }
+    },
+    {
+      "files": ["src/e2e/tmux-harness.ts"],
+      "rules": {
+        "@factory/structured-logging": "off"
       }
     },
     {
       "files": ["vitest.config.ts", "vitest.config.e2e.ts", "*.config.ts"],
       "rules": {
         "@factory/require-test-files": "off",
-        "@factory/constants-file-organization": "off"
+        "@factory/constants-file-organization": "off",
+        "import/no-default-export": "off"
+      }
+    },
+    {
+      "files": ["scripts/compare-tokenizers.ts"],
+      "rules": {
+        "no-console": "off"
+      }
+    },
+    {
+      "files": ["**/logger.ts"],
+      "rules": {
+        "no-console": "off"
       }
     }
   ]
