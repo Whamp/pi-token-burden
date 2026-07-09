@@ -24,7 +24,6 @@
 **Files:**
 - Modify: `package.json` (devDependencies)
 - Modify: `src/types.ts` (add new types)
-- Modify: `knip.json` (ignore fast-check vitest integration)
 
 **Step 1: Install fast-check and @fast-check/vitest**
 
@@ -61,18 +60,7 @@ export interface Settings {
 }
 ```
 
-**Step 3: Add `@fast-check/vitest` to knip ignoreDependencies**
-
-The `@fast-check/vitest` package re-exports `it` and `fc` which knip may flag
-as unused. Add it to `ignoreDependencies` in `knip.json`:
-
-```json
-{
-  "ignoreDependencies": ["husky", "ultracite", "@fast-check/vitest"]
-}
-```
-
-**Step 4: Verify typecheck passes**
+**Step 3: Verify typecheck passes**
 
 Run: `pnpm run typecheck`
 Expected: No errors.
@@ -1395,11 +1383,11 @@ git commit -m "feat: add skill persistence module with settings and frontmatter 
 **Step 1: Run the full check suite**
 
 Run: `pnpm run check`
-Expected: All checks pass (tests, typecheck, lint, format, deadcode, duplicates).
+Expected: All checks pass (tests, typecheck, lint, format, duplicates).
 
 **Step 2: Fix any issues reported by check**
 
-If deadcode or duplicates are flagged, address them before continuing.
+If duplicates are flagged, address them before continuing.
 
 **Step 3: Commit any fixes**
 

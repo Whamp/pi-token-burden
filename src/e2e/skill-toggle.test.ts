@@ -36,7 +36,7 @@ describe('skill-toggle mode', () => {
       env: { VISUAL: '', EDITOR: 'true' },
     });
     harness.start();
-    harness.waitFor('pi-token-burden', 15_000);
+    harness.waitForReady(15_000);
 
     // Open overlay
     harness.sendKeys('/token-burden', 'Enter');

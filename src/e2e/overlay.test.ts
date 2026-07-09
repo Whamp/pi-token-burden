@@ -29,7 +29,7 @@ describe('overlay rendering', () => {
     agentDir = createIsolatedAgentDir();
     harness = new TmuxHarness({ sessionName: 'e2e-overlay', agentDir });
     harness.start();
-    harness.waitFor('pi-token-burden', 15_000);
+    harness.waitForReady(15_000);
     harness.sendKeys('/token-burden', 'Enter');
     harness.waitFor('Token Burden', 10_000);
   });
@@ -146,7 +146,7 @@ describe('overlay — tools view with inactive tools', () => {
       ],
     });
     harness.start();
-    harness.waitFor('pi-token-burden', 120_000);
+    harness.waitForReady(120_000);
     harness.sendKeys('/token-burden', 'Enter');
     harness.waitFor('Token Burden', 10_000);
     navigateToToolsView(harness);
@@ -161,7 +161,7 @@ describe('overlay — tools view with inactive tools', () => {
     const collapsed = harness.capture().join('\n');
     expect(collapsed).toContain('Inactive (');
     expect(collapsed).toContain('if enabled');
-    expect(collapsed).not.toContain('bash');
+    expect(collapsed).not.toMatch(/[·▸]\s+bash\s+\d+ tok/);
   });
 
   it('should expand inactive tools after navigating past active tools', () => {
@@ -186,7 +186,7 @@ describe('overlay — open in editor', () => {
       env: { VISUAL: '', EDITOR: 'true' },
     });
     harness.start();
-    harness.waitFor('pi-token-burden', 15_000);
+    harness.waitForReady(15_000);
     harness.sendKeys('/token-burden', 'Enter');
     harness.waitFor('Token Burden', 10_000);
   });

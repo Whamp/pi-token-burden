@@ -68,6 +68,7 @@ export class TmuxHarness {
     this.env = { ...opts.env };
     if (opts.agentDir) {
       this.env.PI_CODING_AGENT_DIR = opts.agentDir;
+      this.env.HOME = opts.agentDir;
     }
   }
 
@@ -106,6 +107,11 @@ export class TmuxHarness {
     throw new Error(
       `Timed out waiting for ${pattern} after ${timeoutMs}ms.\nScreen:\n${finalCapture.join('\n')}`,
     );
+  }
+
+  /** Wait until Pi has rendered its initial interactive screen. */
+  waitForReady(timeoutMs = 15_000): string[] {
+    return this.waitFor(/src\/index\.ts/, timeoutMs);
   }
 
   /** Send keys to the tmux session. Inserts a brief delay after sending. */

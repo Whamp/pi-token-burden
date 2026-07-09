@@ -29,7 +29,7 @@ describe('trace mode', () => {
     agentDir = createIsolatedAgentDir();
     harness = new TmuxHarness({ sessionName: 'e2e-trace', agentDir });
     harness.start();
-    harness.waitFor('pi-token-burden', 15_000);
+    harness.waitForReady(15_000);
 
     // Open overlay
     harness.sendKeys('/token-burden', 'Enter');

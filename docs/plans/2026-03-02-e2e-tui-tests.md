@@ -279,7 +279,6 @@ git commit -m "feat: add tmux e2e harness for TUI testing"
 **Files:**
 - Create: `vitest.config.e2e.ts`
 - Modify: `package.json` (add `test:e2e` script)
-- Modify: `knip.json` (add e2e entry point)
 
 **Step 1: Create the e2e vitest config**
 
@@ -306,27 +305,12 @@ Add to `"scripts"`:
 "test:e2e": "vitest run --config vitest.config.e2e.ts"
 ```
 
-**Step 3: Update `knip.json`**
-
-Add `"src/e2e/**/*.ts"` to `"entry"` so the e2e files aren't flagged as dead
-code. The test files import the harness, so only the test entry matters:
-
-```json
-{
-  "entry": ["src/index.ts", "src/e2e/**/*.test.ts"],
-  "project": ["src/**/*.ts"]
-}
-```
-
-**Step 4: Run to verify**
+**Step 3: Run to verify**
 
 Run: `pnpm run test:e2e`
 Expected: PASS (runs the harness test from Task 1).
 
-Run: `pnpm run deadcode`
-Expected: PASS (no new dead code flagged).
-
-**Step 5: Commit**
+**Step 4: Commit**
 
 ```bash
 git add -A

@@ -14,7 +14,7 @@ describe('tmux harness', () => {
     agentDir = createIsolatedAgentDir();
     harness = new TmuxHarness({ sessionName: 'e2e-harness-test', agentDir });
     harness.start();
-    harness.waitFor('pi-token-burden', 15_000);
+    harness.waitForReady(15_000);
 
     harness.sendKeys('/token-burden', 'Enter');
     const lines = harness.waitFor('Token Burden', 10_000);

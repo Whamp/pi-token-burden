@@ -125,7 +125,7 @@ tests still pass.
 
 ### Step 6: Full check + showboat demo
 
-- [ ] `pnpm run check` — all checks pass (lint, format, types, tests, deadcode).
+- [ ] `pnpm run check` — all checks pass (lint, format, types, duplicates, tests).
 - [ ] Build a showboat demo at `docs/demos/view-base-prompt-in-editor.md`:
       1. Run unit tests, show output.
       2. Run e2e tests, show output.

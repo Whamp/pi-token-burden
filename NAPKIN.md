@@ -15,7 +15,7 @@
   - skill toggle mode with Enabled / Hidden / Disabled states;
   - open-in-editor with `e` for skills, AGENTS files, raw sections, and tool-definition JSON;
   - base prompt source tracing with `t` on the Base prompt.
-- Test baseline from migrated memory: 111 unit tests and 29 e2e TUI tests.
+- Current automated coverage: 166 unit tests and 34 e2e TUI tests.
 
 ## Tech stack
 
