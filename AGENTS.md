@@ -36,37 +36,37 @@ Single-context repo: read root `CONTEXT.md` and root `docs/adr/` when present. S
 
 ## Commands
 
-| Command                 | Description                                  | ~Time |
-| ----------------------- | -------------------------------------------- | ----- |
-| `pnpm run test`         | Run Vitest unit tests (166 tests)            | ~1s   |
-| `pnpm run test:e2e`     | Run e2e TUI tests (34 tests, requires tmux)  | ~30s  |
-| `pnpm run typecheck`    | TypeScript type checking                     | ~2s   |
-| `pnpm run lint`         | Run oxlint linter                            | <1s   |
-| `pnpm run lint:fix`     | Run oxlint with auto-fix                     | <1s   |
-| `pnpm run format`       | Format code with oxfmt                       | <1s   |
-| `pnpm run format:check` | Check formatting without writing             | <1s   |
-| `pnpm run duplicates`   | Detect duplicate code with jscpd             | ~1s   |
-| `pnpm run check`        | Run all checks and report summary            | ~8s   |
-| `pnpm run fix`          | Auto-fix lint and formatting                 | <1s   |
-| `pnpm run changelog`    | Regenerate CHANGELOG.md                      | <1s   |
+| Command                 | Description                                 | ~Time |
+| ----------------------- | ------------------------------------------- | ----- |
+| `pnpm run test`         | Run Vitest unit tests (166 tests)           | ~1s   |
+| `pnpm run test:e2e`     | Run e2e TUI tests (34 tests, requires tmux) | ~30s  |
+| `pnpm run typecheck`    | TypeScript type checking                    | ~2s   |
+| `pnpm run lint`         | Run oxlint linter                           | <1s   |
+| `pnpm run lint:fix`     | Run oxlint with auto-fix                    | <1s   |
+| `pnpm run format`       | Format code with oxfmt                      | <1s   |
+| `pnpm run format:check` | Check formatting without writing            | <1s   |
+| `pnpm run duplicates`   | Detect duplicate code with jscpd            | ~1s   |
+| `pnpm run check`        | Run all checks and report summary           | ~8s   |
+| `pnpm run fix`          | Auto-fix lint and formatting                | <1s   |
+| `pnpm run changelog`    | Regenerate CHANGELOG.md                     | <1s   |
 
 ## File Map
 
-| Path                      | Purpose                                                            |
-| ------------------------- | ------------------------------------------------------------------ |
-| `src/index.ts`            | Extension entry: registers `/token-burden` command, wires trace    |
-| `src/parser.ts`           | Parses system prompt into sections (base, AGENTS, skills, etc)     |
-| `src/report-view.ts`      | TUI overlay: `BudgetOverlay` class, ANSI rendering, input          |
-| `src/utils.ts`            | `fuzzyFilter()` for search, `buildBarSegments()` for bar chart     |
-| `src/types.ts`            | Shared types: `ParsedPrompt`, `TableItem`, `PromptSection`         |
-| `src/base-trace/`         | Source tracing: extraction, contribution matching, attribution     |
-| `src/**/*.test.ts`        | Colocated unit tests outside `src/e2e/` (166 tests total)          |
-| `src/e2e/tmux-harness.ts` | Tmux session helper for e2e TUI testing                            |
-| `src/e2e/*.test.ts`       | E2e TUI tests (overlay, skill-toggle, trace)                       |
-| `vitest.config.e2e.ts`    | Vitest config for e2e tests (30s timeout)                          |
-| `CHANGELOG.md`            | Auto-generated changelog (do not edit manually)                    |
-| `scripts/`                | Shell scripts (`check.sh`, `fix.sh`)                               |
-| `docs/plans/`             | Implementation plans                                               |
+| Path                      | Purpose                                                         |
+| ------------------------- | --------------------------------------------------------------- |
+| `src/index.ts`            | Extension entry: registers `/token-burden` command, wires trace |
+| `src/parser.ts`           | Parses system prompt into sections (base, AGENTS, skills, etc)  |
+| `src/report-view.ts`      | TUI overlay: `BudgetOverlay` class, ANSI rendering, input       |
+| `src/utils.ts`            | `fuzzyFilter()` for search, `buildBarSegments()` for bar chart  |
+| `src/types.ts`            | Shared types: `ParsedPrompt`, `TableItem`, `PromptSection`      |
+| `src/base-trace/`         | Source tracing: extraction, contribution matching, attribution  |
+| `src/**/*.test.ts`        | Colocated unit tests outside `src/e2e/` (166 tests total)       |
+| `src/e2e/tmux-harness.ts` | Tmux session helper for e2e TUI testing                         |
+| `src/e2e/*.test.ts`       | E2e TUI tests (overlay, skill-toggle, trace)                    |
+| `vitest.config.e2e.ts`    | Vitest config for e2e tests (30s timeout)                       |
+| `CHANGELOG.md`            | Auto-generated changelog (do not edit manually)                 |
+| `scripts/`                | Shell scripts (`check.sh`, `fix.sh`)                            |
+| `docs/plans/`             | Implementation plans                                            |
 
 ## Architecture
 
