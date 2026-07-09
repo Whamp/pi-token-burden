@@ -12,7 +12,7 @@ function makeSkill(name: string, filePath: string, allPaths?: string[]): SkillIn
     description: `${name} description`,
     filePath,
     allPaths: allPaths ?? [filePath],
-    mode: DisableMode.Enabled,
+    mode: DisableMode.ENABLED,
     tokens: 100,
     hasDuplicates: (allPaths?.length ?? 1) > 1,
   };
@@ -43,11 +43,11 @@ describe('skill visibility store', () => {
       const store = new SkillVisibilityStore(settingsPath, tmpDir);
       const byName = new Map([['dupe', makeSkill('dupe', firstPath, [firstPath, secondPath])]]);
 
-      store.applyChanges(new Map([['dupe', DisableMode.Disabled]]), byName);
+      store.applyChanges(new Map([['dupe', DisableMode.DISABLED]]), byName);
       const disabledEntries = readSettings(settingsPath).skills?.filter(isDisableEntry);
       expect(disabledEntries).toHaveLength(2);
 
-      store.applyChanges(new Map([['dupe', DisableMode.Enabled]]), byName);
+      store.applyChanges(new Map([['dupe', DisableMode.ENABLED]]), byName);
       expect(readSettings(settingsPath).skills?.filter(Boolean)).toStrictEqual([]);
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });

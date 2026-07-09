@@ -13,11 +13,11 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 
-import { encode as encode_cl100k } from 'gpt-tokenizer/encoding/cl100k_base';
+import { encode as encodeCl100k } from 'gpt-tokenizer/encoding/cl100k_base';
 // Each encoding is imported separately to keep things explicit
-import { encode as encode_o200k } from 'gpt-tokenizer/encoding/o200k_base';
-import { encode as encode_p50k } from 'gpt-tokenizer/encoding/p50k_base';
-import { encode as encode_r50k } from 'gpt-tokenizer/encoding/r50k_base';
+import { encode as encodeO200k } from 'gpt-tokenizer/encoding/o200k_base';
+import { encode as encodeP50k } from 'gpt-tokenizer/encoding/p50k_base';
+import { encode as encodeR50k } from 'gpt-tokenizer/encoding/r50k_base';
 
 // ---------------------------------------------------------------------------
 // Heuristic (current implementation)
@@ -37,26 +37,26 @@ interface Encoding {
   encode: (text: string) => number[];
 }
 
-const encodings: Encoding[] = [
+const ENCODINGS: Encoding[] = [
   {
     name: 'o200k_base',
     models: 'GPT-4o, o1, o3, o4, GPT-4.1',
-    encode: encode_o200k,
+    encode: encodeO200k,
   },
   {
     name: 'cl100k_base',
     models: 'GPT-4, GPT-3.5-turbo',
-    encode: encode_cl100k,
+    encode: encodeCl100k,
   },
   {
     name: 'p50k_base',
     models: 'text-davinci-003, Codex',
-    encode: encode_p50k,
+    encode: encodeP50k,
   },
   {
     name: 'r50k_base',
     models: 'text-davinci-001, GPT-3',
-    encode: encode_r50k,
+    encode: encodeR50k,
   },
 ];
 
@@ -154,7 +154,7 @@ function compare(label: string, text: string): void {
 
   const rows: ComparisonRow[] = [];
 
-  for (const enc of encodings) {
+  for (const enc of ENCODINGS) {
     const start = performance.now();
     const tokens = enc.encode(text);
     const elapsed = performance.now() - start;
@@ -306,7 +306,7 @@ function segmentedAnalysis(text: string): void {
   console.log('-'.repeat(header.length));
 
   for (const seg of segments) {
-    const bpe = encode_o200k(seg.text).length;
+    const bpe = encodeO200k(seg.text).length;
     const heur = heuristicTokens(seg.text);
     const delta = heur - bpe;
     const errorPct = bpe > 0 ? ((delta / bpe) * 100).toFixed(1) : 'N/A';
@@ -362,9 +362,9 @@ function main(): void {
   console.log('  Recommendation');
   console.log(`${'='.repeat(72)}\n`);
 
-  const bpe_o200k = encode_o200k(promptText).length;
+  const bpeO200k = encodeO200k(promptText).length;
   const heur = heuristicTokens(promptText);
-  const errorPct = Math.abs(((heur - bpe_o200k) / bpe_o200k) * 100);
+  const errorPct = Math.abs(((heur - bpeO200k) / bpeO200k) * 100);
 
   if (errorPct < 10) {
     console.log(`  The heuristic is within ${errorPct.toFixed(1)}% of o200k_base BPE.`);

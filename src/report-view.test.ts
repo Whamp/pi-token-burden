@@ -55,7 +55,10 @@ async function mountOverlayWithTui(
     },
   };
 
-  await showReport(parsed, contextWindow, fromPartial(ctx), discoveredSkills);
+  await showReport(parsed, fromPartial(ctx), {
+    contextWindow,
+    discoveredSkills,
+  });
 
   if (!component) {
     throw new Error('Overlay component was not created');
@@ -107,7 +110,7 @@ describe('showReport — rendering', () => {
       description: 'Hidden skill',
       filePath: '/skills/hidden-skill/SKILL.md',
       allPaths: ['/skills/hidden-skill/SKILL.md'],
-      mode: DisableMode.Hidden,
+      mode: DisableMode.HIDDEN,
       tokens: 10,
       hasDuplicates: false,
     };

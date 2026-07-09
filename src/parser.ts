@@ -398,11 +398,11 @@ function toolParametersObject(parameters: unknown): Record<string, unknown> {
 }
 
 function buildToolEnvelopeChildPayload(tool: ToolDefinitionInput, envelope: ToolEnvelope): unknown {
-  if (envelope === ToolEnvelope.Compact) {
+  if (envelope === ToolEnvelope.COMPACT) {
     return createToolSchemaPayload(tool);
   }
 
-  if (envelope === ToolEnvelope.OpenAiResponses) {
+  if (envelope === ToolEnvelope.OPEN_AI_RESPONSES) {
     return {
       type: 'function',
       name: tool.name,
@@ -412,7 +412,7 @@ function buildToolEnvelopeChildPayload(tool: ToolDefinitionInput, envelope: Tool
     };
   }
 
-  if (envelope === ToolEnvelope.OpenAiChat || envelope === ToolEnvelope.Mistral) {
+  if (envelope === ToolEnvelope.OPEN_AI_CHAT || envelope === ToolEnvelope.MISTRAL) {
     return {
       type: 'function',
       function: {
@@ -424,7 +424,7 @@ function buildToolEnvelopeChildPayload(tool: ToolDefinitionInput, envelope: Tool
     };
   }
 
-  if (envelope === ToolEnvelope.Anthropic) {
+  if (envelope === ToolEnvelope.ANTHROPIC) {
     const parameters = toolParametersObject(tool.parameters);
     return {
       name: tool.name,
@@ -437,7 +437,7 @@ function buildToolEnvelopeChildPayload(tool: ToolDefinitionInput, envelope: Tool
     };
   }
 
-  if (envelope === ToolEnvelope.Bedrock) {
+  if (envelope === ToolEnvelope.BEDROCK) {
     return {
       toolSpec: {
         name: tool.name,
@@ -457,13 +457,13 @@ function buildToolEnvelopeChildPayload(tool: ToolDefinitionInput, envelope: Tool
 function buildToolEnvelopePayload(tools: ToolDefinitionInput[], envelope: ToolEnvelope): unknown {
   const childPayloads = tools.map((tool) => buildToolEnvelopeChildPayload(tool, envelope));
 
-  if (envelope === ToolEnvelope.Bedrock) {
+  if (envelope === ToolEnvelope.BEDROCK) {
     return {
       tools: childPayloads,
     };
   }
 
-  if (envelope === ToolEnvelope.Google) {
+  if (envelope === ToolEnvelope.GOOGLE) {
     return [
       {
         functionDeclarations: childPayloads,
@@ -475,50 +475,50 @@ function buildToolEnvelopePayload(tools: ToolDefinitionInput[], envelope: ToolEn
 }
 
 /** Select the default tool envelope for a provider identifier. */
-export function toolEnvelopeForProvider(provider: string | undefined): ToolEnvelope {
+export function toolEnvelopeForProvider(provider?: string): ToolEnvelope {
   const normalizedProvider = provider?.toLowerCase() ?? '';
   if (normalizedProvider.includes('anthropic')) {
-    return ToolEnvelope.Anthropic;
+    return ToolEnvelope.ANTHROPIC;
   }
   if (normalizedProvider.includes('bedrock') || normalizedProvider.includes('amazon')) {
-    return ToolEnvelope.Bedrock;
+    return ToolEnvelope.BEDROCK;
   }
   if (
     normalizedProvider.includes('google') ||
     normalizedProvider.includes('gemini') ||
     normalizedProvider.includes('vertex')
   ) {
-    return ToolEnvelope.Google;
+    return ToolEnvelope.GOOGLE;
   }
   if (normalizedProvider.includes('mistral')) {
-    return ToolEnvelope.Mistral;
+    return ToolEnvelope.MISTRAL;
   }
-  return ToolEnvelope.OpenAiResponses;
+  return ToolEnvelope.OPEN_AI_RESPONSES;
 }
 
 /** Select the tool envelope from Pi's API identifier with provider fallback. */
-export function toolEnvelopeForModel(api: string | undefined, provider?: string): ToolEnvelope {
+export function toolEnvelopeForModel(api?: string, provider?: string): ToolEnvelope {
   switch (api) {
     case 'anthropic-messages': {
-      return ToolEnvelope.Anthropic;
+      return ToolEnvelope.ANTHROPIC;
     }
     case 'bedrock-converse-stream': {
-      return ToolEnvelope.Bedrock;
+      return ToolEnvelope.BEDROCK;
     }
     case 'google-generative-ai':
     case 'google-vertex': {
-      return ToolEnvelope.Google;
+      return ToolEnvelope.GOOGLE;
     }
     case 'mistral-conversations': {
-      return ToolEnvelope.Mistral;
+      return ToolEnvelope.MISTRAL;
     }
     case 'openai-completions': {
-      return ToolEnvelope.OpenAiChat;
+      return ToolEnvelope.OPEN_AI_CHAT;
     }
     case 'azure-openai-responses':
     case 'openai-codex-responses':
     case 'openai-responses': {
-      return ToolEnvelope.OpenAiResponses;
+      return ToolEnvelope.OPEN_AI_RESPONSES;
     }
     default: {
       return toolEnvelopeForProvider(provider);
@@ -528,13 +528,13 @@ export function toolEnvelopeForModel(api: string | undefined, provider?: string)
 
 function buildToolEnvelopeVariants(tools: ToolDefinitionInput[]): ToolEnvelopeVariantPayload[] {
   return [
-    ToolEnvelope.Compact,
-    ToolEnvelope.OpenAiResponses,
-    ToolEnvelope.OpenAiChat,
-    ToolEnvelope.Anthropic,
-    ToolEnvelope.Bedrock,
-    ToolEnvelope.Google,
-    ToolEnvelope.Mistral,
+    ToolEnvelope.COMPACT,
+    ToolEnvelope.OPEN_AI_RESPONSES,
+    ToolEnvelope.OPEN_AI_CHAT,
+    ToolEnvelope.ANTHROPIC,
+    ToolEnvelope.BEDROCK,
+    ToolEnvelope.GOOGLE,
+    ToolEnvelope.MISTRAL,
   ].map((name) => ({
     name,
     payload: buildToolEnvelopePayload(tools, name),
@@ -553,7 +553,7 @@ function buildToolEnvelopeVariants(tools: ToolDefinitionInput[]): ToolEnvelopeVa
 export function buildToolDefinitionsSection(
   tools: ToolDefinitionInput[],
   activeToolNames?: string[],
-  countedEnvelope: ToolEnvelope = ToolEnvelope.Compact,
+  countedEnvelope: ToolEnvelope = ToolEnvelope.COMPACT,
 ): PromptSection | null {
   if (tools.length === 0) {
     return null;

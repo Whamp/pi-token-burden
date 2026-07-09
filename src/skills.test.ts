@@ -411,7 +411,7 @@ describe('loadAllSkills()', () => {
       const { byName } = loadAllSkills(settings, [userSkillsDir]);
       const skill = byName.get('my-skill');
 
-      expect(skill?.mode).toBe(DisableMode.Disabled);
+      expect(skill?.mode).toBe(DisableMode.DISABLED);
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
@@ -435,7 +435,7 @@ describe('loadAllSkills()', () => {
         };
 
         const { byName } = loadAllSkills(settings, [agentSkillsDir]);
-        expect(byName.get('my-skill')?.mode).toBe(DisableMode.Disabled);
+        expect(byName.get('my-skill')?.mode).toBe(DisableMode.DISABLED);
       });
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -456,8 +456,8 @@ describe('loadAllSkills()', () => {
 
       const { byName } = loadAllSkills({ skills: ['!excluded-skill'] }, [userSkillsDir]);
 
-      expect(byName.get('excluded-skill')?.mode).toBe(DisableMode.Disabled);
-      expect(byName.get('keep-skill')?.mode).toBe(DisableMode.Enabled);
+      expect(byName.get('excluded-skill')?.mode).toBe(DisableMode.DISABLED);
+      expect(byName.get('keep-skill')?.mode).toBe(DisableMode.ENABLED);
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
@@ -500,7 +500,7 @@ describe('loadAllSkills()', () => {
       const { byName } = loadAllSkills({}, [userSkillsDir]);
       const skill = byName.get('hidden-skill');
 
-      expect(skill?.mode).toBe(DisableMode.Hidden);
+      expect(skill?.mode).toBe(DisableMode.HIDDEN);
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
@@ -519,7 +519,7 @@ describe('loadAllSkills()', () => {
       const { byName } = loadAllSkills({}, [userSkillsDir]);
       const skill = byName.get('normal-skill');
 
-      expect(skill?.mode).toBe(DisableMode.Enabled);
+      expect(skill?.mode).toBe(DisableMode.ENABLED);
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
@@ -609,8 +609,8 @@ describe('loadAllSkills()', () => {
       };
 
       const { byName } = loadAllSkills(settings, []);
-      expect(byName.get('excluded-skill')?.mode).toBe(DisableMode.Disabled);
-      expect(byName.get('keep-skill')?.mode).toBe(DisableMode.Enabled);
+      expect(byName.get('excluded-skill')?.mode).toBe(DisableMode.DISABLED);
+      expect(byName.get('keep-skill')?.mode).toBe(DisableMode.ENABLED);
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
@@ -675,17 +675,17 @@ describe('property-based', () => {
   });
 
   it('should satisfy involution: toggling state three times returns to original', () => {
-    const CYCLE_MAP: Record<DisableMode, DisableMode> = {
-      [DisableMode.Enabled]: DisableMode.Hidden,
-      [DisableMode.Hidden]: DisableMode.Disabled,
-      [DisableMode.Disabled]: DisableMode.Enabled,
+    const cycleMap: Record<DisableMode, DisableMode> = {
+      [DisableMode.ENABLED]: DisableMode.HIDDEN,
+      [DisableMode.HIDDEN]: DisableMode.DISABLED,
+      [DisableMode.DISABLED]: DisableMode.ENABLED,
     };
 
     fc.assert(
       fc.property(
-        fc.constantFrom(DisableMode.Enabled, DisableMode.Hidden, DisableMode.Disabled),
+        fc.constantFrom(DisableMode.ENABLED, DisableMode.HIDDEN, DisableMode.DISABLED),
         (startMode) => {
-          const after3 = CYCLE_MAP[CYCLE_MAP[CYCLE_MAP[startMode]]];
+          const after3 = cycleMap[cycleMap[cycleMap[startMode]]];
           expect(after3).toBe(startMode);
         },
       ),

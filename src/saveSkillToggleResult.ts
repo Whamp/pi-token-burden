@@ -11,9 +11,9 @@ function summarizeSkillChanges(changes: Map<string, DisableMode>): string {
   };
 
   for (const mode of changes.values()) {
-    if (mode === DisableMode.Enabled) {
+    if (mode === DisableMode.ENABLED) {
       counts.enabled += 1;
-    } else if (mode === DisableMode.Hidden) {
+    } else if (mode === DisableMode.HIDDEN) {
       counts.hidden += 1;
     } else {
       counts.disabled += 1;

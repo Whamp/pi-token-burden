@@ -33,7 +33,7 @@ The existing package is small and already follows the centralized layout. It doe
 
 ## Scoped exceptions
 
-- `src/index.ts` keeps a default export because Pi's extension loader requires an extension factory as the module default. `src/package.test.ts` protects this package contract.
+- `src/index.ts` keeps a default export because Pi's extension loader requires an extension factory as the module default. `src/index.test.ts` protects this package contract.
 - Vitest config files keep default exports because Vitest loads config through that convention.
 - `scripts/compare-tokenizers.ts` may use `console.*`: stdout is the CLI's user interface, not application logging.
 - `src/skills-persistence.ts` is exempt from `filename-match-export`. It is a compatibility facade with five exports; Factory 0.1 reports only its single declaration export and ignores four re-exports.

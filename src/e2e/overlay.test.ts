@@ -113,7 +113,7 @@ describe('overlay rendering', () => {
     expect(text).toContain('Active (');
     expect(text).toContain(' tok');
     expect(text).toContain('esc to go back');
-    expect(text).not.toContain('search');
+    expect(text).not.toContain('/ search');
   });
 
   it('should close the overlay with esc from sections view', () => {

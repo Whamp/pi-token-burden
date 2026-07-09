@@ -412,31 +412,33 @@ function toolPayload(tool: { name: string; description: string; parameters: unkn
 
 describe('toolEnvelopeForModel()', () => {
   it('maps non-OpenAI pi model APIs to API-specific tool envelopes', () => {
-    expect(toolEnvelopeForModel('anthropic-messages', 'openrouter')).toBe(ToolEnvelope.Anthropic);
+    expect(toolEnvelopeForModel('anthropic-messages', 'openrouter')).toBe(ToolEnvelope.ANTHROPIC);
     expect(toolEnvelopeForModel('bedrock-converse-stream', 'amazon-bedrock')).toBe(
-      ToolEnvelope.Bedrock,
+      ToolEnvelope.BEDROCK,
     );
-    expect(toolEnvelopeForModel('google-generative-ai', 'openrouter')).toBe(ToolEnvelope.Google);
-    expect(toolEnvelopeForModel('google-vertex', 'google-vertex')).toBe(ToolEnvelope.Google);
-    expect(toolEnvelopeForModel('mistral-conversations', 'openrouter')).toBe(ToolEnvelope.Mistral);
+    expect(toolEnvelopeForModel('google-generative-ai', 'openrouter')).toBe(ToolEnvelope.GOOGLE);
+    expect(toolEnvelopeForModel('google-vertex', 'google-vertex')).toBe(ToolEnvelope.GOOGLE);
+    expect(toolEnvelopeForModel('mistral-conversations', 'openrouter')).toBe(ToolEnvelope.MISTRAL);
   });
 
   it('maps OpenAI-family pi model APIs to their API-specific envelopes', () => {
-    expect(toolEnvelopeForModel('openai-completions', 'openrouter')).toBe(ToolEnvelope.OpenAiChat);
+    expect(toolEnvelopeForModel('openai-completions', 'openrouter')).toBe(
+      ToolEnvelope.OPEN_AI_CHAT,
+    );
     expect(toolEnvelopeForModel('openai-responses', 'openrouter')).toBe(
-      ToolEnvelope.OpenAiResponses,
+      ToolEnvelope.OPEN_AI_RESPONSES,
     );
     expect(toolEnvelopeForModel('azure-openai-responses', 'azure')).toBe(
-      ToolEnvelope.OpenAiResponses,
+      ToolEnvelope.OPEN_AI_RESPONSES,
     );
     expect(toolEnvelopeForModel('openai-codex-responses', 'openai-codex')).toBe(
-      ToolEnvelope.OpenAiResponses,
+      ToolEnvelope.OPEN_AI_RESPONSES,
     );
   });
 
   it('falls back to provider hints for custom APIs', () => {
-    expect(toolEnvelopeForModel('custom-anthropic-api', 'anthropic')).toBe(ToolEnvelope.Anthropic);
-    expect(toolEnvelopeForProvider('mistral')).toBe(ToolEnvelope.Mistral);
+    expect(toolEnvelopeForModel('custom-anthropic-api', 'anthropic')).toBe(ToolEnvelope.ANTHROPIC);
+    expect(toolEnvelopeForProvider('mistral')).toBe(ToolEnvelope.MISTRAL);
   });
 });
 
@@ -575,7 +577,7 @@ describe('buildToolDefinitionsSection()', () => {
       },
     ];
 
-    const section = buildToolDefinitionsSection(tools, undefined, ToolEnvelope.OpenAiResponses);
+    const section = buildToolDefinitionsSection(tools, undefined, ToolEnvelope.OPEN_AI_RESPONSES);
     const openAiResponsesEnvelope = [
       {
         type: 'function',
@@ -602,7 +604,7 @@ describe('buildToolDefinitionsSection()', () => {
       },
     ];
 
-    const section = buildToolDefinitionsSection(tools, undefined, ToolEnvelope.Bedrock);
+    const section = buildToolDefinitionsSection(tools, undefined, ToolEnvelope.BEDROCK);
     const bedrockEnvelope = {
       tools: [
         {
@@ -628,7 +630,7 @@ describe('buildToolDefinitionsSection()', () => {
       },
     ];
 
-    const section = buildToolDefinitionsSection(tools, undefined, ToolEnvelope.OpenAiChat);
+    const section = buildToolDefinitionsSection(tools, undefined, ToolEnvelope.OPEN_AI_CHAT);
     const openAiChatEnvelopeForOne = (tool: (typeof tools)[number]) => [
       {
         type: 'function',

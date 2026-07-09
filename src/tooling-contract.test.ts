@@ -8,10 +8,18 @@ interface LintResult {
   status: number | null;
 }
 
-function lintSource(source: string): LintResult {
+interface LintFixtureOptions {
+  fileName?: string;
+  companionFiles?: Record<string, string>;
+}
+
+function lintSource(source: string, options: LintFixtureOptions = {}): LintResult {
   const fixtureDirectory = mkdtempSync(join(tmpdir(), 'token-burden-lint-'));
-  const fixturePath = join(fixtureDirectory, 'contract.ts');
+  const fixturePath = join(fixtureDirectory, options.fileName ?? 'contract.ts');
   writeFileSync(fixturePath, source);
+  for (const [fileName, content] of Object.entries(options.companionFiles ?? {})) {
+    writeFileSync(join(fixtureDirectory, fileName), content);
+  }
 
   try {
     const result = spawnSync(
@@ -45,14 +53,21 @@ describe('TypeScript standards lint contract', () => {
   });
 
   it('preserves as const literal narrowing', () => {
-    const result = lintSource(`
-      const contractStatuses = ["ready", "done"] as const;
+    const result = lintSource(
+      `
+        const contractStatuses = ['ready', 'done'] as const;
 
-      export function firstContractStatus(): "ready" {
-        return contractStatuses[0];
-      }
-    `);
+        export function firstContractStatus(): 'ready' {
+          return contractStatuses[0];
+        }
+      `,
+      {
+        fileName: 'firstContractStatus.ts',
+        companionFiles: { 'firstContractStatus.test.ts': 'export {};\n' },
+      },
+    );
 
+    expect(result.status, result.output).toBe(0);
     expect(result.output).not.toContain('consistent-type-assertions');
   });
 });

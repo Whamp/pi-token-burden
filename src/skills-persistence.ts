@@ -2,6 +2,7 @@ import type { DisableMode } from './enums.js';
 import { SkillVisibilityStore } from './skill-visibility-store.js';
 import type { SkillInfo } from './types.js';
 
+/** Compatibility exports for the original skill-persistence module surface. */
 export {
   loadSettings,
   removeFrontmatterField,

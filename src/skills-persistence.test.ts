@@ -161,7 +161,7 @@ describe('applyChanges()', () => {
       description: `${name} description`,
       filePath,
       allPaths: allPaths ?? [filePath],
-      mode: DisableMode.Enabled,
+      mode: DisableMode.ENABLED,
       tokens: 100,
       hasDuplicates: (allPaths?.length ?? 1) > 1,
     };
@@ -176,7 +176,7 @@ describe('applyChanges()', () => {
 
       const skill = makeSkill('my-skill', skillPath);
       const byName = new Map([['my-skill', skill]]);
-      const changes = new Map<string, DisableMode>([['my-skill', DisableMode.Disabled]]);
+      const changes = new Map<string, DisableMode>([['my-skill', DisableMode.DISABLED]]);
 
       applyChanges(changes, byName, settingsPath);
 
@@ -201,7 +201,7 @@ describe('applyChanges()', () => {
 
       const skill = makeSkill('my-skill', skillPath);
       const byName = new Map([['my-skill', skill]]);
-      const changes = new Map<string, DisableMode>([['my-skill', DisableMode.Enabled]]);
+      const changes = new Map<string, DisableMode>([['my-skill', DisableMode.ENABLED]]);
 
       applyChanges(changes, byName, settingsPath);
 
@@ -229,7 +229,7 @@ describe('applyChanges()', () => {
 
       const skill = makeSkill('my-skill', skillPath);
       const byName = new Map([['my-skill', skill]]);
-      const changes = new Map<string, DisableMode>([['my-skill', DisableMode.Enabled]]);
+      const changes = new Map<string, DisableMode>([['my-skill', DisableMode.ENABLED]]);
 
       applyChanges(changes, byName, settingsPath);
 
@@ -251,7 +251,7 @@ describe('applyChanges()', () => {
 
       const skill = makeSkill('hide-skill', skillPath);
       const byName = new Map([['hide-skill', skill]]);
-      const changes = new Map<string, DisableMode>([['hide-skill', DisableMode.Hidden]]);
+      const changes = new Map<string, DisableMode>([['hide-skill', DisableMode.HIDDEN]]);
 
       applyChanges(changes, byName, settingsPath);
 
@@ -275,7 +275,7 @@ describe('applyChanges()', () => {
 
       const skill = makeSkill('unhide-skill', skillPath);
       const byName = new Map([['unhide-skill', skill]]);
-      const changes = new Map<string, DisableMode>([['unhide-skill', DisableMode.Enabled]]);
+      const changes = new Map<string, DisableMode>([['unhide-skill', DisableMode.ENABLED]]);
 
       applyChanges(changes, byName, settingsPath);
 
@@ -295,7 +295,7 @@ describe('applyChanges()', () => {
       const missingSkillPath = path.join(tmpDir, 'missing', 'SKILL.md');
       const skill = makeSkill('missing-skill', missingSkillPath);
       const byName = new Map([['missing-skill', skill]]);
-      const changes = new Map<string, DisableMode>([['missing-skill', DisableMode.Hidden]]);
+      const changes = new Map<string, DisableMode>([['missing-skill', DisableMode.HIDDEN]]);
 
       expect(() => applyChanges(changes, byName, settingsPath)).toThrow(
         /Failed to update skill frontmatter/,
@@ -320,7 +320,7 @@ describe('applyChanges()', () => {
 
       const skill = makeSkill('dupe', path1, [path1, path2]);
       const byName = new Map([['dupe', skill]]);
-      const changes = new Map<string, DisableMode>([['dupe', DisableMode.Disabled]]);
+      const changes = new Map<string, DisableMode>([['dupe', DisableMode.DISABLED]]);
 
       applyChanges(changes, byName, settingsPath);
 

@@ -277,6 +277,13 @@ interface ToolsRow {
   content?: string;
 }
 
+interface ShowReportOptions {
+  contextWindow?: number;
+  discoveredSkills?: SkillInfo[];
+  onToggleResult?: (result: SkillToggleResult) => boolean;
+  onRunTrace?: () => Promise<BasePromptTraceResult>;
+}
+
 class BudgetOverlay {
   private readonly state: OverlayState = {
     mode: 'sections',
@@ -298,7 +305,7 @@ class BudgetOverlay {
   private originalParsed: ParsedPrompt;
   private originalTotalTokens: number;
   private adjustedTotalTokens: number;
-  private readonly contextWindow: number | undefined;
+  private readonly contextWindow?: number;
   private readonly skillSession: SkillManagementSession;
   private readonly tui: TUI;
   private readonly done: (value: null) => void;
@@ -312,13 +319,13 @@ class BudgetOverlay {
   constructor(
     tui: TUI,
     parsed: ParsedPrompt,
-    contextWindow: number | undefined,
-    discoveredSkills: SkillInfo[],
     done: (value: null) => void,
-    onToggleResult?: (result: SkillToggleResult) => boolean,
-    onRunTrace?: () => Promise<BasePromptTraceResult>,
+    options: ShowReportOptions,
   ) {
-    const reconciledSkills = reconcileSkillsWithPrompt(discoveredSkills, parsed.skills);
+    const reconciledSkills = reconcileSkillsWithPrompt(
+      options.discoveredSkills ?? [],
+      parsed.skills,
+    );
     const parsedWithSkillManagement = ensureSkillsSectionForManagement(parsed, reconciledSkills);
 
     this.tui = tui;
@@ -329,12 +336,12 @@ class BudgetOverlay {
     };
     this.originalTotalTokens = parsedWithSkillManagement.totalTokens;
     this.adjustedTotalTokens = parsedWithSkillManagement.totalTokens;
-    this.contextWindow = contextWindow;
+    this.contextWindow = options.contextWindow;
     this.skillSession = new SkillManagementSession(reconciledSkills);
     this.tableItems = buildTableItems(parsedWithSkillManagement);
     this.done = done;
-    this.onToggleResult = onToggleResult;
-    this.onRunTrace = onRunTrace;
+    this.onToggleResult = options.onToggleResult;
+    this.onRunTrace = options.onRunTrace;
   }
 
   // -----------------------------------------------------------------------
@@ -1178,9 +1185,9 @@ class BudgetOverlay {
       const prefix = isSelected ? sgr('36', '▸') : dim('·');
 
       let statusIcon: string;
-      if (mode === DisableMode.Enabled) {
+      if (mode === DisableMode.ENABLED) {
         statusIcon = sgr('32', '●');
-      } else if (mode === DisableMode.Hidden) {
+      } else if (mode === DisableMode.HIDDEN) {
         statusIcon = sgr('33', '◐');
       } else {
         statusIcon = sgr('31', '○');
@@ -1454,23 +1461,12 @@ class BudgetOverlay {
 /** Mount the interactive token-budget overlay in Pi's command UI. */
 export async function showReport(
   parsed: ParsedPrompt,
-  contextWindow: number | undefined,
   ctx: ExtensionCommandContext,
-  discoveredSkills?: SkillInfo[],
-  onToggleResult?: (result: SkillToggleResult) => boolean,
-  onRunTrace?: () => Promise<BasePromptTraceResult>,
+  options: ShowReportOptions = {},
 ): Promise<void> {
   await ctx.ui.custom<null>(
     (tui, theme, kb, done) => {
-      const overlay = new BudgetOverlay(
-        tui,
-        parsed,
-        contextWindow,
-        discoveredSkills ?? [],
-        done,
-        onToggleResult,
-        onRunTrace,
-      );
+      const overlay = new BudgetOverlay(tui, parsed, done, options);
       return {
         render: (width: number) => overlay.render(width),
         invalidate: () => overlay.invalidate(),

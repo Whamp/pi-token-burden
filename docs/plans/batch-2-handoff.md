@@ -67,7 +67,7 @@ For production use in `index.ts`, passing just `(settings)` is fine — it defau
 The review branch removed it. You need to re-add it for Phase 2. It's needed by `showReport()` and `BudgetOverlay`.
 
 ### 4. DisableMode is an enum (not a string union)
-Due to Factory lint rules, `DisableMode` lives in `src/enums.ts` and is re-exported from `src/types.ts`. Use `DisableMode.Enabled`, `DisableMode.Hidden`, `DisableMode.Disabled` — not string literals.
+Due to Factory lint rules, `DisableMode` lives in `src/enums.ts` and is re-exported from `src/types.ts`. Use `DisableMode.ENABLED`, `DisableMode.HIDDEN`, `DisableMode.DISABLED` — not string literals.
 
 ```typescript
 // src/enums.ts
@@ -145,7 +145,7 @@ showReport(parsed: ParsedPrompt, contextWindow: number | undefined, ctx: Extensi
 
 ## Plan Deviations from Original
 
-The plan's code snippets use string literals like `"enabled"`, `"hidden"`, `"disabled"` for DisableMode. Replace all of these with `DisableMode.Enabled`, `DisableMode.Hidden`, `DisableMode.Disabled` from `./enums.js`.
+The plan's code snippets use string literals like `"enabled"`, `"hidden"`, `"disabled"` for DisableMode. Replace all of these with `DisableMode.ENABLED`, `DisableMode.HIDDEN`, `DisableMode.DISABLED` from `./enums.js`.
 
 The plan's `index.ts` in Task 6 compares `v === "enabled"` etc. — use the enum values instead.
 

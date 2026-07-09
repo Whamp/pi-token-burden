@@ -26,7 +26,7 @@ interface ParserModule {
     countedEnvelope?: string,
   ): PromptSection | null;
   estimateTokens(text: string): number;
-  toolEnvelopeForModel(api: string | undefined, provider?: string): string;
+  toolEnvelopeForModel(api?: string, provider?: string): string;
 }
 
 interface ReportViewModule {
@@ -41,23 +41,23 @@ function requireHandler(handler: CommandHandler | null): CommandHandler {
   return handler;
 }
 
-const parseSystemPromptMock = vi.fn<ParserModule['parseSystemPrompt']>();
-const buildToolDefinitionsSectionMock = vi.fn<ParserModule['buildToolDefinitionsSection']>();
-const estimateTokensMock = vi.fn<ParserModule['estimateTokens']>();
-const toolEnvelopeForModelMock = vi.fn<ParserModule['toolEnvelopeForModel']>();
-const showReportMock = vi.fn<ReportViewModule['showReport']>();
+const PARSE_SYSTEM_PROMPT_MOCK = vi.fn<ParserModule['parseSystemPrompt']>();
+const BUILD_TOOL_DEFINITIONS_SECTION_MOCK = vi.fn<ParserModule['buildToolDefinitionsSection']>();
+const ESTIMATE_TOKENS_MOCK = vi.fn<ParserModule['estimateTokens']>();
+const TOOL_ENVELOPE_FOR_MODEL_MOCK = vi.fn<ParserModule['toolEnvelopeForModel']>();
+const SHOW_REPORT_MOCK = vi.fn<ReportViewModule['showReport']>();
 
 vi.mock<ParserModule>(import('./parser.js'), async (importOriginal) => ({
   ...(await importOriginal()),
-  parseSystemPrompt: parseSystemPromptMock,
-  buildToolDefinitionsSection: buildToolDefinitionsSectionMock,
-  estimateTokens: estimateTokensMock,
-  toolEnvelopeForModel: toolEnvelopeForModelMock,
+  parseSystemPrompt: PARSE_SYSTEM_PROMPT_MOCK,
+  buildToolDefinitionsSection: BUILD_TOOL_DEFINITIONS_SECTION_MOCK,
+  estimateTokens: ESTIMATE_TOKENS_MOCK,
+  toolEnvelopeForModel: TOOL_ENVELOPE_FOR_MODEL_MOCK,
 }));
 
 vi.mock<ReportViewModule>(import('./report-view.js'), async (importOriginal) => ({
   ...(await importOriginal()),
-  showReport: showReportMock,
+  showReport: SHOW_REPORT_MOCK,
 }));
 
 describe('extension', () => {
@@ -67,14 +67,14 @@ describe('extension', () => {
   });
 
   it('passes active tool names when building the tools section', async () => {
-    parseSystemPromptMock.mockReturnValue({
+    PARSE_SYSTEM_PROMPT_MOCK.mockReturnValue({
       sections: [],
       totalChars: 0,
       totalTokens: 0,
       skills: [],
     });
-    buildToolDefinitionsSectionMock.mockReturnValue(null);
-    toolEnvelopeForModelMock.mockReturnValue('anthropic');
+    BUILD_TOOL_DEFINITIONS_SECTION_MOCK.mockReturnValue(null);
+    TOOL_ENVELOPE_FOR_MODEL_MOCK.mockReturnValue('anthropic');
 
     const tools = [
       { name: 'read', description: 'Read files', parameters: {} },
@@ -106,7 +106,7 @@ describe('extension', () => {
       model: { api: 'anthropic-messages', provider: 'openrouter' },
     });
 
-    expect(toolEnvelopeForModelMock).toHaveBeenCalledWith('anthropic-messages', 'openrouter');
-    expect(buildToolDefinitionsSectionMock).toHaveBeenCalledWith(tools, ['read'], 'anthropic');
+    expect(TOOL_ENVELOPE_FOR_MODEL_MOCK).toHaveBeenCalledWith('anthropic-messages', 'openrouter');
+    expect(BUILD_TOOL_DEFINITIONS_SECTION_MOCK).toHaveBeenCalledWith(tools, ['read'], 'anthropic');
   });
 });

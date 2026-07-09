@@ -393,7 +393,7 @@ export function formatSkillsPromptSection(
     mode: DisableMode;
   }[],
 ): string {
-  const visibleSkills = skills.filter((skill) => skill.mode === DisableMode.Enabled);
+  const visibleSkills = skills.filter((skill) => skill.mode === DisableMode.ENABLED);
   if (visibleSkills.length === 0) {
     return '';
   }
@@ -971,7 +971,7 @@ export function loadAllSkills(
         description: raw.description,
         filePath: raw.filePath,
         allPaths: [],
-        mode: DisableMode.Enabled,
+        mode: DisableMode.ENABLED,
         tokens: estimateSkillPromptTokens(raw),
         hasDuplicates: false,
       });
@@ -989,9 +989,9 @@ export function loadAllSkills(
     );
 
     if (allDisabled) {
-      skill.mode = DisableMode.Disabled;
+      skill.mode = DisableMode.DISABLED;
     } else if (rawSkills.find((r) => r.name === name)?.disableModelInvocation) {
-      skill.mode = DisableMode.Hidden;
+      skill.mode = DisableMode.HIDDEN;
     }
   }
 

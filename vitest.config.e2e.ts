@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitest/config';
 
+/** Tmux-backed end-to-end test configuration. */
 export default defineConfig({
   test: {
     globals: true,

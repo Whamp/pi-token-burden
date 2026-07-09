@@ -37,7 +37,7 @@ function getAgentDir(): string {
   return path.join(os.homedir(), '.pi', 'agent');
 }
 
-const extension: ExtensionFactory = (pi) => {
+const EXTENSION: ExtensionFactory = (pi) => {
   pi.registerCommand('token-burden', {
     description: 'Show token budget breakdown and manage skills',
     handler: async (args, ctx) => {
@@ -117,12 +117,10 @@ const extension: ExtensionFactory = (pi) => {
         };
       };
 
-      await showReport(
-        parsed,
+      await showReport(parsed, ctx, {
         contextWindow,
-        ctx,
-        skills,
-        (result) => {
+        discoveredSkills: skills,
+        onToggleResult: (result) => {
           const outcome = saveSkillToggleResult(result, (changes) => {
             visibilityStore.applyChanges(changes, byName);
           });
@@ -142,9 +140,10 @@ const extension: ExtensionFactory = (pi) => {
           return true;
         },
         onRunTrace,
-      );
+      });
     },
   });
 };
 
-export default extension;
+/** Pi extension entrypoint required by the extension loader. */
+export default EXTENSION;

@@ -15,13 +15,13 @@ import type {
 import { fuzzyFilter } from './utils.js';
 
 function nextVisibilityState(mode: DisableMode): DisableMode {
-  if (mode === DisableMode.Enabled) {
-    return DisableMode.Hidden;
+  if (mode === DisableMode.ENABLED) {
+    return DisableMode.HIDDEN;
   }
-  if (mode === DisableMode.Hidden) {
-    return DisableMode.Disabled;
+  if (mode === DisableMode.HIDDEN) {
+    return DisableMode.DISABLED;
   }
-  return DisableMode.Enabled;
+  return DisableMode.ENABLED;
 }
 
 const SKILLS_BUDGET_SECTION_LABEL = 'Skills';
@@ -52,8 +52,8 @@ export function reconcileSkillsWithPrompt(
   return discoveredSkills.map((skill) => {
     const promptSkill = promptByName.get(skill.name);
     if (!promptSkill) {
-      return skill.mode === DisableMode.Enabled
-        ? { ...skill, mode: DisableMode.Hidden }
+      return skill.mode === DisableMode.ENABLED
+        ? { ...skill, mode: DisableMode.HIDDEN }
         : { ...skill };
     }
 
@@ -61,7 +61,7 @@ export function reconcileSkillsWithPrompt(
       ...skill,
       description: decodeXml(promptSkill.description),
       filePath: decodeXml(promptSkill.location),
-      mode: DisableMode.Enabled,
+      mode: DisableMode.ENABLED,
       tokens: promptSkill.tokens,
     };
   });
@@ -69,7 +69,7 @@ export function reconcileSkillsWithPrompt(
 
 /** Build the skill-catalog Budget Section for the current visibility states. */
 export function buildSkillsBudgetSection(skills: SkillInfo[]): PromptSection {
-  const visibleSkills = skills.filter((skill) => skill.mode === DisableMode.Enabled);
+  const visibleSkills = skills.filter((skill) => skill.mode === DisableMode.ENABLED);
   const content = formatSkillsPromptSection(skills);
 
   return {

@@ -18,6 +18,17 @@ Final proof:
 - manual `pi -e ./src/index.ts`: `/token-burden` opened and rendered the live overlay
 - lint contract: native `consistent-type-assertions` and Factory `no-exported-string-union-types` both fire; `as const` remains allowed
 
+## Test-first evidence
+
+The lint contract was red before implementation:
+
+1. `oxlint --type-aware` aborted because `oxlint-tsgolint` was absent.
+2. After installing tsgolint, oxlint rejected the inherited Ultracite JS-plugin namespaces.
+3. After replacing Ultracite, the fixture exposed tsgolint's nested-relative-path panic; absolute fixture paths reached the rules.
+4. Adding a zero-exit assertion to the `as const` case exposed two unrelated Factory findings (`require-test-files` and `filename-match-export`). A correctly named source plus companion test then passed the complete config.
+
+The final contract requires both rule diagnostics for the invalid fixture and exit status zero for the allowed `as const` fixture.
+
 ## Baseline
 
 Before migration, lint, TypeScript 5.9 typecheck, knip, duplicate detection, and 160 unit tests passed. The aggregate check failed because oxfmt included seven generated `.pi-subagents/artifacts` files.

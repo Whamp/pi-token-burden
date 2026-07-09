@@ -16,7 +16,7 @@ export function createIsolatedAgentDir(): string {
 }
 
 /** Remove an isolated test agent directory; repeated cleanup is safe. */
-export function removeIsolatedAgentDir(agentDir: string | undefined): void {
+export function removeIsolatedAgentDir(agentDir?: string): void {
   if (!agentDir) {
     return;
   }

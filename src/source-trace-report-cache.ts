@@ -3,7 +3,7 @@ import { SourceTraceReport } from './source-trace-report.js';
 
 /** Cache the latest Source Trace Report and support explicit refresh. */
 export class SourceTraceReportCache {
-  private cached: SourceTraceReport | undefined;
+  private cached?: SourceTraceReport;
 
   async getOrLoad(
     load: () => Promise<BasePromptTraceResult>,

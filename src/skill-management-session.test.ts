@@ -12,7 +12,7 @@ import type { ParsedPrompt, SkillInfo } from './types.js';
 
 interface SessionSnapshot {
   pendingCount: number;
-  mode: DisableMode | undefined;
+  mode: DisableMode;
   totalTokens: number;
 }
 
@@ -22,7 +22,7 @@ function skill(overrides: Partial<SkillInfo> & Pick<SkillInfo, 'name'>): SkillIn
     description: overrides.description ?? `${overrides.name} description`,
     filePath: overrides.filePath ?? `/skills/${overrides.name}/SKILL.md`,
     allPaths: overrides.allPaths ?? [overrides.filePath ?? `/skills/${overrides.name}/SKILL.md`],
-    mode: overrides.mode ?? DisableMode.Enabled,
+    mode: overrides.mode ?? DisableMode.ENABLED,
     tokens: overrides.tokens ?? 10,
     hasDuplicates: overrides.hasDuplicates ?? false,
   };
@@ -33,9 +33,13 @@ function snapshot(
   skillName: string,
   originalTotalTokens: number,
 ): SessionSnapshot {
+  const mode = session.effectiveMode(skillName);
+  if (mode === undefined) {
+    throw new Error('Expected the session to contain the requested skill');
+  }
   return {
     pendingCount: session.pendingCount,
-    mode: session.effectiveMode(skillName),
+    mode,
     totalTokens: session.adjustedTotalTokens(originalTotalTokens),
   };
 }
@@ -44,7 +48,7 @@ describe('skill management session', () => {
   it('cycles a skill through visibility states while tracking pending token impact', () => {
     const tddSkill = skill({
       name: 'tdd',
-      mode: DisableMode.Enabled,
+      mode: DisableMode.ENABLED,
       tokens: 25,
     });
     const session = new SkillManagementSession([tddSkill]);
@@ -64,14 +68,14 @@ describe('skill management session', () => {
     expect(states).toStrictEqual([
       {
         pendingCount: 0,
-        mode: DisableMode.Enabled,
+        mode: DisableMode.ENABLED,
         totalTokens: originalTotal,
       },
-      { pendingCount: 1, mode: DisableMode.Hidden, totalTokens: baseTokens },
-      { pendingCount: 1, mode: DisableMode.Disabled, totalTokens: baseTokens },
+      { pendingCount: 1, mode: DisableMode.HIDDEN, totalTokens: baseTokens },
+      { pendingCount: 1, mode: DisableMode.DISABLED, totalTokens: baseTokens },
       {
         pendingCount: 0,
-        mode: DisableMode.Enabled,
+        mode: DisableMode.ENABLED,
         totalTokens: originalTotal,
       },
     ]);
@@ -80,7 +84,7 @@ describe('skill management session', () => {
   it('can discard pending edits or rebase them after save', () => {
     const browserSkill = skill({
       name: 'browser-use',
-      mode: DisableMode.Enabled,
+      mode: DisableMode.ENABLED,
       tokens: 40,
     });
     const session = new SkillManagementSession([browserSkill]);
@@ -102,14 +106,14 @@ describe('skill management session', () => {
     states.push(snapshot(session, 'browser-use', baseTokens));
 
     expect(states).toStrictEqual([
-      { pendingCount: 1, mode: DisableMode.Hidden, totalTokens: baseTokens },
+      { pendingCount: 1, mode: DisableMode.HIDDEN, totalTokens: baseTokens },
       {
         pendingCount: 0,
-        mode: DisableMode.Enabled,
+        mode: DisableMode.ENABLED,
         totalTokens: originalTotal,
       },
-      { pendingCount: 0, mode: DisableMode.Hidden, totalTokens: baseTokens },
-      { pendingCount: 1, mode: DisableMode.Disabled, totalTokens: baseTokens },
+      { pendingCount: 0, mode: DisableMode.HIDDEN, totalTokens: baseTokens },
+      { pendingCount: 1, mode: DisableMode.DISABLED, totalTokens: baseTokens },
     ]);
   });
 
@@ -117,7 +121,7 @@ describe('skill management session', () => {
     const session = new SkillManagementSession([
       skill({
         name: 'github',
-        mode: DisableMode.Enabled,
+        mode: DisableMode.ENABLED,
         tokens: 30,
         filePath: '/first/github/SKILL.md',
         allPaths: ['/first/github/SKILL.md', '/second/github/SKILL.md'],
@@ -128,10 +132,10 @@ describe('skill management session', () => {
     session.cycle('github');
     const changes = session.changes();
 
-    expect(changes).toStrictEqual(new Map([['github', DisableMode.Hidden]]));
+    expect(changes).toStrictEqual(new Map([['github', DisableMode.HIDDEN]]));
 
-    changes.set('github', DisableMode.Disabled);
-    expect(session.effectiveMode('github')).toBe(DisableMode.Hidden);
+    changes.set('github', DisableMode.DISABLED);
+    expect(session.effectiveMode('github')).toBe(DisableMode.HIDDEN);
   });
 
   it('counts the full skills section when toggles cross zero visible skills', () => {
@@ -139,19 +143,19 @@ describe('skill management session', () => {
       name: 'only-skill',
       description: 'Do the thing',
       filePath: '/skills/only-skill/SKILL.md',
-      mode: DisableMode.Enabled,
+      mode: DisableMode.ENABLED,
       tokens: 10,
     });
     const hiddenSkill = skill({
       name: 'hidden-skill',
       description: 'Use hidden skill',
       filePath: '/skills/hidden-skill/SKILL.md',
-      mode: DisableMode.Hidden,
+      mode: DisableMode.HIDDEN,
       tokens: 10,
     });
     const originalSectionTokens = estimateTokens(formatSkillsPromptSection([onlySkill]));
     const hiddenSectionTokens = estimateTokens(
-      formatSkillsPromptSection([{ ...hiddenSkill, mode: DisableMode.Enabled }]),
+      formatSkillsPromptSection([{ ...hiddenSkill, mode: DisableMode.ENABLED }]),
     );
 
     const removeLast = new SkillManagementSession([onlySkill]);
@@ -176,14 +180,14 @@ describe('skill management session', () => {
     const discovered = [
       skill({
         name: 'extra',
-        mode: DisableMode.Enabled,
+        mode: DisableMode.ENABLED,
         tokens: 50,
       }),
       skill({
         name: 'tdd',
         description: 'Filesystem description',
         filePath: '/filesystem/tdd/SKILL.md',
-        mode: DisableMode.Hidden,
+        mode: DisableMode.HIDDEN,
         tokens: 10,
       }),
     ];
@@ -202,14 +206,14 @@ describe('skill management session', () => {
     ).toStrictEqual([
       {
         name: 'extra',
-        mode: DisableMode.Hidden,
+        mode: DisableMode.HIDDEN,
         description: 'extra description',
         filePath: '/skills/extra/SKILL.md',
         tokens: 50,
       },
       {
         name: 'tdd',
-        mode: DisableMode.Enabled,
+        mode: DisableMode.ENABLED,
         description: 'Prompt description',
         filePath: '/prompt/tdd/SKILL.md',
         tokens: 30,
@@ -231,7 +235,7 @@ describe('skill management session', () => {
         name: 'api-helper',
         description: 'Filesystem description',
         filePath: '/filesystem/api-helper/SKILL.md',
-        mode: DisableMode.Enabled,
+        mode: DisableMode.ENABLED,
         tokens: 10,
       }),
     ];
@@ -255,13 +259,13 @@ describe('skill management session', () => {
       name: 'tdd',
       description: 'Test first',
       filePath: '/skills/tdd/SKILL.md',
-      mode: DisableMode.Enabled,
+      mode: DisableMode.ENABLED,
     });
     const hiddenSkill = skill({
       name: 'hidden-helper',
       description: 'Loaded on demand',
       filePath: '/skills/hidden-helper/SKILL.md',
-      mode: DisableMode.Hidden,
+      mode: DisableMode.HIDDEN,
     });
 
     const section = buildSkillsBudgetSection([enabledSkill, hiddenSkill]);
@@ -284,7 +288,7 @@ describe('skill management session', () => {
   });
 
   it('owns Skill Management Session section-route eligibility', () => {
-    const session = new SkillManagementSession([skill({ name: 'tdd', mode: DisableMode.Enabled })]);
+    const session = new SkillManagementSession([skill({ name: 'tdd', mode: DisableMode.ENABLED })]);
     const emptySession = new SkillManagementSession([]);
 
     expect(session.canManageSection('Skills (1)')).toBeTruthy();
@@ -295,13 +299,13 @@ describe('skill management session', () => {
   it('returns render-ready skill rows with search and pending-change state', () => {
     const tddSkill = skill({
       name: 'tdd',
-      mode: DisableMode.Enabled,
+      mode: DisableMode.ENABLED,
       tokens: 12,
       hasDuplicates: true,
     });
     const browserSkill = skill({
       name: 'browser-use',
-      mode: DisableMode.Hidden,
+      mode: DisableMode.HIDDEN,
       tokens: 30,
     });
     const session = new SkillManagementSession([tddSkill, browserSkill]);
@@ -312,7 +316,7 @@ describe('skill management session', () => {
       {
         skill: tddSkill,
         label: 'tdd',
-        mode: DisableMode.Enabled,
+        mode: DisableMode.ENABLED,
         hasChanged: false,
         hasDuplicates: true,
         tokens: 12,
@@ -322,7 +326,7 @@ describe('skill management session', () => {
       {
         skill: tddSkill,
         label: 'tdd',
-        mode: DisableMode.Enabled,
+        mode: DisableMode.ENABLED,
         hasChanged: false,
         hasDuplicates: true,
         tokens: 12,
@@ -330,7 +334,7 @@ describe('skill management session', () => {
       {
         skill: browserSkill,
         label: 'browser-use',
-        mode: DisableMode.Disabled,
+        mode: DisableMode.DISABLED,
         hasChanged: true,
         hasDuplicates: false,
         tokens: 30,
@@ -343,13 +347,13 @@ describe('skill management session', () => {
       name: 'tdd',
       description: 'Test first',
       filePath: '/skills/tdd/SKILL.md',
-      mode: DisableMode.Enabled,
+      mode: DisableMode.ENABLED,
     });
     const hiddenSkill = skill({
       name: 'hidden-helper',
       description: 'Loaded on demand',
       filePath: '/skills/hidden-helper/SKILL.md',
-      mode: DisableMode.Hidden,
+      mode: DisableMode.HIDDEN,
     });
     const originalSkillsSection = buildSkillsBudgetSection([tddSkill]);
     const original: ParsedPrompt = {

@@ -220,7 +220,7 @@ function applyChanges(
       continue;
     }
 
-    if (newMode === DisableMode.Disabled) {
+    if (newMode === DisableMode.DISABLED) {
       for (const fp of skill.allPaths) {
         pathsToDisable.add(normalizeChangePath(fp));
       }
@@ -231,11 +231,11 @@ function applyChanges(
       pathsToUndisable.add(normalizeChangePath(fp));
     }
 
-    if (newMode === DisableMode.Hidden) {
+    if (newMode === DisableMode.HIDDEN) {
       frontmatterUpdates.set(skill.filePath, true);
     }
 
-    if (newMode === DisableMode.Enabled) {
+    if (newMode === DisableMode.ENABLED) {
       frontmatterUpdates.set(skill.filePath, false);
     }
   }

@@ -24,10 +24,10 @@ describe('skill save', () => {
 
   it('persists changes and summarizes saved skill visibility states', () => {
     const changes = new Map([
-      ['tdd', DisableMode.Enabled],
-      ['browser-use', DisableMode.Hidden],
-      ['github', DisableMode.Hidden],
-      ['legacy', DisableMode.Disabled],
+      ['tdd', DisableMode.ENABLED],
+      ['browser-use', DisableMode.HIDDEN],
+      ['github', DisableMode.HIDDEN],
+      ['legacy', DisableMode.DISABLED],
     ]);
     const persist = vi.fn();
 
@@ -47,7 +47,7 @@ describe('skill save', () => {
     });
 
     const outcome = saveSkillToggleResult(
-      toggleResult(new Map([['tdd', DisableMode.Hidden]])),
+      toggleResult(new Map([['tdd', DisableMode.HIDDEN]])),
       persist,
     );
 
