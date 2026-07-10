@@ -265,6 +265,7 @@ async function processSelection(
         selection.issue,
         BASE_BRANCH,
         (message) => commentOnIssue(execute, repository, issueNumber, message),
+        resolve('.sandcastle', 'logs'),
       );
       await publishImplementation(
         execute,

@@ -133,10 +133,10 @@ async function persistPassReports(
   standards: ReviewResult,
   spec: ReviewResult,
   validation: ValidationResult,
+  logsDirectory: string,
 ): Promise<string> {
   const relative = `.sandcastle/reports/issue-${issueNumber}/pass-${pass}`;
   const directory = join(sandbox.worktreePath, relative);
-  const logsDirectory = join(sandbox.worktreePath, '.sandcastle', 'logs');
   await Promise.all([
     mkdir(directory, { recursive: true }),
     mkdir(logsDirectory, { recursive: true }),
@@ -288,6 +288,7 @@ export async function runImplementation(
   issue: IssueContext,
   baseBranch: string,
   onStage: (message: string) => Promise<void>,
+  logsDirectory: string,
 ): Promise<{ readonly reportsPath: string; readonly summary: string }> {
   let work = await sandbox.run({
     agent,
@@ -339,6 +340,7 @@ export async function runImplementation(
       standards,
       spec,
       validation,
+      logsDirectory,
     );
     await onStage(
       `Pass ${pass}: standards=${standards.verdict}, spec=${spec.verdict}, check=${validation.check.passed}, e2e=${validation.testE2E.passed}. Reports: ${latestReportsPath}`,

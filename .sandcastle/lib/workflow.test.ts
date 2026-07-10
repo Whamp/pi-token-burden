@@ -52,6 +52,7 @@ const ISSUE: IssueContext = {
 describe('runImplementation()', () => {
   it('orders merged fix findings by severity before resuming implementation', async () => {
     const worktreePath = await mkdtemp(join(tmpdir(), 'sandcastle-workflow-'));
+    const logsDirectory = await mkdtemp(join(tmpdir(), 'sandcastle-host-logs-'));
     const standardsFail =
       '<reviewStandards>{"axis":"standards","verdict":"fail","blocking":true,"findings":[{"file":"src/low.ts","line":1,"severity":"low","issue":"Low issue","requiredFix":"Fix low"}]}</reviewStandards>';
     const specFail =
@@ -104,6 +105,7 @@ describe('runImplementation()', () => {
         ISSUE,
         'main',
         vi.fn<(message: string) => Promise<void>>().mockResolvedValue(undefined),
+        logsDirectory,
       );
 
       expect(failingFork).toHaveBeenCalledWith(expect.any(String), {
@@ -129,13 +131,13 @@ describe('runImplementation()', () => {
         ),
       ).rejects.toThrow();
       await expect(
-        readFile(
-          join(worktreePath, '.sandcastle', 'logs', 'sandcastle-issue-42-pass-2-check.log'),
-          'utf8',
-        ),
+        readFile(join(logsDirectory, 'sandcastle-issue-42-pass-2-check.log'), 'utf8'),
       ).resolves.toContain('ghp_validator_secret');
     } finally {
-      await rm(worktreePath, { force: true, recursive: true });
+      await Promise.all([
+        rm(logsDirectory, { force: true, recursive: true }),
+        rm(worktreePath, { force: true, recursive: true }),
+      ]);
     }
   });
 
@@ -181,6 +183,7 @@ describe('runImplementation()', () => {
         ISSUE,
         'main',
         vi.fn<(message: string) => Promise<void>>().mockResolvedValue(undefined),
+        join(worktreePath, 'host-logs'),
       );
 
       expect(resume).toHaveBeenCalledWith(expect.stringContaining('<implementationResult>'), {
