@@ -1,5 +1,5 @@
-import { EXCLUSION_LABELS, IMPLEMENTATION_LABELS } from './constants.js';
 import { IssueRoute } from './enums.js';
+import { isExclusionLabel } from './routingPolicy.js';
 import { decodeValue, GITHUB_ISSUE_SCHEMA } from './schema.js';
 import type { IssueContext, RoutedIssue } from './types.js';
 
@@ -30,14 +30,8 @@ function readIssue(value: unknown):
   };
 }
 
-function routeFor(labels: readonly string[]): IssueRoute | undefined {
-  if (labels.includes('wayfinder:research')) {
-    return IssueRoute.Research;
-  }
-  if (labels.some((label) => IMPLEMENTATION_LABELS.has(label))) {
-    return IssueRoute.Implementation;
-  }
-  return undefined;
+function routeFor(labels: readonly string[]): IssueRoute {
+  return labels.includes('wayfinder:research') ? IssueRoute.Research : IssueRoute.Implementation;
 }
 
 /** Check a fresh issue snapshot against route and exact-assignee expectations. */
@@ -51,7 +45,7 @@ export function isIssueClaimable(
     issue === undefined ||
     issue.state !== 'OPEN' ||
     !issue.labels.includes('ready-for-agent') ||
-    issue.labels.some((label) => EXCLUSION_LABELS.has(label)) ||
+    issue.labels.some(isExclusionLabel) ||
     routeFor(issue.labels) !== expectedRoute
   ) {
     return false;
@@ -79,15 +73,12 @@ export function selectNextEligibleIssue(payload: unknown): RoutedIssue | undefin
       issue.state !== 'OPEN' ||
       issue.assigneeLogins.length !== 0 ||
       !issue.labels.includes('ready-for-agent') ||
-      issue.labels.some((label) => EXCLUSION_LABELS.has(label))
+      issue.labels.some(isExclusionLabel)
     ) {
       continue;
     }
 
-    const route = routeFor(issue.labels);
-    if (route !== undefined) {
-      candidates.push({ issue: issue.context, route });
-    }
+    candidates.push({ issue: issue.context, route: routeFor(issue.labels) });
   }
 
   return candidates.toSorted((left, right) => {

@@ -34,7 +34,7 @@ Run only one Sandcastle claimer per GitHub identity. Assignee-only claims cannot
 
 ## Behavior
 
-1. Run one coarse GitHub search per supported route label, merge results, and sort by `createdAt` then issue number.
+1. Search once for eligible `ready-for-agent` issues, route `wayfinder:research` to research and every other candidate to implementation, then sort by `createdAt` and issue number.
 2. Immediately revalidate route, exact assignee set, and native or fallback blockers before and after claim.
 3. Create one warm Docker sandbox on `sandcastle/issue-<number>`.
 4. Research tickets create and commit a cited `docs/research/` artifact without product validation.

@@ -9,11 +9,7 @@ export const EXCLUSION_LABELS = new Set([
   'wontfix',
 ]);
 
-/** Normal issue-kind labels accepted by the implementation route. */
-export const IMPLEMENTATION_LABELS = new Set([
-  'bug',
-  'documentation',
-  'enhancement',
-  'feature',
-  'task',
-]);
+/** Return whether a label excludes an issue from Sandcastle pickup. */
+export function isExclusionLabel(label: string): boolean {
+  return EXCLUSION_LABELS.has(label);
+}

@@ -46,16 +46,19 @@ describe('selectNextEligibleIssue()', () => {
     expect(selectNextEligibleIssue(githubIssues)).toBeUndefined();
   });
 
-  it('routes research ahead of normal implementation labels', () => {
+  it('routes wayfinder research instead of implementation', () => {
     const githubIssues = [githubIssue(['ready-for-agent', 'enhancement', 'wayfinder:research'])];
 
     expect(selectNextEligibleIssue(githubIssues)?.route).toBe('research');
   });
 
-  it('rejects a pure wayfinder task', () => {
-    const githubIssues = [githubIssue(['ready-for-agent', 'wayfinder:task'])];
+  it.each([
+    ['without a kind label', ['ready-for-agent']],
+    ['with a Wayfinder task label', ['ready-for-agent', 'wayfinder:task']],
+  ])('routes an eligible issue %s to implementation', (_description, labels) => {
+    const githubIssues = [githubIssue(labels)];
 
-    expect(selectNextEligibleIssue(githubIssues)).toBeUndefined();
+    expect(selectNextEligibleIssue(githubIssues)?.route).toBe('implementation');
   });
 
   it.each([

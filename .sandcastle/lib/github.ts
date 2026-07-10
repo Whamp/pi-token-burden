@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 
-import { EXCLUSION_LABELS, IMPLEMENTATION_LABELS } from './constants.js';
 import { selectNextEligibleIssue, isIssueClaimable } from './routing.js';
+import { EXCLUSION_LABELS } from './routingPolicy.js';
 import {
   decodeJson,
   decodeValue,
@@ -134,37 +134,26 @@ export async function discoverNextIssue(
   repository: string,
   excludedIssueNumbers: ReadonlySet<number> = new Set(),
 ): Promise<RoutedIssue | undefined> {
-  const searches = [
-    `${BASE_SEARCH} label:wayfinder:research`,
-    ...Array.from(
-      IMPLEMENTATION_LABELS,
-      (label) => `${BASE_SEARCH} label:${label} -label:wayfinder:research`,
-    ),
-  ];
-  const merged: unknown[] = [];
-  for (const search of searches) {
-    const result = await execute([
-      'issue',
-      'list',
-      '--repo',
-      repository,
-      '--search',
-      search,
-      '--state',
-      'open',
-      '--limit',
-      '100',
-      '--json',
-      ISSUE_FIELDS,
-    ]);
-    const payload = decodeJson(GITHUB_ISSUE_LIST_SCHEMA, result.stdout);
-    if (result.exitCode !== 0 || payload === undefined) {
-      throw new Error(`GitHub discovery failed: ${result.stderr.trim()}`);
-    }
-    merged.push(...payload);
+  const result = await execute([
+    'issue',
+    'list',
+    '--repo',
+    repository,
+    '--search',
+    BASE_SEARCH,
+    '--state',
+    'open',
+    '--limit',
+    '100',
+    '--json',
+    ISSUE_FIELDS,
+  ]);
+  const payload = decodeJson(GITHUB_ISSUE_LIST_SCHEMA, result.stdout);
+  if (result.exitCode !== 0 || payload === undefined) {
+    throw new Error(`GitHub discovery failed: ${result.stderr.trim()}`);
   }
   return selectNextEligibleIssue(
-    merged.filter((value) => {
+    payload.filter((value) => {
       const issue = decodeValue(GITHUB_ISSUE_SCHEMA, value);
       return issue === undefined || !excludedIssueNumbers.has(issue.number);
     }),

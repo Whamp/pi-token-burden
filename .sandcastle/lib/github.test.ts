@@ -1,5 +1,5 @@
 import { IssueRoute } from './enums.js';
-import { claimIssue, escalateIssue, unassignIssue } from './github.js';
+import { claimIssue, discoverNextIssue, escalateIssue, unassignIssue } from './github.js';
 import type { CommandResult, GitHubExecutor, RoutedIssue } from './types.js';
 
 const REPOSITORY = 'Whamp/pi-token-burden';
@@ -12,12 +12,16 @@ function failedResult(stderr: string): CommandResult {
   return { exitCode: 1, stderr, stdout: '' };
 }
 
-function issueSnapshot(assigneeLogins: readonly string[], body = 'Implement issue 42.'): string {
+function issueSnapshot(
+  assigneeLogins: readonly string[],
+  body = 'Implement issue 42.',
+  labels = ['ready-for-agent', 'enhancement'],
+): string {
   return JSON.stringify({
     assignees: assigneeLogins.map((login) => ({ login })),
     body,
     createdAt: '2026-07-09T12:00:00Z',
-    labels: [{ name: 'ready-for-agent' }, { name: 'enhancement' }],
+    labels: labels.map((name) => ({ name })),
     number: 42,
     state: 'OPEN',
     title: 'Issue 42',
@@ -44,6 +48,37 @@ describe('escalateIssue()', () => {
     await expect(
       escalateIssue(execute, REPOSITORY, 42, 'Runner validation failed'),
     ).rejects.toThrow('GitHub escalation failed: permissions denied');
+  });
+});
+
+describe('discoverNextIssue()', () => {
+  it('discovers ready issues without requiring an implementation kind label', async () => {
+    const execute = vi
+      .fn<GitHubExecutor>()
+      .mockResolvedValue(
+        result(
+          `[${issueSnapshot([], 'Implement issue 42.', ['ready-for-agent', 'wayfinder:task'])}]`,
+        ),
+      );
+
+    await expect(discoverNextIssue(execute, REPOSITORY)).resolves.toMatchObject({
+      route: IssueRoute.Implementation,
+    });
+    expect(execute).toHaveBeenCalledOnce();
+    expect(execute).toHaveBeenCalledWith([
+      'issue',
+      'list',
+      '--repo',
+      REPOSITORY,
+      '--search',
+      'is:issue is:open label:ready-for-agent no:assignee -label:needs-info -label:needs-triage -label:ready-for-human -label:wayfinder:grilling -label:wayfinder:map -label:wayfinder:prototype -label:wontfix',
+      '--state',
+      'open',
+      '--limit',
+      '100',
+      '--json',
+      'assignees,body,createdAt,labels,number,state,title',
+    ]);
   });
 });
 
