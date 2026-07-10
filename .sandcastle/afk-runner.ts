@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { loadEnvFile } from 'node:process';
 import { pathToFileURL } from 'node:url';
@@ -19,6 +19,7 @@ import {
   unassignIssue,
 } from './lib/github.js';
 import { logError, logInfo } from './lib/logger.js';
+import { preserveFailureEvidence } from './lib/preserveFailureEvidence.js';
 import type { GitHubExecutor, RoutedIssue } from './lib/types.js';
 import { runImplementation, runResearch } from './lib/workflow.js';
 
@@ -184,10 +185,12 @@ async function preserveFailureReport(
   issueNumber: number,
   reason: string,
 ): Promise<string> {
-  const relative = `.sandcastle/reports/issue-${issueNumber}/failure.md`;
-  const path = resolve(sandbox.worktreePath, relative);
-  await mkdir(resolve(path, '..'), { recursive: true });
-  await writeFile(path, `# Sandcastle terminal failure\n\n${reason}\n`);
+  const relative = await preserveFailureEvidence({
+    issueNumber,
+    logsDirectory: resolve('.sandcastle', 'logs'),
+    reason,
+    worktreePath: sandbox.worktreePath,
+  });
   const commit = await sandbox.exec(
     `git add .sandcastle/reports/issue-${issueNumber} && git commit -m "chore: record Sandcastle failure for issue ${issueNumber}"`,
   );
