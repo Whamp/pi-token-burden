@@ -260,7 +260,7 @@ async function processSelection(
     let report = 'No branch report was available because sandbox setup did not complete.';
     if (sandbox !== undefined) {
       try {
-        report = `Failure report and repro logs: ${await preserveFailureReport(
+        report = `Failure report and host-log manifest: ${await preserveFailureReport(
           sandbox,
           repository,
           issueNumber,

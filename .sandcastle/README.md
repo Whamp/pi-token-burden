@@ -38,9 +38,9 @@ Run only one Sandcastle claimer per GitHub identity. Assignee-only claims cannot
 2. Immediately revalidate route, exact assignee set, and native or fallback blockers before and after claim.
 3. Create one warm Docker sandbox on `sandcastle/issue-<number>`.
 4. Research tickets create and commit a cited `docs/research/` artifact without product validation.
-5. Implementation tickets run parallel Standards and Spec reviews, persist JSON and logs under `.sandcastle/reports/issue-<number>/`, resume the implementation session for fixes, and allow at most three passes.
+5. Implementation tickets run parallel Standards and Spec reviews, persist review and validation reports under `.sandcastle/reports/issue-<number>/`, resume the implementation session for fixes, and allow at most three passes.
 6. The runner executes `pnpm run check` and `pnpm run test:e2e` after every implementation pass. Skips and runtime gaps fail closed.
-7. Successful branches are pushed before reporting. Implementations open or reuse a PR; terminal failures are commented, relabeled `ready-for-human`, and unassigned.
+7. Successful branches are pushed before reporting. Implementations open or reuse a PR; terminal failures are commented, relabeled `ready-for-human`, and unassigned. Failure reports publish an issue-scoped filename, size, and SHA-256 manifest; raw agent logs remain only under the runner host's ignored `.sandcastle/logs/` directory so credentials cannot enter Git.
 8. Discovery continues until no eligible issue remains.
 
 ## Local verification
