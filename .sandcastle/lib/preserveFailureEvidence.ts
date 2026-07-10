@@ -1,10 +1,11 @@
-import { copyFile, mkdir, readdir, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 interface FailureEvidenceOptions {
   readonly issueNumber: number;
   readonly logsDirectory: string;
-  readonly reason: string;
+  readonly failureId: string;
   readonly worktreePath: string;
 }
 
@@ -15,9 +16,9 @@ function pathIsMissing(error: unknown): boolean {
 async function issueLogNames(logsDirectory: string, issueNumber: number): Promise<string[]> {
   try {
     const entries = await readdir(logsDirectory, { withFileTypes: true });
-    const prefix = `sandcastle-issue-${issueNumber}-`;
+    const issueLogPattern = new RegExp(`^sandcastle-issue-${issueNumber}-[a-z0-9-]+\\.log$`, 'u');
     return entries
-      .filter((entry) => entry.isFile() && entry.name.startsWith(prefix))
+      .filter((entry) => entry.isFile() && issueLogPattern.test(entry.name))
       .map((entry) => entry.name)
       .sort();
   } catch (error) {
@@ -28,31 +29,33 @@ async function issueLogNames(logsDirectory: string, issueNumber: number): Promis
   }
 }
 
-/** Persist a terminal failure summary and this issue's captured agent logs. */
+async function logManifest(logsDirectory: string, names: readonly string[]): Promise<string> {
+  if (names.length === 0) {
+    return 'No captured agent logs were available.';
+  }
+  const entries = await Promise.all(
+    names.map(async (name) => {
+      const contents = await readFile(join(logsDirectory, name));
+      const digest = createHash('sha256').update(contents).digest('hex');
+      return `- \`.sandcastle/logs/${name}\` — ${contents.byteLength} bytes — sha256 \`${digest}\``;
+    }),
+  );
+  return entries.join('\n');
+}
+
+/** Persist a terminal failure summary without publishing raw agent transcripts. */
 export async function preserveFailureEvidence(options: FailureEvidenceOptions): Promise<string> {
   const relativeDirectory = `.sandcastle/reports/issue-${options.issueNumber}`;
   const relativePath = `${relativeDirectory}/failure.md`;
   const reportDirectory = join(options.worktreePath, relativeDirectory);
-  const reproDirectory = join(reportDirectory, 'repro');
   const logNames = await issueLogNames(options.logsDirectory, options.issueNumber);
+  const manifest = await logManifest(options.logsDirectory, logNames);
 
+  await rm(reportDirectory, { force: true, recursive: true });
   await mkdir(reportDirectory, { recursive: true });
-  if (logNames.length > 0) {
-    await mkdir(reproDirectory, { recursive: true });
-    await Promise.all(
-      logNames.map((name) =>
-        copyFile(join(options.logsDirectory, name), join(reproDirectory, name)),
-      ),
-    );
-  }
-
-  const reproSummary =
-    logNames.length === 0
-      ? 'No captured agent logs were available.'
-      : logNames.map((name) => `- [${name}](repro/${name})`).join('\n');
   await writeFile(
     join(options.worktreePath, relativePath),
-    `# Sandcastle terminal failure\n\n${options.reason}\n\n## Repro logs\n\n${reproSummary}\n`,
+    `# Sandcastle terminal failure\n\nSandcastle workflow failed (failure ID: ${options.failureId}). Raw details are retained only on the runner host.\n\n## Repro evidence\n\nRaw logs are retained only on the runner host and are not copied into Git.\n\n${manifest}\n`,
   );
 
   return relativePath;

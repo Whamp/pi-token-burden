@@ -7,6 +7,7 @@ import { pathToFileURL } from 'node:url';
 import { createSandbox, pi, type PiOptions, type Sandbox } from '@ai-hero/sandcastle';
 import { docker } from '@ai-hero/sandcastle/sandboxes/docker';
 
+import { durableGitHubUrl } from './lib/durableGitHubUrl.js';
 import { IssueRoute } from './lib/enums.js';
 import {
   claimIssue,
@@ -20,6 +21,8 @@ import {
 } from './lib/github.js';
 import { logError, logInfo } from './lib/logger.js';
 import { preserveFailureEvidence } from './lib/preserveFailureEvidence.js';
+import { recordFailure } from './lib/recordFailure.js';
+import { secureLogStore } from './lib/secureLogStore.js';
 import type { GitHubExecutor, RoutedIssue } from './lib/types.js';
 import { runImplementation, runResearch } from './lib/workflow.js';
 
@@ -30,6 +33,26 @@ const DEFAULT_REPOSITORY = 'Whamp/pi-token-burden';
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+async function recordIssueFailure(issueNumber: number, reason: string) {
+  try {
+    return await recordFailure({
+      issueNumber,
+      logsDirectory: resolve('.sandcastle', 'logs'),
+      reason,
+    });
+  } catch (error) {
+    logError('Failed to retain raw Sandcastle failure reason', {
+      error: errorMessage(error),
+      issueNumber,
+    });
+    return {
+      failureId: 'unavailable',
+      safeReason:
+        'Sandcastle workflow failed. Raw failure retention also failed; inspect runner stderr.',
+    };
+  }
 }
 
 function loadRunnerEnvironment(): void {
@@ -98,16 +121,35 @@ async function createIssueSandbox(selection: RoutedIssue, repository: string): P
   return sandbox;
 }
 
-async function pushBranch(sandbox: Sandbox): Promise<void> {
+async function pushBranch(sandbox: Sandbox): Promise<string> {
   const push = await sandbox.exec(`git push --set-upstream origin ${sandbox.branch}`);
   if (push.exitCode !== 0) {
     throw new Error(`Branch push failed: ${push.stderr}`);
   }
+  const head = await sandbox.exec('git rev-parse HEAD');
+  if (head.exitCode !== 0) {
+    throw new Error(`Pushed commit resolution failed: ${head.stderr}`);
+  }
+  return head.stdout.trim();
 }
 
-async function commitReports(sandbox: Sandbox, issueNumber: number): Promise<void> {
+async function commitReports(
+  sandbox: Sandbox,
+  issueNumber: number,
+  reportsPath: string,
+): Promise<void> {
+  const passMatch = /\/pass-([1-3])$/u.exec(reportsPath);
+  if (passMatch === null) {
+    throw new Error(`Invalid final reports path: ${reportsPath}`);
+  }
+  const passCount = Number(passMatch[1]);
+  const paths = Array.from({ length: passCount }, (_, index) => index + 1).flatMap((pass) => [
+    `.sandcastle/reports/issue-${issueNumber}/pass-${pass}/review-standards.json`,
+    `.sandcastle/reports/issue-${issueNumber}/pass-${pass}/review-spec.json`,
+    `.sandcastle/reports/issue-${issueNumber}/pass-${pass}/validation.json`,
+  ]);
   const commit = await sandbox.exec(
-    `git add .sandcastle/reports/issue-${issueNumber} && git commit -m "chore: add Sandcastle reports for issue ${issueNumber}"`,
+    `git add -f -- ${paths.join(' ')} && git commit -m "chore: add Sandcastle reports for issue ${issueNumber}"`,
   );
   if (commit.exitCode !== 0) {
     throw new Error(`Report commit failed: ${commit.stderr}`);
@@ -122,9 +164,14 @@ async function publishImplementation(
   reportsPath: string,
   summary: string,
 ): Promise<void> {
-  await commitReports(sandbox, selection.issue.number);
-  await pushBranch(sandbox);
-  const reportsUrl = `https://github.com/${repository}/tree/${sandbox.branch}/${reportsPath}`;
+  await commitReports(sandbox, selection.issue.number, reportsPath);
+  const commit = await pushBranch(sandbox);
+  const reportsUrl = durableGitHubUrl({
+    commit,
+    kind: 'tree',
+    path: reportsPath,
+    repository,
+  });
   const pullRequestUrl = await ensurePullRequest(
     execute,
     repository,
@@ -155,8 +202,13 @@ async function publishResearch(
   artifactPath: string,
   summary: string,
 ): Promise<void> {
-  await pushBranch(sandbox);
-  const artifactUrl = `https://github.com/${repository}/blob/${sandbox.branch}/${artifactPath}`;
+  const commit = await pushBranch(sandbox);
+  const artifactUrl = durableGitHubUrl({
+    commit,
+    kind: 'blob',
+    path: artifactPath,
+    repository,
+  });
   const pullRequestUrl = await ensurePullRequest(
     execute,
     repository,
@@ -183,22 +235,27 @@ async function preserveFailureReport(
   sandbox: Sandbox,
   repository: string,
   issueNumber: number,
-  reason: string,
+  failureId: string,
 ): Promise<string> {
   const relative = await preserveFailureEvidence({
+    failureId,
     issueNumber,
     logsDirectory: resolve('.sandcastle', 'logs'),
-    reason,
     worktreePath: sandbox.worktreePath,
   });
   const commit = await sandbox.exec(
-    `git add .sandcastle/reports/issue-${issueNumber} && git commit -m "chore: record Sandcastle failure for issue ${issueNumber}"`,
+    `git add -f -- ${relative} && git commit -m "chore: record Sandcastle failure for issue ${issueNumber}"`,
   );
   if (commit.exitCode !== 0) {
     throw new Error(`Failure report commit failed: ${commit.stderr}`);
   }
-  await pushBranch(sandbox);
-  return `https://github.com/${repository}/blob/${sandbox.branch}/${relative}`;
+  const commitSha = await pushBranch(sandbox);
+  return durableGitHubUrl({
+    commit: commitSha,
+    kind: 'blob',
+    path: relative,
+    repository,
+  });
 }
 
 async function processSelection(
@@ -244,6 +301,7 @@ async function processSelection(
         selection.issue,
         BASE_BRANCH,
         (message) => commentOnIssue(execute, repository, issueNumber, message),
+        resolve('.sandcastle', 'logs'),
       );
       await publishImplementation(
         execute,
@@ -256,25 +314,26 @@ async function processSelection(
     }
     await unassignIssue(execute, repository, issueNumber);
   } catch (error) {
-    const reason = errorMessage(error);
+    const failure = await recordIssueFailure(issueNumber, errorMessage(error));
     let report = 'No branch report was available because sandbox setup did not complete.';
     if (sandbox !== undefined) {
       try {
-        report = `Failure report and repro logs: ${await preserveFailureReport(
+        report = `Failure report and host-log manifest: ${await preserveFailureReport(
           sandbox,
           repository,
           issueNumber,
-          reason,
+          failure.failureId,
         )}`;
       } catch (reportError) {
-        report = `Failure report publication also failed: ${errorMessage(reportError)}`;
+        const reportFailure = await recordIssueFailure(issueNumber, errorMessage(reportError));
+        report = `Failure report publication also failed. ${reportFailure.safeReason}`;
       }
     }
     await escalateIssue(
       execute,
       repository,
       issueNumber,
-      `Sandcastle AFK stopped and needs human attention.\n\n${reason}\n\n${report}`,
+      `Sandcastle AFK stopped and needs human attention.\n\n${failure.safeReason}\n\n${report}`,
     );
   } finally {
     if (sandbox !== undefined) {
@@ -286,25 +345,31 @@ async function processSelection(
 /** Drain every currently eligible ready-for-agent issue. */
 // eslint-disable-next-line @factory/filename-match-export -- Issue #24 fixes the checked-in entrypoint path as .sandcastle/afk-runner.ts.
 export async function runAfk(): Promise<void> {
-  loadRunnerEnvironment();
-  const execute = createGitHubExecutor();
-  const repository = process.env.SANDCASTLE_GITHUB_REPOSITORY ?? DEFAULT_REPOSITORY;
-  const skipped = new Set<number>();
+  const previousUmask = process.umask(0o077);
+  try {
+    loadRunnerEnvironment();
+    await secureLogStore(resolve('.sandcastle', 'logs')).harden();
+    const execute = createGitHubExecutor();
+    const repository = process.env.SANDCASTLE_GITHUB_REPOSITORY ?? DEFAULT_REPOSITORY;
+    const skipped = new Set<number>();
 
-  while (true) {
-    const selection = await discoverNextIssue(execute, repository, skipped);
-    if (selection === undefined) {
-      logInfo('Sandcastle AFK queue is empty.');
-      return;
+    while (true) {
+      const selection = await discoverNextIssue(execute, repository, skipped);
+      if (selection === undefined) {
+        logInfo('Sandcastle AFK queue is empty.');
+        return;
+      }
+      if (!(await claimIssue(execute, repository, selection))) {
+        skipped.add(selection.issue.number);
+        logInfo('Skipped issue after claim revalidation', {
+          issueNumber: selection.issue.number,
+        });
+        continue;
+      }
+      await processSelection(execute, repository, selection);
     }
-    if (!(await claimIssue(execute, repository, selection))) {
-      skipped.add(selection.issue.number);
-      logInfo('Skipped issue after claim revalidation', {
-        issueNumber: selection.issue.number,
-      });
-      continue;
-    }
-    await processSelection(execute, repository, selection);
+  } finally {
+    process.umask(previousUmask);
   }
 }
 

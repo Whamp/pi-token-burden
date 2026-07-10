@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -6,7 +6,12 @@ import type { AgentProvider, Sandbox, SandboxRunResult } from '@ai-hero/sandcast
 import { fromPartial } from '@total-typescript/shoehorn';
 
 import type { IssueContext } from './types.js';
-import { runImplementation, parseResearchResult, parseReviewResult } from './workflow.js';
+import {
+  runImplementation,
+  runResearch,
+  parseResearchResult,
+  parseReviewResult,
+} from './workflow.js';
 
 function implementationOutput(attempt: number): string {
   return `<implementationResult>${JSON.stringify({
@@ -24,6 +29,18 @@ function implementationOutput(attempt: number): string {
   })}</implementationResult>`;
 }
 
+function researchOutput(artifactPath: string): string {
+  return `<researchResult>${JSON.stringify({
+    artifactPath,
+    automationGaps: [],
+    axis: 'research',
+    decisions: ['Use Docker'],
+    evidence: [{ claim: 'The API supports Docker', source: 'https://example.com' }],
+    openQuestions: [],
+    summary: 'Runtime contract',
+  })}</researchResult>`;
+}
+
 const ISSUE: IssueContext = {
   body: 'Implement the requested behavior.',
   createdAt: '2026-07-09T12:00:00Z',
@@ -35,6 +52,8 @@ const ISSUE: IssueContext = {
 describe('runImplementation()', () => {
   it('orders merged fix findings by severity before resuming implementation', async () => {
     const worktreePath = await mkdtemp(join(tmpdir(), 'sandcastle-workflow-'));
+    const logsDirectory = await mkdtemp(join(tmpdir(), 'sandcastle-host-logs-'));
+    await chmod(logsDirectory, 0o755);
     const standardsFail =
       '<reviewStandards>{"axis":"standards","verdict":"fail","blocking":true,"findings":[{"file":"src/low.ts","line":1,"severity":"low","issue":"Low issue","requiredFix":"Fix low"}]}</reviewStandards>';
     const specFail =
@@ -61,7 +80,14 @@ describe('runImplementation()', () => {
       fork: passingFork,
       stdout: implementationOutput(2),
     });
-    const resume = vi.fn<NonNullable<SandboxRunResult['resume']>>().mockResolvedValue(secondWork);
+    const resume = vi.fn<NonNullable<SandboxRunResult['resume']>>().mockImplementation(async () => {
+      const passOne = join(worktreePath, '.sandcastle', 'reports', 'issue-42', 'pass-1');
+      await Promise.all([
+        writeFile(join(passOne, 'injected.txt'), 'GH_TOKEN=ghp_injected_secret\n'),
+        writeFile(join(passOne, 'validation.json'), 'GH_TOKEN=ghp_injected_secret\n'),
+      ]);
+      return secondWork;
+    });
     const firstWork = fromPartial<SandboxRunResult>({
       fork: failingFork,
       resume,
@@ -73,7 +99,7 @@ describe('runImplementation()', () => {
         fromPartial({
           exitCode: 0,
           stderr: '',
-          stdout: '',
+          stdout: 'GH_TOKEN=ghp_validator_secret\n',
         }),
       ),
       run: vi.fn<Sandbox['run']>().mockResolvedValue(firstWork),
@@ -87,6 +113,7 @@ describe('runImplementation()', () => {
         ISSUE,
         'main',
         vi.fn<(message: string) => Promise<void>>().mockResolvedValue(undefined),
+        logsDirectory,
       );
 
       expect(failingFork).toHaveBeenCalledWith(expect.any(String), {
@@ -98,8 +125,39 @@ describe('runImplementation()', () => {
       expect(resume).toHaveBeenCalledWith(expect.stringMatching(/- high:[\s\S]*- low:/u), {
         name: 'fix-pass-2',
       });
+      const validationReport = await readFile(
+        join(worktreePath, '.sandcastle', 'reports', 'issue-42', 'pass-2', 'validation.json'),
+        'utf8',
+      );
+      expect(validationReport).not.toContain('ghp_validator_secret');
+      expect(validationReport).toContain('outputBytes');
+      const passOneValidation = await readFile(
+        join(worktreePath, '.sandcastle', 'reports', 'issue-42', 'pass-1', 'validation.json'),
+        'utf8',
+      );
+      expect(passOneValidation).not.toContain('ghp_injected_secret');
+      await expect(
+        readFile(
+          join(worktreePath, '.sandcastle', 'reports', 'issue-42', 'pass-1', 'injected.txt'),
+          'utf8',
+        ),
+      ).rejects.toThrow();
+      expect(validationReport).toContain('outputSha256');
+      await expect(
+        readFile(
+          join(worktreePath, '.sandcastle', 'reports', 'issue-42', 'pass-2', 'check.log'),
+          'utf8',
+        ),
+      ).rejects.toThrow();
+      const validatorLog = join(logsDirectory, 'sandcastle-issue-42-pass-2-check.log');
+      await expect(readFile(validatorLog, 'utf8')).resolves.toContain('ghp_validator_secret');
+      expect((await stat(logsDirectory)).mode & 0o777).toBe(0o700);
+      expect((await stat(validatorLog)).mode & 0o777).toBe(0o600);
     } finally {
-      await rm(worktreePath, { force: true, recursive: true });
+      await Promise.all([
+        rm(logsDirectory, { force: true, recursive: true }),
+        rm(worktreePath, { force: true, recursive: true }),
+      ]);
     }
   });
 
@@ -145,6 +203,7 @@ describe('runImplementation()', () => {
         ISSUE,
         'main',
         vi.fn<(message: string) => Promise<void>>().mockResolvedValue(undefined),
+        join(worktreePath, 'host-logs'),
       );
 
       expect(resume).toHaveBeenCalledWith(expect.stringContaining('<implementationResult>'), {
@@ -156,11 +215,177 @@ describe('runImplementation()', () => {
   });
 });
 
+describe('runResearch()', () => {
+  it('rejects a cited artifact that escapes docs/research', async () => {
+    const worktreePath = await mkdtemp(join(tmpdir(), 'sandcastle-research-'));
+    await writeFile(join(worktreePath, 'outside.md'), '# Outside');
+    const stdout = researchOutput('docs/research/../../outside.md');
+    const sandbox = fromPartial<Sandbox>({
+      run: vi.fn().mockResolvedValue(fromPartial<SandboxRunResult>({ stdout })),
+      worktreePath,
+    });
+
+    try {
+      await expect(runResearch(sandbox, fromPartial<AgentProvider>({}), ISSUE)).rejects.toThrow(
+        'Research result or cited artifact contract was invalid',
+      );
+    } finally {
+      await rm(worktreePath, { force: true, recursive: true });
+    }
+  });
+
+  it('rejects an artifact that is not a committed blob at HEAD', async () => {
+    const worktreePath = await mkdtemp(join(tmpdir(), 'sandcastle-research-'));
+    const artifactPath = 'docs/research/runtime.md';
+    await mkdir(join(worktreePath, 'docs', 'research'), { recursive: true });
+    await writeFile(join(worktreePath, artifactPath), '# Runtime');
+    const stdout = researchOutput(artifactPath);
+    const sandbox = fromPartial<Sandbox>({
+      exec: vi.fn().mockResolvedValue({ exitCode: 1, stderr: 'not found', stdout: '' }),
+      run: vi.fn().mockResolvedValue(fromPartial<SandboxRunResult>({ stdout })),
+      worktreePath,
+    });
+
+    try {
+      await expect(runResearch(sandbox, fromPartial<AgentProvider>({}), ISSUE)).rejects.toThrow(
+        'Research artifact is not committed at branch HEAD',
+      );
+    } finally {
+      await rm(worktreePath, { force: true, recursive: true });
+    }
+  });
+
+  it('rejects a worktree artifact whose content differs from HEAD', async () => {
+    const worktreePath = await mkdtemp(join(tmpdir(), 'sandcastle-research-'));
+    const artifactPath = 'docs/research/modified.md';
+    await mkdir(join(worktreePath, 'docs', 'research'), { recursive: true });
+    await writeFile(join(worktreePath, artifactPath), '# Modified after commit');
+    const exec = vi.fn<Sandbox['exec']>().mockImplementation(async (command) => {
+      if (command.startsWith('git ls-tree ')) {
+        return {
+          exitCode: 0,
+          stderr: '',
+          stdout: `100644 blob ${'a'.repeat(40)}\t${artifactPath}\0`,
+        };
+      }
+      if (command.startsWith('git hash-object ')) {
+        return { exitCode: 0, stderr: '', stdout: `${'b'.repeat(40)}\n` };
+      }
+      return { exitCode: 0, stderr: '', stdout: '' };
+    });
+    const sandbox = fromPartial<Sandbox>({
+      exec,
+      run: vi
+        .fn()
+        .mockResolvedValue(fromPartial<SandboxRunResult>({ stdout: researchOutput(artifactPath) })),
+      worktreePath,
+    });
+
+    try {
+      await expect(runResearch(sandbox, fromPartial<AgentProvider>({}), ISSUE)).rejects.toThrow(
+        'Research artifact is not committed at branch HEAD',
+      );
+    } finally {
+      await rm(worktreePath, { force: true, recursive: true });
+    }
+  });
+
+  it('accepts a regular Markdown artifact committed as a blob', async () => {
+    const worktreePath = await mkdtemp(join(tmpdir(), 'sandcastle-research-'));
+    const artifactPath = "docs/research/will's-runtime.md";
+    await mkdir(join(worktreePath, 'docs', 'research'), { recursive: true });
+    await writeFile(join(worktreePath, artifactPath), '# Runtime');
+    const oid = 'a'.repeat(40);
+    const exec = vi
+      .fn<Sandbox['exec']>()
+      .mockImplementation(async (command) =>
+        command.startsWith('git ls-tree ')
+          ? { exitCode: 0, stderr: '', stdout: `100644 blob ${oid}\t${artifactPath}\0` }
+          : { exitCode: 0, stderr: '', stdout: `${oid}\n` },
+      );
+    const sandbox = fromPartial<Sandbox>({
+      exec,
+      run: vi
+        .fn()
+        .mockResolvedValue(fromPartial<SandboxRunResult>({ stdout: researchOutput(artifactPath) })),
+      worktreePath,
+    });
+
+    try {
+      await expect(
+        runResearch(sandbox, fromPartial<AgentProvider>({}), ISSUE),
+      ).resolves.toMatchObject({ artifactPath });
+      expect(exec).toHaveBeenCalledWith(
+        `git ls-tree -z HEAD -- 'docs/research/will'"'"'s-runtime.md'`,
+      );
+      expect(exec).toHaveBeenCalledWith(
+        `git hash-object --path='docs/research/will'"'"'s-runtime.md' -- 'docs/research/will'"'"'s-runtime.md'`,
+      );
+    } finally {
+      await rm(worktreePath, { force: true, recursive: true });
+    }
+  });
+
+  it('rejects a committed symlink whose name ends in .md', async () => {
+    const worktreePath = await mkdtemp(join(tmpdir(), 'sandcastle-research-'));
+    const artifactPath = 'docs/research/linked.md';
+    await mkdir(join(worktreePath, 'docs', 'research'), { recursive: true });
+    await writeFile(join(worktreePath, 'outside.md'), '# Outside');
+    await symlink('../../outside.md', join(worktreePath, artifactPath));
+    const sandbox = fromPartial<Sandbox>({
+      exec: vi.fn<Sandbox['exec']>().mockResolvedValue({
+        exitCode: 0,
+        stderr: '',
+        stdout: 'blob\n',
+      }),
+      run: vi
+        .fn()
+        .mockResolvedValue(fromPartial<SandboxRunResult>({ stdout: researchOutput(artifactPath) })),
+      worktreePath,
+    });
+
+    try {
+      await expect(runResearch(sandbox, fromPartial<AgentProvider>({}), ISSUE)).rejects.toThrow(
+        'Research result or cited artifact contract was invalid',
+      );
+    } finally {
+      await rm(worktreePath, { force: true, recursive: true });
+    }
+  });
+
+  it('rejects a directory whose name ends in .md', async () => {
+    const worktreePath = await mkdtemp(join(tmpdir(), 'sandcastle-research-'));
+    const artifactPath = 'docs/research/not-a-file.md';
+    await mkdir(join(worktreePath, artifactPath), { recursive: true });
+    const exec = vi.fn<Sandbox['exec']>();
+    const sandbox = fromPartial<Sandbox>({
+      exec,
+      run: vi
+        .fn()
+        .mockResolvedValue(fromPartial<SandboxRunResult>({ stdout: researchOutput(artifactPath) })),
+      worktreePath,
+    });
+
+    try {
+      await expect(runResearch(sandbox, fromPartial<AgentProvider>({}), ISSUE)).rejects.toThrow(
+        'Research result or cited artifact contract was invalid',
+      );
+      expect(exec).not.toHaveBeenCalled();
+    } finally {
+      await rm(worktreePath, { force: true, recursive: true });
+    }
+  });
+});
+
 describe('workflow result contracts', () => {
   it('accepts the exact review contract and rejects malformed findings', () => {
     const valid =
       '<reviewSpec>{"axis":"spec","verdict":"fail","blocking":true,"findings":[{"severity":"high","file":"src/a.ts","line":7,"issue":"Missing behavior","requiredFix":"Implement it"}]}</reviewSpec>';
     const invalid = '<reviewSpec>{"axis":"spec","verdict":"pass","findings":[]}</reviewSpec>';
+    const contradictoryPass =
+      '<reviewSpec>{"axis":"spec","verdict":"pass","blocking":true,"findings":[{"severity":"high","file":"src/a.ts","line":7,"issue":"Still blocked","requiredFix":"Implement it"}]}</reviewSpec>';
+    const contradictoryFail =
+      '<reviewSpec>{"axis":"spec","verdict":"fail","blocking":false,"findings":[]}</reviewSpec>';
     const wrongAxis = valid.replaceAll('reviewSpec', 'reviewStandards');
 
     expect(parseReviewResult(valid, 'reviewSpec')).toStrictEqual({
@@ -178,6 +403,8 @@ describe('workflow result contracts', () => {
       verdict: 'fail',
     });
     expect(parseReviewResult(invalid, 'reviewSpec')).toBeUndefined();
+    expect(parseReviewResult(contradictoryPass, 'reviewSpec')).toBeUndefined();
+    expect(parseReviewResult(contradictoryFail, 'reviewSpec')).toBeUndefined();
     expect(parseReviewResult(wrongAxis, 'reviewStandards')).toBeUndefined();
   });
 
