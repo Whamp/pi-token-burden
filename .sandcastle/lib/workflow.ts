@@ -70,6 +70,42 @@ function requireFork(result: SandboxRunResult): NonNullable<SandboxRunResult['fo
   return result.fork;
 }
 
+async function repairImplementationOutput(
+  result: SandboxRunResult,
+  expectedAttempt: number,
+): Promise<SandboxRunResult> {
+  if (implementationOutputIsValid(result.stdout, expectedAttempt)) {
+    return result;
+  }
+  const repaired = await requireResume(result)(
+    `Do not edit files. Return only the required <implementationResult> JSON block for attempt ${expectedAttempt}, accurately summarizing the work already committed.`,
+    { name: `implementation-output-${expectedAttempt}`, promptArgs: {} },
+  );
+  if (!implementationOutputIsValid(repaired.stdout, expectedAttempt)) {
+    throw new Error(`Implementation output contract was invalid for attempt ${expectedAttempt}`);
+  }
+  return repaired;
+}
+
+async function repairReviewOutput(
+  result: SandboxRunResult,
+  tag: 'reviewSpec' | 'reviewStandards',
+): Promise<ReviewResult> {
+  const parsed = parseReviewResult(result.stdout, tag);
+  if (parsed !== undefined) {
+    return parsed;
+  }
+  const repaired = await requireResume(result)(
+    `Do not edit files. Return only the required <${tag}> JSON block with your actual review verdict and findings.`,
+    { name: `${tag}-output-repair`, promptArgs: {} },
+  );
+  const repairedResult = parseReviewResult(repaired.stdout, tag);
+  if (repairedResult === undefined) {
+    throw new Error(`${tag} output contract was invalid after one repair`);
+  }
+  return repairedResult;
+}
+
 async function persistPassReports(
   sandbox: Sandbox,
   issueNumber: number,
@@ -150,7 +186,14 @@ export async function runResearch(
     },
     promptFile: '.sandcastle/prompts/research.md',
   });
-  const research = parseResearchResult(result.stdout);
+  let research = parseResearchResult(result.stdout);
+  if (research === undefined) {
+    const repaired = await requireResume(result)(
+      'Do not edit files. Return only the required <researchResult> JSON block, accurately summarizing the cited artifact already committed.',
+      { name: 'research-output-repair', promptArgs: {} },
+    );
+    research = parseResearchResult(repaired.stdout);
+  }
   if (
     research === undefined ||
     !research.artifactPath.startsWith('docs/research/') ||
@@ -187,9 +230,7 @@ export async function runImplementation(
     promptFile: '.sandcastle/prompts/implement.md',
   });
 
-  if (!implementationOutputIsValid(work.stdout, 1)) {
-    throw new Error('Initial implementation output contract was invalid');
-  }
+  work = await repairImplementationOutput(work, 1);
 
   let latestReportsPath = '';
   for (let pass = 1; pass <= MAX_PASSES; pass += 1) {
@@ -207,22 +248,13 @@ export async function runImplementation(
     ]);
     const fork = requireFork(work);
     const [standardsTurn, specTurn] = await Promise.all([
-      fork(standardsPrompt, {
-        name: 'review-standards',
-        promptArgs: {},
-      }),
-      fork(specPrompt, { name: 'review-spec', promptArgs: {} }),
+      fork(standardsPrompt, { name: 'review-standards' }),
+      fork(specPrompt, { name: 'review-spec' }),
     ]);
-    const standards = parseReviewResult(standardsTurn.stdout, 'reviewStandards');
-    const spec = parseReviewResult(specTurn.stdout, 'reviewSpec');
-    if (
-      standards === undefined ||
-      standards.axis !== 'standards' ||
-      spec === undefined ||
-      spec.axis !== 'spec'
-    ) {
-      throw new Error('Reviewer output axis or JSON contract was invalid');
-    }
+    const [standards, spec] = await Promise.all([
+      repairReviewOutput(standardsTurn, 'reviewStandards'),
+      repairReviewOutput(specTurn, 'reviewSpec'),
+    ]);
 
     const validation = await validateImplementation(sandbox);
     latestReportsPath = await persistPassReports(
@@ -260,11 +292,8 @@ export async function runImplementation(
     });
     work = await requireResume(work)(fixPrompt, {
       name: `fix-pass-${pass + 1}`,
-      promptArgs: {},
     });
-    if (!implementationOutputIsValid(work.stdout, pass + 1)) {
-      throw new Error(`Fix pass ${pass + 1} output contract was invalid`);
-    }
+    work = await repairImplementationOutput(work, pass + 1);
   }
   throw new Error(`Implementation failed after ${MAX_PASSES} passes`);
 }
