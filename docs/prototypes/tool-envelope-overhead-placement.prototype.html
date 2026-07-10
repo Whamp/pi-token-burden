@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="data:," />
+  <title>PROTOTYPE — Tool Envelope Overhead placement</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0c0f14; --panel: #151a23; --panel-2: #1d2430; --ink: #eef4ff; --muted: #9facbf;
+      --line: #2c3646; --good: #67e8a5; --warn: #fbbf24; --bad: #fb7185;
+      --prompt: #60a5fa; --tools: #a78bfa; --core: #38bdf8; --extension: #f472b6; --custom: #34d399; --overhead: #f59e0b; --inactive: #64748b;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: radial-gradient(circle at 20% -10%, rgba(96,165,250,.22), transparent 28rem), radial-gradient(circle at 95% 5%, rgba(167,139,250,.18), transparent 25rem), var(--bg); color: var(--ink); }
+    main { max-width: 1180px; margin: 0 auto; padding: 32px 20px; }
+    .eyebrow { color: var(--warn); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; font-size: 12px; }
+    h1 { margin: 8px 0 8px; font-size: clamp(30px, 5vw, 58px); line-height: .95; }
+    .subtitle { color: var(--muted); max-width: 900px; font-size: 18px; line-height: 1.55; }
+    .question { margin: 24px 0; border: 1px solid rgba(251,191,36,.35); background: rgba(251,191,36,.08); padding: 18px 20px; border-radius: 18px; font-size: 20px; line-height: 1.4; }
+    .grid { display: grid; gap: 18px; } .two { grid-template-columns: minmax(0, 1.15fr) minmax(320px, .85fr); } @media (max-width: 920px) { .two { grid-template-columns: 1fr; } }
+    .panel { background: rgba(21,26,35,.86); border: 1px solid var(--line); border-radius: 22px; box-shadow: 0 18px 70px rgba(0,0,0,.28); overflow: hidden; }
+    .panel header { padding: 18px 20px; border-bottom: 1px solid var(--line); background: rgba(255,255,255,.025); }
+    .panel h2, .panel h3 { margin: 0; }
+    .panel .body { padding: 18px 20px; }
+    .tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 20px 0; }
+    .tab { min-width: 0; border: 1px solid var(--line); color: var(--ink); background: var(--panel); border-radius: 16px; padding: 14px 12px; cursor: pointer; text-align: left; transition: .15s ease; }
+    .tab:hover, .tab.active { transform: translateY(-1px); border-color: var(--accent); background: color-mix(in oklab, var(--accent) 18%, var(--panel)); }
+    .tab strong { display: block; font-size: 15px; } .tab span { display: block; color: var(--muted); margin-top: 4px; font-size: 12px; }
+    @media (max-width: 600px) { .tabs { grid-template-columns: 1fr; } }
+    .hero-bar { display: flex; height: 32px; border-radius: 999px; overflow: hidden; background: #10141c; border: 1px solid var(--line); }
+    .seg { display: grid; place-items: center; min-width: 42px; font-size: 12px; font-weight: 800; color: #061018; }
+    .bar-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; color: var(--muted); font-size: 13px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+    .rows { display: grid; gap: 8px; margin-top: 16px; }
+    .row { display: grid; grid-template-columns: 26px minmax(0,1fr) auto; gap: 10px; align-items: center; border: 1px solid var(--line); border-radius: 14px; padding: 12px; background: rgba(255,255,255,.025); }
+    .row.child { margin-left: 24px; background: rgba(255,255,255,.04); } .row.grand { margin-left: 48px; opacity: .9; } .row.emphasis { border-color: rgba(245,158,11,.55); background: rgba(245,158,11,.08); }
+    .row .name { font-weight: 700; } .row .meta { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .pill { border-radius: 999px; padding: 5px 9px; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .callout { border-radius: 16px; padding: 14px; border: 1px solid; margin-top: 14px; line-height: 1.45; } .good { border-color: rgba(103,232,165,.35); background: rgba(103,232,165,.08); } .warn { border-color: rgba(251,191,36,.35); background: rgba(251,191,36,.08); } .bad { border-color: rgba(251,113,133,.35); background: rgba(251,113,133,.08); }
+    pre { margin: 0; overflow: auto; background: #080b10; border: 1px solid var(--line); border-radius: 16px; padding: 14px; color: #c7d2fe; font-size: 12px; line-height: 1.45; }
+    code { color: #bfdbfe; } a { color: #93c5fd; }
+    .footer { width: min(980px, calc(100vw - 28px)); margin: 0 auto 24px; background: rgba(12,15,20,.84); border: 1px solid var(--line); backdrop-filter: blur(14px); border-radius: 18px; padding: 12px 14px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; color: var(--muted); font-size: 13px; box-shadow: 0 16px 50px rgba(0,0,0,.45); }
+    .footer strong { color: var(--ink); }
+    .footer code { overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">Decision prototype — issue #19</div>
+    <h1>Two separate questions were getting mixed together.</h1>
+    <p class="subtitle">
+      We <strong>can</strong> show token counts per tool. The decision is only about the leftover provider/tool-call envelope tokens that are not honestly attributable to a specific tool.
+    </p>
+
+    <section class="question">
+      <strong>Better phrasing:</strong> Should the UI show each tool's schema token count, then add one separate <strong>Tool Envelope Overhead</strong> line item at the same drilldown level to make the total reconcile?
+    </section>
+
+    <div class="tabs" role="group" aria-label="Placement variants">
+      <button type="button" class="tab" aria-pressed="false" data-variant="toolSchemaPlusGlobalOverhead" style="--accent: var(--good)">
+        <strong>A. Per-tool schemas + one overhead row</strong>
+        <span>Recommended: detailed tools, honest overhead</span>
+      </button>
+      <button type="button" class="tab" aria-pressed="false" data-variant="sourceOverhead" style="--accent: var(--warn)">
+        <strong>B. Split overhead by source</strong>
+        <span>Looks useful, but attribution is guessed</span>
+      </button>
+      <button type="button" class="tab" aria-pressed="false" data-variant="perToolOverhead" style="--accent: var(--bad)">
+        <strong>C. Split overhead by tool</strong>
+        <span>Precise-looking numbers we cannot prove</span>
+      </button>
+    </div>
+
+    <div class="grid two">
+      <section class="panel">
+        <header><h2>Mock drilldown: Combined Tool Definitions</h2></header>
+        <div class="body">
+          <div class="hero-bar" aria-label="Top level budget bar">
+            <div class="seg" style="width: 72%; background: var(--prompt)">Combined System Prompt</div>
+            <div class="seg" style="width: 28%; background: var(--tools)">Combined Tool Definitions</div>
+          </div>
+          <div class="bar-legend">
+            <span><i class="dot" style="background: var(--prompt)"></i>Combined System Prompt — 31,200 tok</span>
+            <span><i class="dot" style="background: var(--tools)"></i>Combined Tool Definitions — 12,000 tok</span>
+          </div>
+          <div id="rows" class="rows"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <header><h2>What the row means</h2></header>
+        <div class="body">
+          <div id="verdict" aria-live="polite"></div>
+          <h3 style="margin-top: 18px; margin-bottom: 10px;">Accounting state</h3>
+          <pre id="state"></pre>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div class="footer">
+    <span><strong>Key point:</strong> per-tool schema counts are fine; per-tool overhead attribution is the questionable part.</span>
+    <span><code>?variant=toolSchemaPlusGlobalOverhead|sourceOverhead|perToolOverhead</code></span>
+  </div>
+
+  <script>
+    const totals = { combinedToolDefinitions: 12000, piCoreTools: 4800, extensionTools: 3700, sdkCustomTools: 2600, toolEnvelopeOverhead: 900, inactiveAvailableTools: 1450 };
+    const rows = {
+      toolSchemaPlusGlobalOverhead: [
+        ["▾", "Combined Tool Definitions", "active tool schemas + provider envelope", "12,000 tok", "top"],
+        ["▾", "Pi Core Tools", "sourceInfo.source === builtin", "4,800 tok", "child", "core"],
+        ["│", "read", "tool schema tokens", "1,400 tok", "grand", "core"],
+        ["│", "bash", "tool schema tokens", "1,900 tok", "grand", "core"],
+        ["│", "edit", "tool schema tokens", "1,500 tok", "grand", "core"],
+        ["▾", "Extension Tools", "sourceInfo.source is package/local/etc.", "3,700 tok", "child", "extension"],
+        ["│", "token-burden trace", "tool schema tokens", "2,100 tok", "grand", "extension"],
+        ["│", "codegraph", "tool schema tokens", "1,600 tok", "grand", "extension"],
+        ["▾", "SDK / Custom Tools", "sourceInfo.source === sdk", "2,600 tok", "child", "custom"],
+        ["│", "custom helper", "tool schema tokens", "2,600 tok", "grand", "custom"],
+        ["├", "Tool Envelope Overhead", "one counted reconciliation line; not assigned to any tool", "900 tok", "child emphasis", "overhead"],
+        ["└", "Inactive Available Tools", "collapsed by source; counterfactual; no envelope allocation", "+1,450 tok schema", "child", "inactive"]
+      ],
+      sourceOverhead: [
+        ["▾", "Combined Tool Definitions", "active tool schemas + provider envelope", "12,000 tok", "top"],
+        ["▾", "Pi Core Tools", "schemas + allocated overhead", "5,160 tok", "child", "core"],
+        ["│", "Tool schemas", "sum of per-tool schemas", "4,800 tok", "grand", "core"],
+        ["│", "Tool Envelope Overhead", "360 tok allocated to this source", "360 tok", "grand", "overhead"],
+        ["▾", "Extension Tools", "schemas + allocated overhead", "3,978 tok", "child", "extension"],
+        ["│", "Tool schemas", "sum of per-tool schemas", "3,700 tok", "grand", "extension"],
+        ["│", "Tool Envelope Overhead", "278 tok allocated to this source", "278 tok", "grand", "overhead"],
+        ["▾", "SDK / Custom Tools", "schemas + allocated overhead", "2,862 tok", "child", "custom"],
+        ["│", "Tool schemas", "sum of per-tool schemas", "2,600 tok", "grand", "custom"],
+        ["│", "Tool Envelope Overhead", "262 tok allocated to this source", "262 tok", "grand", "overhead"]
+      ],
+      perToolOverhead: [
+        ["▾", "Combined Tool Definitions", "active tool schemas + invented per-tool overhead", "12,000 tok", "top"],
+        ["▾", "Pi Core Tools", "schemas + invented per-tool overhead", "5,300 tok", "child", "core"],
+        ["│", "read", "schema 1,400 + invented overhead 150", "1,550 tok", "grand", "core"],
+        ["│", "bash", "schema 1,900 + invented overhead 180", "2,080 tok", "grand", "core"],
+        ["│", "edit", "schema 1,500 + invented overhead 170", "1,670 tok", "grand", "core"],
+        ["▾", "Extension Tools", "schemas + invented per-tool overhead", "3,950 tok", "child", "extension"],
+        ["│", "token-burden trace", "schema 2,100 + invented overhead 140", "2,240 tok", "grand", "extension"],
+        ["│", "codegraph", "schema 1,600 + invented overhead 110", "1,710 tok", "grand", "extension"],
+        ["▾", "SDK / Custom Tools", "schemas + invented per-tool overhead", "2,750 tok", "child", "custom"],
+        ["│", "custom helper", "schema 2,600 + invented overhead 150", "2,750 tok", "grand", "custom"]
+      ]
+    };
+    const variants = {
+      toolSchemaPlusGlobalOverhead: {
+        status: "Yes — this is the clarified recommendation.", className: "good",
+        text: "We split the tool-schema token count per tool. We do not split the envelope overhead per tool, because that overhead belongs to the serialized tool-list/provider envelope as a whole.",
+        invariant: "Combined Tool Definitions = Σ(source group tool schema tokens) + Tool Envelope Overhead",
+        detail: `The implementation can still drill down to individual tool schemas. The ${totals.toolEnvelopeOverhead.toLocaleString()} token envelope reconciliation remains one separate counted row.`,
+        state: {
+          separateToolEnvelopeOverheadLine: true,
+          overheadAllocation: "none",
+          equation: { combinedToolDefinitions: totals.combinedToolDefinitions, piCoreTools: totals.piCoreTools, extensionTools: totals.extensionTools, sdkCustomTools: totals.sdkCustomTools, toolEnvelopeOverhead: totals.toolEnvelopeOverhead, sumsCorrectly: totals.combinedToolDefinitions === totals.piCoreTools + totals.extensionTools + totals.sdkCustomTools + totals.toolEnvelopeOverhead }
+        }
+      },
+      sourceOverhead: {
+        status: "Possible UI, weak claim.", className: "warn",
+        text: "This assigns overhead to sources by a rule we invent, not by something measured. It can mislead users into thinking Extension Tools caused exactly 278 overhead tokens.",
+        invariant: "Combined Tool Definitions = Σ(source schemas + invented source overhead)",
+        detail: "This variant removes the separate global overhead row and distributes its tokens across source groups without evidence.",
+        state: { separateToolEnvelopeOverheadLine: false, overheadAllocation: "invented per source" }
+      },
+      perToolOverhead: {
+        status: "Avoid this claim.", className: "bad",
+        text: "This makes exact-looking overhead numbers for individual tools. That is not what we measured; the provider envelope is around the whole tools array/request shape.",
+        invariant: "Combined Tool Definitions = Σ(tool schemas + invented per-tool overhead)",
+        detail: "This variant removes the separate global overhead row and invents per-tool allocations that falsely imply measured causation.",
+        state: { separateToolEnvelopeOverheadLine: false, overheadAllocation: "invented per tool" }
+      }
+    };
+    function render(name) {
+      const selectedName = Object.hasOwn(variants, name) ? name : "toolSchemaPlusGlobalOverhead";
+      const variant = variants[selectedName];
+      document.querySelectorAll(".tab").forEach(btn => {
+        const selected = btn.dataset.variant === selectedName;
+        btn.classList.toggle("active", selected);
+        btn.setAttribute("aria-pressed", String(selected));
+      });
+      document.getElementById("rows").innerHTML = rows[selectedName].map(([mark, name, meta, value, level, color]) => `
+        <div class="row ${level.includes("child") ? "child" : level === "grand" ? "grand" : ""} ${level.includes("emphasis") ? "emphasis" : ""}">
+          <div style="color: var(--${color || "muted"}, var(--muted)); font-weight: 900;">${mark}</div>
+          <div><div class="name">${name}</div><div class="meta">${meta}</div></div>
+          <div class="pill">${value}</div>
+        </div>`).join("");
+      document.getElementById("verdict").innerHTML = `
+        <div class="callout ${variant.className}"><strong>${variant.status}</strong><br>${variant.text}</div>
+        <div class="callout ${variant.className === "good" ? "good" : "warn"}"><strong>Invariant</strong><br><code>${variant.invariant}</code></div>
+        <p style="color: var(--muted); line-height: 1.5;">${variant.detail}</p>`;
+      document.getElementById("state").textContent = JSON.stringify({
+        selectedVariant: selectedName,
+        perToolSchemaCounts: true,
+        ...variant.state,
+        recommendedDecision: "Show per-tool schema counts. Show one separate counted Tool Envelope Overhead row under Combined Tool Definitions, alongside source groups and inactive counterfactuals."
+      }, null, 2);
+      const url = new URL(window.location.href); url.searchParams.set("variant", selectedName); history.replaceState(null, "", url);
+    }
+    document.querySelectorAll(".tab").forEach(btn => btn.addEventListener("click", () => render(btn.dataset.variant)));
+    render(new URLSearchParams(location.search).get("variant") || "toolSchemaPlusGlobalOverhead");
+  </script>
+</body>
+</html>
