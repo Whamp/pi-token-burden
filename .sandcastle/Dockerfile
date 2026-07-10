@@ -27,7 +27,7 @@ RUN groupmod -o -g ${AGENT_GID} node && \
 # Sandcastle runs on the host; only Pi executes inside the sandbox.
 RUN npm install -g @earendil-works/pi-coding-agent@0.80.5
 
-RUN corepack enable && corepack install --global pnpm@10.3.0
+RUN corepack disable && npm install -g pnpm@10.3.0
 
 USER ${AGENT_UID}:${AGENT_GID}
 ENV HOME=/home/agent
