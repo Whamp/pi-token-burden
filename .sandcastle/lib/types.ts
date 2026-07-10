@@ -42,7 +42,7 @@ export interface ReviewFinding {
   readonly issue: string;
   readonly line: number;
   readonly requiredFix: string;
-  readonly severity: string;
+  readonly severity: 'high' | 'low' | 'medium';
 }
 
 /** Machine-readable result from one review axis. */

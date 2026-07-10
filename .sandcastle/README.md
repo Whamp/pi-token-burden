@@ -28,6 +28,10 @@ pnpm run sandcastle
 
 The runner loads `.sandcastle/.env` itself; do not `source` it. Sandcastle injects those variables into the Docker sandbox without mounting host Pi configuration.
 
+## Concurrency boundary
+
+Run only one Sandcastle claimer per GitHub identity. Assignee-only claims cannot distinguish two runners that share the same token user; both could accept the same claim. When multiple hosts or processes share a token, place an external mutex around `pnpm run sandcastle`.
+
 ## Behavior
 
 1. Run one coarse GitHub search per supported route label, merge results, and sort by `createdAt` then issue number.

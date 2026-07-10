@@ -89,10 +89,15 @@ describe('runImplementation()', () => {
         vi.fn<(message: string) => Promise<void>>().mockResolvedValue(undefined),
       );
 
-      expect(resume).toHaveBeenCalledWith(
-        expect.stringMatching(/- high:[\s\S]*- low:/u),
-        expect.objectContaining({ name: 'fix-pass-2' }),
-      );
+      expect(failingFork).toHaveBeenCalledWith(expect.any(String), {
+        name: 'review-standards',
+      });
+      expect(failingFork).toHaveBeenCalledWith(expect.any(String), {
+        name: 'review-spec',
+      });
+      expect(resume).toHaveBeenCalledWith(expect.stringMatching(/- high:[\s\S]*- low:/u), {
+        name: 'fix-pass-2',
+      });
     } finally {
       await rm(worktreePath, { force: true, recursive: true });
     }
