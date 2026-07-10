@@ -161,6 +161,10 @@ describe('workflow result contracts', () => {
     const valid =
       '<reviewSpec>{"axis":"spec","verdict":"fail","blocking":true,"findings":[{"severity":"high","file":"src/a.ts","line":7,"issue":"Missing behavior","requiredFix":"Implement it"}]}</reviewSpec>';
     const invalid = '<reviewSpec>{"axis":"spec","verdict":"pass","findings":[]}</reviewSpec>';
+    const contradictoryPass =
+      '<reviewSpec>{"axis":"spec","verdict":"pass","blocking":true,"findings":[{"severity":"high","file":"src/a.ts","line":7,"issue":"Still blocked","requiredFix":"Implement it"}]}</reviewSpec>';
+    const contradictoryFail =
+      '<reviewSpec>{"axis":"spec","verdict":"fail","blocking":false,"findings":[]}</reviewSpec>';
     const wrongAxis = valid.replaceAll('reviewSpec', 'reviewStandards');
 
     expect(parseReviewResult(valid, 'reviewSpec')).toStrictEqual({
@@ -178,6 +182,8 @@ describe('workflow result contracts', () => {
       verdict: 'fail',
     });
     expect(parseReviewResult(invalid, 'reviewSpec')).toBeUndefined();
+    expect(parseReviewResult(contradictoryPass, 'reviewSpec')).toBeUndefined();
+    expect(parseReviewResult(contradictoryFail, 'reviewSpec')).toBeUndefined();
     expect(parseReviewResult(wrongAxis, 'reviewStandards')).toBeUndefined();
   });
 

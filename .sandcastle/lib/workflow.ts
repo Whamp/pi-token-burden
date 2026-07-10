@@ -32,7 +32,14 @@ export function parseReviewResult(
   const text = taggedText(stdout, tag);
   const result = text === undefined ? undefined : decodeJson(REVIEW_RESULT_SCHEMA, text);
   const expectedAxis = tag === 'reviewSpec' ? 'spec' : 'standards';
-  return result?.axis === expectedAxis ? result : undefined;
+  if (result?.axis !== expectedAxis) {
+    return undefined;
+  }
+  const coherentPass =
+    result.verdict === 'pass' && !result.blocking && result.findings.length === 0;
+  const coherentFailure =
+    result.verdict === 'fail' && result.blocking && result.findings.length > 0;
+  return coherentPass || coherentFailure ? result : undefined;
 }
 
 /** Parse and validate the research route result block. */
