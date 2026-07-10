@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 interface FailureEvidenceOptions {
@@ -51,6 +51,7 @@ export async function preserveFailureEvidence(options: FailureEvidenceOptions): 
   const logNames = await issueLogNames(options.logsDirectory, options.issueNumber);
   const manifest = await logManifest(options.logsDirectory, logNames);
 
+  await rm(reportDirectory, { force: true, recursive: true });
   await mkdir(reportDirectory, { recursive: true });
   await writeFile(
     join(options.worktreePath, relativePath),

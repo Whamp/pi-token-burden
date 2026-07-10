@@ -132,9 +132,23 @@ async function pushBranch(sandbox: Sandbox): Promise<string> {
   return head.stdout.trim();
 }
 
-async function commitReports(sandbox: Sandbox, issueNumber: number): Promise<void> {
+async function commitReports(
+  sandbox: Sandbox,
+  issueNumber: number,
+  reportsPath: string,
+): Promise<void> {
+  const passMatch = /\/pass-([1-3])$/u.exec(reportsPath);
+  if (passMatch === null) {
+    throw new Error(`Invalid final reports path: ${reportsPath}`);
+  }
+  const passCount = Number(passMatch[1]);
+  const paths = Array.from({ length: passCount }, (_, index) => index + 1).flatMap((pass) => [
+    `.sandcastle/reports/issue-${issueNumber}/pass-${pass}/review-standards.json`,
+    `.sandcastle/reports/issue-${issueNumber}/pass-${pass}/review-spec.json`,
+    `.sandcastle/reports/issue-${issueNumber}/pass-${pass}/validation.json`,
+  ]);
   const commit = await sandbox.exec(
-    `git add .sandcastle/reports/issue-${issueNumber} && git commit -m "chore: add Sandcastle reports for issue ${issueNumber}"`,
+    `git add -f -- ${paths.join(' ')} && git commit -m "chore: add Sandcastle reports for issue ${issueNumber}"`,
   );
   if (commit.exitCode !== 0) {
     throw new Error(`Report commit failed: ${commit.stderr}`);
@@ -149,7 +163,7 @@ async function publishImplementation(
   reportsPath: string,
   summary: string,
 ): Promise<void> {
-  await commitReports(sandbox, selection.issue.number);
+  await commitReports(sandbox, selection.issue.number, reportsPath);
   const commit = await pushBranch(sandbox);
   const reportsUrl = durableGitHubUrl({
     commit,
@@ -229,7 +243,7 @@ async function preserveFailureReport(
     worktreePath: sandbox.worktreePath,
   });
   const commit = await sandbox.exec(
-    `git add .sandcastle/reports/issue-${issueNumber} && git commit -m "chore: record Sandcastle failure for issue ${issueNumber}"`,
+    `git add -f -- ${relative} && git commit -m "chore: record Sandcastle failure for issue ${issueNumber}"`,
   );
   if (commit.exitCode !== 0) {
     throw new Error(`Failure report commit failed: ${commit.stderr}`);

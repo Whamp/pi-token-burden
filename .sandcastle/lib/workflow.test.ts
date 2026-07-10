@@ -79,7 +79,14 @@ describe('runImplementation()', () => {
       fork: passingFork,
       stdout: implementationOutput(2),
     });
-    const resume = vi.fn<NonNullable<SandboxRunResult['resume']>>().mockResolvedValue(secondWork);
+    const resume = vi.fn<NonNullable<SandboxRunResult['resume']>>().mockImplementation(async () => {
+      const passOne = join(worktreePath, '.sandcastle', 'reports', 'issue-42', 'pass-1');
+      await Promise.all([
+        writeFile(join(passOne, 'injected.txt'), 'GH_TOKEN=ghp_injected_secret\n'),
+        writeFile(join(passOne, 'validation.json'), 'GH_TOKEN=ghp_injected_secret\n'),
+      ]);
+      return secondWork;
+    });
     const firstWork = fromPartial<SandboxRunResult>({
       fork: failingFork,
       resume,
@@ -123,6 +130,17 @@ describe('runImplementation()', () => {
       );
       expect(validationReport).not.toContain('ghp_validator_secret');
       expect(validationReport).toContain('outputBytes');
+      const passOneValidation = await readFile(
+        join(worktreePath, '.sandcastle', 'reports', 'issue-42', 'pass-1', 'validation.json'),
+        'utf8',
+      );
+      expect(passOneValidation).not.toContain('ghp_injected_secret');
+      await expect(
+        readFile(
+          join(worktreePath, '.sandcastle', 'reports', 'issue-42', 'pass-1', 'injected.txt'),
+          'utf8',
+        ),
+      ).rejects.toThrow();
       expect(validationReport).toContain('outputSha256');
       await expect(
         readFile(

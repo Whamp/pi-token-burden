@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { lstat, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 
 import type { AgentProvider, Sandbox, SandboxRunResult } from '@ai-hero/sandcastle';
@@ -126,41 +126,61 @@ function safeValidationReport(validation: ValidationResult): object {
   };
 }
 
+interface PassSnapshot {
+  readonly pass: number;
+  readonly spec: ReviewResult;
+  readonly standards: ReviewResult;
+  readonly validation: ValidationResult;
+}
+
 async function persistPassReports(
   sandbox: Sandbox,
   issueNumber: number,
-  pass: number,
-  standards: ReviewResult,
-  spec: ReviewResult,
-  validation: ValidationResult,
+  snapshots: readonly PassSnapshot[],
   logsDirectory: string,
 ): Promise<string> {
-  const relative = `.sandcastle/reports/issue-${issueNumber}/pass-${pass}`;
-  const directory = join(sandbox.worktreePath, relative);
+  const issueRelative = `.sandcastle/reports/issue-${issueNumber}`;
+  const issueDirectory = join(sandbox.worktreePath, issueRelative);
+  await rm(issueDirectory, { force: true, recursive: true });
   await Promise.all([
-    mkdir(directory, { recursive: true }),
+    mkdir(issueDirectory, { recursive: true }),
     mkdir(logsDirectory, { recursive: true }),
   ]);
-  await Promise.all([
-    writeFile(
-      join(directory, 'review-standards.json'),
-      `${JSON.stringify(standards, undefined, 2)}\n`,
-    ),
-    writeFile(join(directory, 'review-spec.json'), `${JSON.stringify(spec, undefined, 2)}\n`),
-    writeFile(
-      join(directory, 'validation.json'),
-      `${JSON.stringify(safeValidationReport(validation), undefined, 2)}\n`,
-    ),
-    writeFile(
-      join(logsDirectory, `sandcastle-issue-${issueNumber}-pass-${pass}-check.log`),
-      validation.check.output,
-    ),
-    writeFile(
-      join(logsDirectory, `sandcastle-issue-${issueNumber}-pass-${pass}-test-e2e.log`),
-      validation.testE2E.output,
-    ),
-  ]);
-  return relative;
+  await Promise.all(
+    snapshots.flatMap(({ pass, spec, standards, validation }) => {
+      const directory = join(issueDirectory, `pass-${pass}`);
+      return [
+        mkdir(directory, { recursive: true }).then(() =>
+          writeFile(
+            join(directory, 'review-standards.json'),
+            `${JSON.stringify(standards, undefined, 2)}\n`,
+          ),
+        ),
+        mkdir(directory, { recursive: true }).then(() =>
+          writeFile(join(directory, 'review-spec.json'), `${JSON.stringify(spec, undefined, 2)}\n`),
+        ),
+        mkdir(directory, { recursive: true }).then(() =>
+          writeFile(
+            join(directory, 'validation.json'),
+            `${JSON.stringify(safeValidationReport(validation), undefined, 2)}\n`,
+          ),
+        ),
+        writeFile(
+          join(logsDirectory, `sandcastle-issue-${issueNumber}-pass-${pass}-check.log`),
+          validation.check.output,
+        ),
+        writeFile(
+          join(logsDirectory, `sandcastle-issue-${issueNumber}-pass-${pass}-test-e2e.log`),
+          validation.testE2E.output,
+        ),
+      ];
+    }),
+  );
+  const latest = snapshots.at(-1);
+  if (latest === undefined) {
+    throw new Error('At least one pass report is required');
+  }
+  return `${issueRelative}/pass-${latest.pass}`;
 }
 
 async function validateImplementation(sandbox: Sandbox): Promise<ValidationResult> {
@@ -309,6 +329,7 @@ export async function runImplementation(
   work = await repairImplementationOutput(work, 1);
 
   let latestReportsPath = '';
+  const passSnapshots: PassSnapshot[] = [];
   for (let pass = 1; pass <= MAX_PASSES; pass += 1) {
     await onStage(`Implementation pass ${pass} completed; starting parallel review.`);
     const sharedValues = {
@@ -333,13 +354,11 @@ export async function runImplementation(
     ]);
 
     const validation = await validateImplementation(sandbox);
+    passSnapshots.push({ pass, spec, standards, validation });
     latestReportsPath = await persistPassReports(
       sandbox,
       issue.number,
-      pass,
-      standards,
-      spec,
-      validation,
+      passSnapshots,
       logsDirectory,
     );
     await onStage(
