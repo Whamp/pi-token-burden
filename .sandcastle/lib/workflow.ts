@@ -114,10 +114,13 @@ function findingsText(
   spec: ReviewResult,
   validation: ValidationResult,
 ): string {
-  const findings = [...standards.findings, ...spec.findings].map(
-    (finding) =>
-      `- ${finding.severity}: ${finding.file}:${finding.line} ${finding.issue}; required fix: ${finding.requiredFix}`,
-  );
+  const severityOrder = { high: 0, low: 2, medium: 1 };
+  const findings = [...standards.findings, ...spec.findings]
+    .sort((left, right) => severityOrder[left.severity] - severityOrder[right.severity])
+    .map(
+      (finding) =>
+        `- ${finding.severity}: ${finding.file}:${finding.line} ${finding.issue}; required fix: ${finding.requiredFix}`,
+    );
   if (!validation.check.passed) {
     findings.push('- validation: pnpm run check failed; inspect check.log');
   }
@@ -204,8 +207,11 @@ export async function runImplementation(
     ]);
     const fork = requireFork(work);
     const [standardsTurn, specTurn] = await Promise.all([
-      fork(standardsPrompt, { name: 'review-standards' }),
-      fork(specPrompt, { name: 'review-spec' }),
+      fork(standardsPrompt, {
+        name: 'review-standards',
+        promptArgs: {},
+      }),
+      fork(specPrompt, { name: 'review-spec', promptArgs: {} }),
     ]);
     const standards = parseReviewResult(standardsTurn.stdout, 'reviewStandards');
     const spec = parseReviewResult(specTurn.stdout, 'reviewSpec');
@@ -252,7 +258,10 @@ export async function runImplementation(
       FINDINGS: findingsText(standards, spec, validation),
       ISSUE_NUMBER: String(issue.number),
     });
-    work = await requireResume(work)(fixPrompt, { name: `fix-pass-${pass + 1}` });
+    work = await requireResume(work)(fixPrompt, {
+      name: `fix-pass-${pass + 1}`,
+      promptArgs: {},
+    });
     if (!implementationOutputIsValid(work.stdout, pass + 1)) {
       throw new Error(`Fix pass ${pass + 1} output contract was invalid`);
     }

@@ -53,7 +53,10 @@ function thinkingLevel(): PiOptions['thinking'] {
   }
 }
 
-async function createIssueSandbox(selection: RoutedIssue): Promise<Sandbox> {
+async function createIssueSandbox(selection: RoutedIssue, repository: string): Promise<Sandbox> {
+  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(repository)) {
+    throw new Error(`Invalid GitHub repository: ${repository}`);
+  }
   const cachePath = resolve('.sandcastle', 'cache', 'pnpm-store');
   await mkdir(cachePath, { recursive: true });
   const branch = `sandcastle/issue-${selection.issue.number}`;
@@ -70,7 +73,9 @@ async function createIssueSandbox(selection: RoutedIssue): Promise<Sandbox> {
       ],
     }),
   });
-  const install = await sandbox.exec('pnpm install --frozen-lockfile');
+  const install = await sandbox.exec(
+    'pnpm install --frozen-lockfile --store-dir /home/agent/.local/share/pnpm/store',
+  );
   if (install.exitCode !== 0) {
     await sandbox.close();
     throw new Error(`Sandbox dependency setup failed: ${install.stderr}`);
@@ -82,6 +87,7 @@ async function createIssueSandbox(selection: RoutedIssue): Promise<Sandbox> {
       'git config user.name "Sandcastle AFK"',
       'git config user.email "sandcastle@local.invalid"',
       'gh auth setup-git',
+      `git remote set-url origin "https://github.com/${repository}.git"`,
     ].join(' && '),
   );
   if (identity.exitCode !== 0) {
@@ -206,7 +212,7 @@ async function processSelection(
       issueNumber,
       `Claimed for Sandcastle AFK route: ${selection.route}.`,
     );
-    sandbox = await createIssueSandbox(selection);
+    sandbox = await createIssueSandbox(selection, repository);
     await commentOnIssue(
       execute,
       repository,
