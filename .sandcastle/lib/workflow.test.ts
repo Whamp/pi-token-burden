@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -220,6 +220,35 @@ describe('runResearch()', () => {
     }
   });
 
+  it('rejects a worktree artifact whose content differs from HEAD', async () => {
+    const worktreePath = await mkdtemp(join(tmpdir(), 'sandcastle-research-'));
+    const artifactPath = 'docs/research/modified.md';
+    await mkdir(join(worktreePath, 'docs', 'research'), { recursive: true });
+    await writeFile(join(worktreePath, artifactPath), '# Modified after commit');
+    const exec = vi
+      .fn<Sandbox['exec']>()
+      .mockImplementation(async (command) =>
+        command.startsWith('git cat-file -t ')
+          ? { exitCode: 0, stderr: '', stdout: 'blob\n' }
+          : { exitCode: 1, stderr: '', stdout: '' },
+      );
+    const sandbox = fromPartial<Sandbox>({
+      exec,
+      run: vi
+        .fn()
+        .mockResolvedValue(fromPartial<SandboxRunResult>({ stdout: researchOutput(artifactPath) })),
+      worktreePath,
+    });
+
+    try {
+      await expect(runResearch(sandbox, fromPartial<AgentProvider>({}), ISSUE)).rejects.toThrow(
+        'Research artifact is not committed at branch HEAD',
+      );
+    } finally {
+      await rm(worktreePath, { force: true, recursive: true });
+    }
+  });
+
   it('accepts a regular Markdown artifact committed as a blob', async () => {
     const worktreePath = await mkdtemp(join(tmpdir(), 'sandcastle-research-'));
     const artifactPath = "docs/research/will's-runtime.md";
@@ -242,6 +271,33 @@ describe('runResearch()', () => {
       ).resolves.toMatchObject({ artifactPath });
       expect(exec).toHaveBeenCalledWith(
         `git cat-file -t 'HEAD:docs/research/will'"'"'s-runtime.md'`,
+      );
+    } finally {
+      await rm(worktreePath, { force: true, recursive: true });
+    }
+  });
+
+  it('rejects a committed symlink whose name ends in .md', async () => {
+    const worktreePath = await mkdtemp(join(tmpdir(), 'sandcastle-research-'));
+    const artifactPath = 'docs/research/linked.md';
+    await mkdir(join(worktreePath, 'docs', 'research'), { recursive: true });
+    await writeFile(join(worktreePath, 'outside.md'), '# Outside');
+    await symlink('../../outside.md', join(worktreePath, artifactPath));
+    const sandbox = fromPartial<Sandbox>({
+      exec: vi.fn<Sandbox['exec']>().mockResolvedValue({
+        exitCode: 0,
+        stderr: '',
+        stdout: 'blob\n',
+      }),
+      run: vi
+        .fn()
+        .mockResolvedValue(fromPartial<SandboxRunResult>({ stdout: researchOutput(artifactPath) })),
+      worktreePath,
+    });
+
+    try {
+      await expect(runResearch(sandbox, fromPartial<AgentProvider>({}), ISSUE)).rejects.toThrow(
+        'Research result or cited artifact contract was invalid',
       );
     } finally {
       await rm(worktreePath, { force: true, recursive: true });

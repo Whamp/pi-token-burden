@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 
 import type { AgentProvider, Sandbox, SandboxRunResult } from '@ai-hero/sandcastle';
@@ -203,7 +203,7 @@ async function researchArtifactIsValid(
     return false;
   }
   try {
-    return (await stat(candidate)).isFile();
+    return (await lstat(candidate)).isFile();
   } catch {
     return false;
   }
@@ -248,6 +248,12 @@ export async function runResearch(
     `git cat-file -t ${quoteShellArgument(`HEAD:${research.artifactPath}`)}`,
   );
   if (committedType.exitCode !== 0 || committedType.stdout.trim() !== 'blob') {
+    throw new Error('Research artifact is not committed at branch HEAD');
+  }
+  const unchanged = await sandbox.exec(
+    `git diff --quiet HEAD -- ${quoteShellArgument(research.artifactPath)}`,
+  );
+  if (unchanged.exitCode !== 0) {
     throw new Error('Research artifact is not committed at branch HEAD');
   }
   return research;
