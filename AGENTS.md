@@ -2,15 +2,14 @@
 
 A pi extension that measures model-facing prompt and tool-schema tokens and presents the breakdown in the `/token-burden` TUI.
 
-## Evidence loop
+## Verification
 
-1. **Orient.** Run `napkin overview`, then search and read only the notes relevant to the task. Read `CONTEXT.md` before naming or changing domain concepts. Orientation is complete when the applicable vocabulary, decisions, and constraints are identified.
-2. **Plan.** For a multi-step change, write a plan and task list before editing production code. The plan is ready when each requirement has a verification step.
-3. **Red.** Before changing behavior, inspect the nearest tests and add or adjust the smallest test that expresses the requirement. Run it and confirm that it fails for the intended reason. Red is complete only when the failure demonstrates the missing behavior rather than a setup error.
-4. **Green.** Implement the smallest coherent change. Search for existing helpers, types, and patterns before adding another path. Green is complete when the new test passes and the implementation has one source of truth.
-5. **Close the loop.** Run the affected tests, then `pnpm run check`. For user-visible extension changes, also run `pi -e ./src/index.ts` and exercise the changed flow. Work is complete when every requirement is backed by passing command output or an exercised interface.
+- Inspect the nearest tests before changing behavior and add or adjust coverage appropriate to the change.
+- Run focused checks while working, then run `pnpm run check` before committing.
+- For user-visible extension changes, also run `pi -e ./src/index.ts` and exercise the changed flow.
+- For documentation-only changes, verify every path, command, and claim against the repository.
 
-For documentation-only changes, replace Red and Green with reference verification: check every path, command, and claim against the repository.
+Work is complete when each requirement is backed by passing command output or an exercised interface.
 
 When blocked, use **1-3-1**: state one problem, three options, and one recommendation, then wait for Will before implementing an option.
 
