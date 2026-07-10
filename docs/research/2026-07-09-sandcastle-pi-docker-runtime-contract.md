@@ -38,7 +38,7 @@ Sandcastle parses Pi JSON output for:
 
 Source: [`src/AgentProvider.ts:546-610`](https://github.com/mattpocock/sandcastle/blob/e99f832f26dc9d245c019a9ddd19fa5dee792427/src/AgentProvider.ts#L546-L610).
 
-Pi sessions are filesystem JSONL records under `~/.pi/agent/sessions/`, organized by working directory. Source: installed Pi docs at `/home/will/.local/share/mise/installs/node/24.16.0/lib/node_modules/@earendil-works/pi-coding-agent/docs/sessions.md:5-20`.
+Pi sessions are filesystem JSONL records under `~/.pi/agent/sessions/`, organized by working directory. Source: [Pi 0.80.5 session documentation](https://unpkg.com/@earendil-works/pi-coding-agent@0.80.5/docs/sessions.md).
 
 Sandcastle supports resume only for agents with filesystem-backed sessions, and explicitly treats Pi as one of those file-backed agents. Source: [`docs/adr/0016-resume-requires-filesystem-backed-sessions.md:5-15`](https://github.com/mattpocock/sandcastle/blob/e99f832f26dc9d245c019a9ddd19fa5dee792427/docs/adr/0016-resume-requires-filesystem-backed-sessions.md#L5-L15).
 
@@ -46,7 +46,7 @@ For Pi specifically, Sandcastle captures a sandbox session, rewrites the JSONL `
 
 ### Docker boundary and file access
 
-Pi’s own docs recommend “Plain Docker” when the whole Pi process should be isolated. In that pattern, provider API keys enter the container, the project directory is bind-mounted, and mounting the host `~/.pi/agent` exposes host auth/session files. Source: installed Pi docs at `/home/will/.local/share/mise/installs/node/24.16.0/lib/node_modules/@earendil-works/pi-coding-agent/docs/containerization.md:45-78`.
+Pi’s own docs recommend “Plain Docker” when the whole Pi process should be isolated. In that pattern, provider API keys enter the container, the project directory is bind-mounted, and mounting the host `~/.pi/agent` exposes host auth/session files. Source: [Pi 0.80.5 containerization documentation](https://unpkg.com/@earendil-works/pi-coding-agent@0.80.5/docs/containerization.md).
 
 Sandcastle’s Docker provider is a bind-mount sandbox provider: it mounts the Sandcastle worktree and git directories into a Docker container, uses `/home/agent` as the sandbox home, injects environment variables, and runs as the host UID/GID by default. Source: [`src/sandboxes/docker.ts:126-199`](https://github.com/mattpocock/sandcastle/blob/e99f832f26dc9d245c019a9ddd19fa5dee792427/src/sandboxes/docker.ts#L126-L199).
 
@@ -54,11 +54,11 @@ Sandcastle’s Docker image build command injects host UID/GID build args by def
 
 ### Do not mount Will’s host Pi auth/config
 
-Pi auth can live in `~/.pi/agent/auth.json` or provider-specific environment variables. Auth-file credentials take priority over env vars, and the auth file is also where subscription OAuth tokens live. Source: installed Pi docs at `/home/will/.local/share/mise/installs/node/24.16.0/lib/node_modules/@earendil-works/pi-coding-agent/docs/providers.md:14-22`, `:38-81`, `:83-107`, `:268-275`.
+Pi auth can live in `~/.pi/agent/auth.json` or provider-specific environment variables. Auth-file credentials take priority over env vars, and the auth file is also where subscription OAuth tokens live. Source: [Pi 0.80.5 provider and authentication documentation](https://unpkg.com/@earendil-works/pi-coding-agent@0.80.5/docs/providers.md).
 
-Because mounting host `~/.pi/agent` exposes host auth and session files, this workflow should not mount it. Use a sandbox-local `/home/agent/.pi/agent` plus explicit env vars instead. Pi’s Docker docs call out this exposure risk directly. Source: installed Pi docs at `/home/will/.local/share/mise/installs/node/24.16.0/lib/node_modules/@earendil-works/pi-coding-agent/docs/containerization.md:75-78`.
+Because mounting host `~/.pi/agent` exposes host auth and session files, this workflow should not mount it. Use a sandbox-local `/home/agent/.pi/agent` plus explicit env vars instead. Pi’s Docker docs call out this exposure risk directly. Source: [Pi 0.80.5 containerization documentation](https://unpkg.com/@earendil-works/pi-coding-agent@0.80.5/docs/containerization.md).
 
-Pi project trust matters for non-interactive runs: `-p`, `--mode json`, and `--mode rpc` cannot prompt, so they use `defaultProjectTrust` unless `--approve`/`--no-approve` is passed. Source: installed Pi docs at `/home/will/.local/share/mise/installs/node/24.16.0/lib/node_modules/@earendil-works/pi-coding-agent/docs/settings.md:12-22`.
+Pi project trust matters for non-interactive runs: `-p`, `--mode json`, and `--mode rpc` cannot prompt, so they use `defaultProjectTrust` unless `--approve`/`--no-approve` is passed. Source: [Pi 0.80.5 settings documentation](https://unpkg.com/@earendil-works/pi-coding-agent@0.80.5/docs/settings.md).
 
 Contract: create sandbox-local Pi settings, not secrets, during setup:
 
@@ -103,11 +103,11 @@ SANDCASTLE_PI_MODEL=anthropic/claude-sonnet-4.5
 SANDCASTLE_PI_THINKING=medium
 ```
 
-GitHub CLI uses `GH_TOKEN` before `GITHUB_TOKEN`, avoiding interactive auth prompts. Source: local `gh help environment` output.
+GitHub CLI uses `GH_TOKEN` before `GITHUB_TOKEN`, avoiding interactive auth prompts. Source: [GitHub CLI environment-variable reference](https://cli.github.com/manual/gh_help_environment).
 
 Sandcastle’s GitHub Issues scaffold currently documents `GH_TOKEN` with required repository permissions “Issues (Read and write)” and “Metadata (Read)”. Source: [`src/InitService.ts:530-543`](https://github.com/mattpocock/sandcastle/blob/e99f832f26dc9d245c019a9ddd19fa5dee792427/src/InitService.ts#L530-L543).
 
-PR-opening runs also need PR and branch push rights. GitHub’s fine-grained PAT permissions docs map PR creation to `Pull requests: write`; branch pushes require contents write access. Source: GitHub docs found through `web_search` on GitHub fine-grained PAT permissions and `gh pr create`.
+PR-opening runs also need PR and branch push rights. GitHub’s fine-grained PAT permissions docs map PR creation to `Pull requests: write`; branch pushes require contents write access. Sources: GitHub REST documentation for [creating pull requests](https://docs.github.com/en/rest/pulls/pulls#create-a-pull-request) and [creating Git references](https://docs.github.com/en/rest/git/refs#create-a-reference), including each endpoint's fine-grained token requirements.
 
 ### Docker image contents
 
@@ -120,9 +120,9 @@ Use a repo-specific Dockerfile, based on Sandcastle’s generated Pi Dockerfile 
 
 Evidence:
 
-- Pi docs’ Dockerfile installs `@earendil-works/pi-coding-agent` on Node 24. Source: installed Pi docs `docs/containerization.md:51-60`.
+- Pi docs’ Dockerfile installs `@earendil-works/pi-coding-agent` on Node 24. Source: [Pi 0.80.5 containerization documentation](https://unpkg.com/@earendil-works/pi-coding-agent@0.80.5/docs/containerization.md).
 - Sandcastle 0.12.0’s current Pi template still installs deprecated `@mariozechner/pi-coding-agent`. Source: [`src/InitService.ts:242-263`](https://github.com/mattpocock/sandcastle/blob/e99f832f26dc9d245c019a9ddd19fa5dee792427/src/InitService.ts#L242-L263); npm marks `@mariozechner/pi-coding-agent@0.73.1` deprecated in favor of `@earendil-works/pi-coding-agent`.
-- This repo declares `packageManager: "pnpm@10.3.0"` and scripts for `check` and `test:e2e`. Source: `package.json:23-37`, `package.json:63`.
+- This repo declares `packageManager: "pnpm@10.3.0"` and scripts for `check` and `test:e2e`. Source: `package.json:23-37`, `package.json:71`.
 - `pnpm run test:e2e` uses Vitest’s e2e config. Source: `vitest.config.e2e.ts:1-10`.
 - The e2e harness shells out to `tmux`, launches `pi -e ./src/index.ts`, and defaults to `--provider zai --model glm-4.7`. Source: `src/e2e/tmux-harness.ts:56-85`.
 
@@ -204,7 +204,7 @@ Sandcastle prompt shell expressions run inside the sandbox after `sandbox.onSand
 `pnpm run test:e2e` is required for implementation work by the map. It is higher-risk than unit checks in a Sandcastle Docker run because:
 
 1. It starts real tmux sessions and kills stale sessions by fixed names; concurrent AFK runs in the same sandbox/container can collide if names are not unique. Source: `src/e2e/tmux-harness.ts:45-85`, `:123-135`.
-2. It launches nested Pi processes with `pi -e ./src/index.ts`; those nested Pi processes need provider credentials for `--provider zai --model glm-4.7` unless tests are adjusted to use a provider available in the sandbox. Source: `src/e2e/tmux-harness.ts:56-85` and Pi provider env table `docs/providers.md:49-79`.
+2. It launches nested Pi processes with `pi -e ./src/index.ts`; those nested Pi processes need provider credentials for `--provider zai --model glm-4.7` unless tests are adjusted to use a provider available in the sandbox. Sources: `src/e2e/tmux-harness.ts:56-85` and the [Pi 0.80.5 provider environment-variable reference](https://unpkg.com/@earendil-works/pi-coding-agent@0.80.5/docs/providers.md).
 3. It relies on temp `PI_CODING_AGENT_DIR` directories to isolate user settings; the sandbox must allow temp-dir creation and cleanup. Source: `src/e2e/agent-dir.ts:5-23`.
 4. The test timeout is 30s per e2e test and hook timeout is 20s, while at least one e2e setup waits up to 120s for Pi startup; slow cold installs, network stalls, or provider delays can look like harness failure. Source: `vitest.config.e2e.ts:3-10`, `src/e2e/overlay.test.ts:134-153`.
 
@@ -215,33 +215,42 @@ Contract: implementation runs must execute `pnpm run check` and `pnpm run test:e
 ### Minimal runner shape
 
 ```ts
-import { pi, createSandbox } from "@ai-hero/sandcastle";
+import { resolve } from "node:path";
+
+import { createSandbox, pi } from "@ai-hero/sandcastle";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
 
-const model = process.env.SANDCASTLE_PI_MODEL ?? "anthropic/claude-sonnet-4.5";
-const thinking = process.env.SANDCASTLE_PI_THINKING ?? "medium";
-
 const sandbox = await createSandbox({
-  agent: pi(model, { thinking: thinking as "medium" }),
+  baseBranch: "main",
+  branch: "sandcastle/issue-<number>",
   sandbox: docker({
     imageName: "pi-token-burden-sandcastle:local",
     mounts: [
       {
-        hostPath: ".sandcastle/cache/pnpm-store",
+        hostPath: resolve(".sandcastle", "cache", "pnpm-store"),
         sandboxPath: "/home/agent/.local/share/pnpm/store",
       },
     ],
   }),
-  branchStrategy: { type: "branch", branch: "sandcastle/issue-<number>" },
-  hooks: {
-    sandbox: {
-      onSandboxReady: [
-        { command: "mkdir -p ~/.pi/agent" },
-        { command: "printf '%s\n' '{\"defaultProjectTrust\":\"never\",\"enableInstallTelemetry\":false}' > ~/.pi/agent/settings.json" },
-        { command: "pnpm install --frozen-lockfile" },
-      ],
-    },
-  },
+});
+
+await sandbox.exec(
+  "mkdir -p ~/.pi/agent && printf '%s\\n' " +
+    "'{\"defaultProjectTrust\":\"never\",\"enableInstallTelemetry\":false}' " +
+    "> ~/.pi/agent/settings.json",
+);
+await sandbox.exec(
+  "pnpm install --frozen-lockfile --store-dir /home/agent/.local/share/pnpm/store",
+);
+
+const result = await sandbox.run({
+  agent: pi("anthropic/claude-sonnet-4.5", {
+    captureSessions: true,
+    thinking: "medium",
+  }),
+  name: "implement",
+  promptArgs: { ISSUE_NUMBER: "<number>" },
+  promptFile: ".sandcastle/prompts/implement.md",
 });
 ```
 
