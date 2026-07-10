@@ -25,7 +25,7 @@ import { runImplementation, runResearch } from './lib/workflow.js';
 
 const BASE_BRANCH = 'main';
 const DEFAULT_IMAGE = 'pi-token-burden-sandcastle:local';
-const DEFAULT_MODEL = 'openai-codex/gpt-5.6-sol';
+const DEFAULT_MODEL = 'zai/glm-5.2';
 const DEFAULT_REPOSITORY = 'Whamp/pi-token-burden';
 
 function errorMessage(error: unknown): string {
@@ -40,7 +40,7 @@ function loadRunnerEnvironment(): void {
 }
 
 function thinkingLevel(): PiOptions['thinking'] {
-  const configured = process.env.SANDCASTLE_PI_THINKING ?? 'medium';
+  const configured = process.env.SANDCASTLE_PI_THINKING ?? 'xhigh';
   switch (configured) {
     case 'high':
     case 'low':
