@@ -5,7 +5,12 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['src/**/*.test.ts'],
-    exclude: ['src/e2e/**'],
+    include: ['src/**/*.test.ts', '.sandcastle/**/*.test.ts'],
+    exclude: [
+      '**/node_modules/**',
+      '.sandcastle/cache/**',
+      '.sandcastle/worktrees/**',
+      'src/e2e/**',
+    ],
   },
 });
