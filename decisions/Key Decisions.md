@@ -34,13 +34,28 @@ Use the `tui.stop()` / `tui.start()` pattern when launching external editors. Fi
 
 Temp files are not explicitly deleted after editor launch because asynchronous editors such as VS Code can fork and return before reading the file.
 
-## Base prompt tracing
+## Source Trace
 
-Use deterministic one-pass introspection rather than subprocess diffing. Attribution normalizes lines with whitespace collapsing and exact matching. Unmatched lines are labeled `Unattributed`.
+Attach Source Trace to Tool Prompt Text, not to Combined System Prompt or Pi Core Prompt. Trace the exact `Available tools` and `Guidelines` spans. Use deterministic one-pass introspection for the fast path: normalize and match evidence, preserve shared evidence as `Shared (multiple sources)`, and label unmatched text `Unattributed`. Optional subprocess analysis remains a separate, user-triggered deep mode.
 
 ## Tool definitions count
 
 Include tool/function schemas from `pi.getAllTools()` in the budget. These schemas are sent through the LLM tool-calling API and can be a substantial hidden context cost even when absent from literal system-prompt text.
+
+## Combined token burden taxonomy
+
+Use **Combined System Prompt** and **Combined Tool Definitions** as the top-level budget surfaces. "Combined" means the effective runtime surface is assembled from pi core plus user/project/extension contributions.
+
+- Combined System Prompt child rows: Pi Core Prompt, User System Prompt, Extension Prompt Additions, Tool Prompt Text, Project Instructions, Skill Catalog, Session Metadata, Prompt Boundary Overhead.
+- Combined Tool Definitions child rows: Pi Core Tools, Extension Tools, SDK / Custom Tools, Inactive Available Tools, Tool Envelope Overhead.
+
+Extension Prompt Additions is a non-counted row labeled **Not separately measurable**; its unknown contribution remains inside the Pi Core Prompt upper bound. Prompt Boundary Overhead is the counted reconciliation row for BPE boundary effects and separators between measured literal spans.
+
+Inactive Available Tools is a collapsed, non-counted counterfactual grouped by the same Pi Core, Extension, and SDK / Custom source taxonomy as active tools. Its source groups and per-tool leaves reconcile schema-only as `+N tok schema`; Tool Envelope Overhead is never allocated to the inactive branch.
+
+Do not keep **Base prompt** or **Preamble** as user-facing taxonomy. Those are implementation-shaped concepts; the user-facing model should show where the burden is carried and who/what contributed it.
+
+See [[docs/plans/2026-07-08-combined-token-burden-taxonomy|Combined Token Burden Taxonomy — Decision Map]].
 
 ## Documentation system
 
