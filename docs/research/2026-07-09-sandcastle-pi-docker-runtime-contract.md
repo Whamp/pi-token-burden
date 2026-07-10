@@ -103,11 +103,11 @@ SANDCASTLE_PI_MODEL=anthropic/claude-sonnet-4.5
 SANDCASTLE_PI_THINKING=medium
 ```
 
-GitHub CLI uses `GH_TOKEN` before `GITHUB_TOKEN`, avoiding interactive auth prompts. Source: [GitHub CLI environment-variable reference](https://cli.github.com/manual/gh_help_environment).
+GitHub CLI uses `GH_TOKEN` before `GITHUB_TOKEN`, avoiding interactive auth prompts. Source: [GitHub CLI v2.96.0 environment-help implementation](https://github.com/cli/cli/blob/b300f2ec7ec9dc9addc39b2ad88c54097ded7ca0/pkg/cmd/root/help_topic.go#L42-L55).
 
 Sandcastle’s GitHub Issues scaffold currently documents `GH_TOKEN` with required repository permissions “Issues (Read and write)” and “Metadata (Read)”. Source: [`src/InitService.ts:530-543`](https://github.com/mattpocock/sandcastle/blob/e99f832f26dc9d245c019a9ddd19fa5dee792427/src/InitService.ts#L530-L543).
 
-PR-opening runs also need PR and branch push rights. GitHub’s fine-grained PAT permissions docs map PR creation to `Pull requests: write`; branch pushes require contents write access. Sources: GitHub REST documentation for [creating pull requests](https://docs.github.com/en/rest/pulls/pulls#create-a-pull-request) and [creating Git references](https://docs.github.com/en/rest/git/refs#create-a-reference), including each endpoint's fine-grained token requirements.
+PR-opening runs also need PR and branch push rights. GitHub’s fine-grained PAT permissions docs map PR creation to `Pull requests: write`; branch pushes require contents write access. Sources: GitHub's pinned OpenAPI definitions for [creating pull requests](https://github.com/github/rest-api-description/blob/a9dce36dbdd2476e3b52d76044de6caba729d6d0/descriptions/api.github.com/api.github.com.json#L67897-L67907) and [creating Git references](https://github.com/github/rest-api-description/blob/a9dce36dbdd2476e3b52d76044de6caba729d6d0/descriptions/api.github.com/api.github.com.json#L58654-L58665).
 
 ### Docker image contents
 
