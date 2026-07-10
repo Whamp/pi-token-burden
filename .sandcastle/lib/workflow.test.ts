@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -53,6 +53,7 @@ describe('runImplementation()', () => {
   it('orders merged fix findings by severity before resuming implementation', async () => {
     const worktreePath = await mkdtemp(join(tmpdir(), 'sandcastle-workflow-'));
     const logsDirectory = await mkdtemp(join(tmpdir(), 'sandcastle-host-logs-'));
+    await chmod(logsDirectory, 0o755);
     const standardsFail =
       '<reviewStandards>{"axis":"standards","verdict":"fail","blocking":true,"findings":[{"file":"src/low.ts","line":1,"severity":"low","issue":"Low issue","requiredFix":"Fix low"}]}</reviewStandards>';
     const specFail =
@@ -148,9 +149,10 @@ describe('runImplementation()', () => {
           'utf8',
         ),
       ).rejects.toThrow();
-      await expect(
-        readFile(join(logsDirectory, 'sandcastle-issue-42-pass-2-check.log'), 'utf8'),
-      ).resolves.toContain('ghp_validator_secret');
+      const validatorLog = join(logsDirectory, 'sandcastle-issue-42-pass-2-check.log');
+      await expect(readFile(validatorLog, 'utf8')).resolves.toContain('ghp_validator_secret');
+      expect((await stat(logsDirectory)).mode & 0o777).toBe(0o700);
+      expect((await stat(validatorLog)).mode & 0o777).toBe(0o600);
     } finally {
       await Promise.all([
         rm(logsDirectory, { force: true, recursive: true }),

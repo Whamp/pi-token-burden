@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+
+import { secureLogStore } from './secureLogStore.js';
 
 interface RecordFailureOptions {
   readonly issueNumber: number;
@@ -18,8 +18,7 @@ interface RecordedFailure {
 export async function recordFailure(options: RecordFailureOptions): Promise<RecordedFailure> {
   const failureId = createHash('sha256').update(options.reason).digest('hex').slice(0, 12);
   const logName = `sandcastle-issue-${options.issueNumber}-runner-error-${failureId}.log`;
-  await mkdir(options.logsDirectory, { recursive: true });
-  await writeFile(join(options.logsDirectory, logName), `${options.reason}\n`);
+  await secureLogStore(options.logsDirectory).write(logName, `${options.reason}\n`);
   return {
     failureId,
     logName,

@@ -10,6 +10,7 @@ import {
   RESEARCH_RESULT_SCHEMA,
   REVIEW_RESULT_SCHEMA,
 } from './schema.js';
+import { secureLogStore } from './secureLogStore.js';
 import type { IssueContext, ResearchResult, ReviewResult, ValidationResult } from './types.js';
 
 const MAX_PASSES = 3;
@@ -142,10 +143,9 @@ async function persistPassReports(
   const issueRelative = `.sandcastle/reports/issue-${issueNumber}`;
   const issueDirectory = join(sandbox.worktreePath, issueRelative);
   await rm(issueDirectory, { force: true, recursive: true });
-  await Promise.all([
-    mkdir(issueDirectory, { recursive: true }),
-    mkdir(logsDirectory, { recursive: true }),
-  ]);
+  await mkdir(issueDirectory, { recursive: true });
+  const logs = secureLogStore(logsDirectory);
+  await logs.harden();
   await Promise.all(
     snapshots.flatMap(({ pass, spec, standards, validation }) => {
       const directory = join(issueDirectory, `pass-${pass}`);
@@ -165,12 +165,12 @@ async function persistPassReports(
             `${JSON.stringify(safeValidationReport(validation), undefined, 2)}\n`,
           ),
         ),
-        writeFile(
-          join(logsDirectory, `sandcastle-issue-${issueNumber}-pass-${pass}-check.log`),
+        logs.write(
+          `sandcastle-issue-${issueNumber}-pass-${pass}-check.log`,
           validation.check.output,
         ),
-        writeFile(
-          join(logsDirectory, `sandcastle-issue-${issueNumber}-pass-${pass}-test-e2e.log`),
+        logs.write(
+          `sandcastle-issue-${issueNumber}-pass-${pass}-test-e2e.log`,
           validation.testE2E.output,
         ),
       ];

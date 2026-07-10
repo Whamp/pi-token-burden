@@ -22,6 +22,7 @@ import {
 import { logError, logInfo } from './lib/logger.js';
 import { preserveFailureEvidence } from './lib/preserveFailureEvidence.js';
 import { recordFailure } from './lib/recordFailure.js';
+import { secureLogStore } from './lib/secureLogStore.js';
 import type { GitHubExecutor, RoutedIssue } from './lib/types.js';
 import { runImplementation, runResearch } from './lib/workflow.js';
 
@@ -344,25 +345,31 @@ async function processSelection(
 /** Drain every currently eligible ready-for-agent issue. */
 // eslint-disable-next-line @factory/filename-match-export -- Issue #24 fixes the checked-in entrypoint path as .sandcastle/afk-runner.ts.
 export async function runAfk(): Promise<void> {
-  loadRunnerEnvironment();
-  const execute = createGitHubExecutor();
-  const repository = process.env.SANDCASTLE_GITHUB_REPOSITORY ?? DEFAULT_REPOSITORY;
-  const skipped = new Set<number>();
+  const previousUmask = process.umask(0o077);
+  try {
+    loadRunnerEnvironment();
+    await secureLogStore(resolve('.sandcastle', 'logs')).harden();
+    const execute = createGitHubExecutor();
+    const repository = process.env.SANDCASTLE_GITHUB_REPOSITORY ?? DEFAULT_REPOSITORY;
+    const skipped = new Set<number>();
 
-  while (true) {
-    const selection = await discoverNextIssue(execute, repository, skipped);
-    if (selection === undefined) {
-      logInfo('Sandcastle AFK queue is empty.');
-      return;
+    while (true) {
+      const selection = await discoverNextIssue(execute, repository, skipped);
+      if (selection === undefined) {
+        logInfo('Sandcastle AFK queue is empty.');
+        return;
+      }
+      if (!(await claimIssue(execute, repository, selection))) {
+        skipped.add(selection.issue.number);
+        logInfo('Skipped issue after claim revalidation', {
+          issueNumber: selection.issue.number,
+        });
+        continue;
+      }
+      await processSelection(execute, repository, selection);
     }
-    if (!(await claimIssue(execute, repository, selection))) {
-      skipped.add(selection.issue.number);
-      logInfo('Skipped issue after claim revalidation', {
-        issueNumber: selection.issue.number,
-      });
-      continue;
-    }
-    await processSelection(execute, repository, selection);
+  } finally {
+    process.umask(previousUmask);
   }
 }
 
