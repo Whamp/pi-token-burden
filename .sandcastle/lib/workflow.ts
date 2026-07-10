@@ -79,7 +79,7 @@ async function repairImplementationOutput(
   }
   const repaired = await requireResume(result)(
     `Do not edit files. Return only the required <implementationResult> JSON block for attempt ${expectedAttempt}, accurately summarizing the work already committed.`,
-    { name: `implementation-output-${expectedAttempt}`, promptArgs: {} },
+    { name: `implementation-output-${expectedAttempt}` },
   );
   if (!implementationOutputIsValid(repaired.stdout, expectedAttempt)) {
     throw new Error(`Implementation output contract was invalid for attempt ${expectedAttempt}`);
@@ -97,7 +97,7 @@ async function repairReviewOutput(
   }
   const repaired = await requireResume(result)(
     `Do not edit files. Return only the required <${tag}> JSON block with your actual review verdict and findings.`,
-    { name: `${tag}-output-repair`, promptArgs: {} },
+    { name: `${tag}-output-repair` },
   );
   const repairedResult = parseReviewResult(repaired.stdout, tag);
   if (repairedResult === undefined) {
@@ -190,7 +190,7 @@ export async function runResearch(
   if (research === undefined) {
     const repaired = await requireResume(result)(
       'Do not edit files. Return only the required <researchResult> JSON block, accurately summarizing the cited artifact already committed.',
-      { name: 'research-output-repair', promptArgs: {} },
+      { name: 'research-output-repair' },
     );
     research = parseResearchResult(repaired.stdout);
   }

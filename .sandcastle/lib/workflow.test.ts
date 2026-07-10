@@ -102,6 +102,58 @@ describe('runImplementation()', () => {
       await rm(worktreePath, { force: true, recursive: true });
     }
   });
+
+  it('repairs a missing implementation result with valid inline resume options', async () => {
+    const worktreePath = await mkdtemp(join(tmpdir(), 'sandcastle-repair-'));
+    const standardsPass =
+      '<reviewStandards>{"axis":"standards","verdict":"pass","blocking":false,"findings":[]}</reviewStandards>';
+    const specPass =
+      '<reviewSpec>{"axis":"spec","verdict":"pass","blocking":false,"findings":[]}</reviewSpec>';
+    const passingFork = vi
+      .fn<NonNullable<SandboxRunResult['fork']>>()
+      .mockImplementation(async (prompt) =>
+        fromPartial<SandboxRunResult>({
+          stdout: prompt.includes('<reviewStandards>') ? standardsPass : specPass,
+        }),
+      );
+    const repairedWork = fromPartial<SandboxRunResult>({
+      fork: passingFork,
+      stdout: implementationOutput(1),
+    });
+    const resume = vi.fn<NonNullable<SandboxRunResult['resume']>>().mockResolvedValue(repairedWork);
+    const initialWork = fromPartial<SandboxRunResult>({
+      resume,
+      stdout: 'Committed the requested work without returning the result block.',
+    });
+    const sandbox = fromPartial<Sandbox>({
+      branch: 'sandcastle/issue-42',
+      exec: vi.fn<Sandbox['exec']>().mockResolvedValue(
+        fromPartial({
+          exitCode: 0,
+          stderr: '',
+          stdout: '',
+        }),
+      ),
+      run: vi.fn<Sandbox['run']>().mockResolvedValue(initialWork),
+      worktreePath,
+    });
+
+    try {
+      await runImplementation(
+        sandbox,
+        fromPartial<AgentProvider>({}),
+        ISSUE,
+        'main',
+        vi.fn<(message: string) => Promise<void>>().mockResolvedValue(undefined),
+      );
+
+      expect(resume).toHaveBeenCalledWith(expect.stringContaining('<implementationResult>'), {
+        name: 'implementation-output-1',
+      });
+    } finally {
+      await rm(worktreePath, { force: true, recursive: true });
+    }
+  });
 });
 
 describe('workflow result contracts', () => {
