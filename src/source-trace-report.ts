@@ -1,9 +1,6 @@
-import type {
-  BasePromptTraceResult,
-  TraceBucket,
-  TraceLineEvidence,
-} from "./base-trace/index.js";
+import type { BasePromptTraceResult, TraceBucket, TraceLineEvidence } from './base-trace/index.js';
 
+/** Present Source Trace buckets, labels, and line evidence to the overlay. */
 export class SourceTraceReport {
   readonly result: BasePromptTraceResult;
 
@@ -15,24 +12,24 @@ export class SourceTraceReport {
     return this.result.buckets;
   }
 
-  get errors(): BasePromptTraceResult["errors"] {
+  get errors(): BasePromptTraceResult['errors'] {
     return this.result.errors;
   }
 
   bucketLabel(bucket: TraceBucket): string {
-    if (bucket.id === "built-in") {
-      return "Built-in/core";
+    if (bucket.id === 'built-in') {
+      return 'Built-in/core';
     }
-    if (bucket.id === "shared") {
-      return "Shared (multi-extension)";
+    if (bucket.id === 'shared') {
+      return 'Shared (multi-extension)';
     }
-    if (bucket.id === "unattributed") {
-      return "Unattributed";
+    if (bucket.id === 'unattributed') {
+      return 'Unattributed';
     }
 
-    const parts = bucket.id.split("/");
+    const parts = bucket.id.split('/');
     const extensionName = parts.findLast(
-      (part) => part !== "index.ts" && part !== "index.js" && part !== "src"
+      (part) => part !== 'index.ts' && part !== 'index.js' && part !== 'src',
     );
     return extensionName ?? bucket.id;
   }
@@ -43,19 +40,16 @@ export class SourceTraceReport {
 
   evidenceForBucket(bucket: TraceBucket): TraceLineEvidence[] {
     return this.result.evidence.filter((evidence) => {
-      if (bucket.id === "built-in") {
-        return evidence.bucket === "built-in";
+      if (bucket.id === 'built-in') {
+        return evidence.bucket === 'built-in';
       }
-      if (bucket.id === "shared") {
-        return evidence.bucket === "shared";
+      if (bucket.id === 'shared') {
+        return evidence.bucket === 'shared';
       }
-      if (bucket.id === "unattributed") {
-        return evidence.bucket === "unattributed";
+      if (bucket.id === 'unattributed') {
+        return evidence.bucket === 'unattributed';
       }
-      return (
-        evidence.bucket === "extension" &&
-        evidence.contributors.includes(bucket.id)
-      );
+      return evidence.bucket === 'extension' && evidence.contributors.includes(bucket.id);
     });
   }
 }

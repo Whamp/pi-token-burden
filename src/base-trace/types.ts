@@ -11,11 +11,11 @@ export interface TraceLineEvidence {
   /** Token count for this line. */
   tokens: number;
   /** Whether this is a tool bullet or a guideline bullet. */
-  kind: "tool-line" | "guideline-line";
+  kind: 'tool-line' | 'guideline-line';
   /** Extension paths that contributed this line, or ["built-in"]. */
   contributors: string[];
   /** Which bucket this line falls into. */
-  bucket: "extension" | "shared" | "built-in" | "unattributed";
+  bucket: 'extension' | 'shared' | 'built-in' | 'unattributed';
 }
 
 /** Aggregated token burden for one source bucket. */
@@ -49,7 +49,7 @@ export interface BasePromptTraceResult {
 }
 
 /** An error encountered while inspecting an extension. */
-export interface TraceError {
+interface TraceError {
   source: string;
   message: string;
 }
@@ -64,19 +64,4 @@ export interface ExtensionToolContribution {
   guidelines: string[];
   /** Path of the extension that registered this tool. */
   extensionPath: string;
-}
-
-/**
- * Minimal shape of a loaded Extension object from pi's extension loader.
- * Used for extracting tool contributions without requiring exact type matching.
- */
-export interface LoadedExtension {
-  path: string;
-  tools: Map<
-    string,
-    {
-      definition: { promptSnippet?: string; promptGuidelines?: string[] };
-      extensionPath: string;
-    }
-  >;
 }

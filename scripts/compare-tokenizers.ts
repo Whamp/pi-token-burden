@@ -11,13 +11,13 @@
  * Then pass that file as the argument.
  */
 
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync } from 'node:fs';
 
-import { encode as encode_cl100k } from "gpt-tokenizer/encoding/cl100k_base";
+import { encode as encodeCl100k } from 'gpt-tokenizer/encoding/cl100k_base';
 // Each encoding is imported separately to keep things explicit
-import { encode as encode_o200k } from "gpt-tokenizer/encoding/o200k_base";
-import { encode as encode_p50k } from "gpt-tokenizer/encoding/p50k_base";
-import { encode as encode_r50k } from "gpt-tokenizer/encoding/r50k_base";
+import { encode as encodeO200k } from 'gpt-tokenizer/encoding/o200k_base';
+import { encode as encodeP50k } from 'gpt-tokenizer/encoding/p50k_base';
+import { encode as encodeR50k } from 'gpt-tokenizer/encoding/r50k_base';
 
 // ---------------------------------------------------------------------------
 // Heuristic (current implementation)
@@ -37,26 +37,26 @@ interface Encoding {
   encode: (text: string) => number[];
 }
 
-const encodings: Encoding[] = [
+const ENCODINGS: Encoding[] = [
   {
-    name: "o200k_base",
-    models: "GPT-4o, o1, o3, o4, GPT-4.1",
-    encode: encode_o200k,
+    name: 'o200k_base',
+    models: 'GPT-4o, o1, o3, o4, GPT-4.1',
+    encode: encodeO200k,
   },
   {
-    name: "cl100k_base",
-    models: "GPT-4, GPT-3.5-turbo",
-    encode: encode_cl100k,
+    name: 'cl100k_base',
+    models: 'GPT-4, GPT-3.5-turbo',
+    encode: encodeCl100k,
   },
   {
-    name: "p50k_base",
-    models: "text-davinci-003, Codex",
-    encode: encode_p50k,
+    name: 'p50k_base',
+    models: 'text-davinci-003, Codex',
+    encode: encodeP50k,
   },
   {
-    name: "r50k_base",
-    models: "text-davinci-001, GPT-3",
-    encode: encode_r50k,
+    name: 'r50k_base',
+    models: 'text-davinci-001, GPT-3',
+    encode: encodeR50k,
   },
 ];
 
@@ -97,6 +97,7 @@ Guidelines:
 - Never disable linter rules. Fix them.
 
 \`\`\`typescript
+/** Parse the embedded comparison sample into coarse prompt sections. */
 export function parseSystemPrompt(prompt: string): ParsedPrompt {
   const sections: PromptSection[] = [];
   const skills: SkillEntry[] = [];
@@ -144,23 +145,22 @@ function compare(label: string, text: string): void {
   const chars = text.length;
   const heuristic = heuristicTokens(text);
 
-  console.log(`\n${"=".repeat(72)}`);
+  console.log(`\n${'='.repeat(72)}`);
   console.log(`  ${label}`);
   console.log(
-    `  Characters: ${chars.toLocaleString()}  |  Heuristic estimate: ${heuristic.toLocaleString()} tokens`
+    `  Characters: ${chars.toLocaleString()}  |  Heuristic estimate: ${heuristic.toLocaleString()} tokens`,
   );
-  console.log(`${"=".repeat(72)}`);
+  console.log(`${'='.repeat(72)}`);
 
   const rows: ComparisonRow[] = [];
 
-  for (const enc of encodings) {
+  for (const enc of ENCODINGS) {
     const start = performance.now();
     const tokens = enc.encode(text);
     const elapsed = performance.now() - start;
     const bpeTokens = tokens.length;
     const delta = heuristic - bpeTokens;
-    const errorPct =
-      bpeTokens > 0 ? ((delta / bpeTokens) * 100).toFixed(1) : "N/A";
+    const errorPct = bpeTokens > 0 ? ((delta / bpeTokens) * 100).toFixed(1) : 'N/A';
 
     rows.push({
       encoding: enc.name,
@@ -185,18 +185,18 @@ function compare(label: string, text: string): void {
   };
 
   const header = [
-    "Encoding".padEnd(colWidths.encoding),
-    "Models".padEnd(colWidths.models),
-    "BPE".padStart(colWidths.bpe),
-    "Heuristic".padStart(colWidths.heuristic),
-    "Delta".padStart(colWidths.delta),
-    "Error %".padStart(colWidths.error),
-    "Time".padStart(colWidths.time),
-  ].join("  ");
+    'Encoding'.padEnd(colWidths.encoding),
+    'Models'.padEnd(colWidths.models),
+    'BPE'.padStart(colWidths.bpe),
+    'Heuristic'.padStart(colWidths.heuristic),
+    'Delta'.padStart(colWidths.delta),
+    'Error %'.padStart(colWidths.error),
+    'Time'.padStart(colWidths.time),
+  ].join('  ');
 
   console.log();
   console.log(header);
-  console.log("-".repeat(header.length));
+  console.log('-'.repeat(header.length));
 
   for (const row of rows) {
     console.log(
@@ -205,12 +205,10 @@ function compare(label: string, text: string): void {
         row.models.padEnd(colWidths.models),
         String(row.bpeTokens).padStart(colWidths.bpe),
         String(row.heuristic).padStart(colWidths.heuristic),
-        (row.delta >= 0 ? `+${row.delta}` : String(row.delta)).padStart(
-          colWidths.delta
-        ),
+        (row.delta >= 0 ? `+${row.delta}` : String(row.delta)).padStart(colWidths.delta),
         row.errorPct.padStart(colWidths.error),
         row.encodeMs.padStart(colWidths.time),
-      ].join("  ")
+      ].join('  '),
     );
   }
 
@@ -235,14 +233,12 @@ function compare(label: string, text: string): void {
   }
   const avgError = errorSum / rows.length;
 
-  console.log(
-    `  BPE range: ${minBpe.toLocaleString()} – ${maxBpe.toLocaleString()} tokens`
-  );
+  console.log(`  BPE range: ${minBpe.toLocaleString()} – ${maxBpe.toLocaleString()} tokens`);
   console.log(`  BPE mean:  ${Math.round(avgBpe).toLocaleString()} tokens`);
   console.log(`  Chars/token ratio (BPE mean): ${(chars / avgBpe).toFixed(2)}`);
   console.log(`  Avg |error|: ${avgError.toFixed(1)}%`);
   console.log(
-    `  Heuristic direction: ${heuristic > avgBpe ? "OVERESTIMATES" : "UNDERESTIMATES"} by ~${Math.abs(Math.round(((heuristic - avgBpe) / avgBpe) * 100))}%`
+    `  Heuristic direction: ${heuristic > avgBpe ? 'OVERESTIMATES' : 'UNDERESTIMATES'} by ~${Math.abs(Math.round(((heuristic - avgBpe) / avgBpe) * 100))}%`,
   );
 }
 
@@ -251,9 +247,9 @@ function compare(label: string, text: string): void {
 // ---------------------------------------------------------------------------
 
 function segmentedAnalysis(text: string): void {
-  console.log(`\n${"=".repeat(72)}`);
-  console.log("  Segmented Analysis: Heuristic Error by Content Type");
-  console.log(`${"=".repeat(72)}\n`);
+  console.log(`\n${'='.repeat(72)}`);
+  console.log('  Segmented Analysis: Heuristic Error by Content Type');
+  console.log(`${'='.repeat(72)}\n`);
 
   // Extract segments from the prompt
   const segments: { label: string; text: string }[] = [];
@@ -262,61 +258,59 @@ function segmentedAnalysis(text: string): void {
   const codeBlockRegex = /```[\s\S]*?```/g;
   const codeBlocks = text.match(codeBlockRegex);
   if (codeBlocks) {
-    segments.push({ label: "Code blocks", text: codeBlocks.join("\n") });
+    segments.push({ label: 'Code blocks', text: codeBlocks.join('\n') });
   }
 
   // XML/skill blocks
   const skillRegex = /<skill>[\s\S]*?<\/skill>/g;
   const skillBlocks = text.match(skillRegex);
   if (skillBlocks) {
-    segments.push({ label: "Skill XML entries", text: skillBlocks.join("\n") });
+    segments.push({ label: 'Skill XML entries', text: skillBlocks.join('\n') });
   }
 
   // Prose (rough: lines that don't start with special chars)
-  const lines = text.split("\n");
+  const lines = text.split('\n');
   const proseLines = lines.filter(
     (l) =>
       l.length > 20 &&
-      !l.startsWith("#") &&
-      !l.startsWith("-") &&
-      !l.startsWith("<") &&
-      !l.startsWith("```") &&
-      !l.startsWith("  ")
+      !l.startsWith('#') &&
+      !l.startsWith('-') &&
+      !l.startsWith('<') &&
+      !l.startsWith('```') &&
+      !l.startsWith('  '),
   );
   if (proseLines.length > 0) {
-    segments.push({ label: "Prose lines", text: proseLines.join("\n") });
+    segments.push({ label: 'Prose lines', text: proseLines.join('\n') });
   }
 
   // Markdown headings + list items
-  const structLines = lines.filter(
-    (l) => l.startsWith("#") || l.startsWith("- ")
-  );
+  const structLines = lines.filter((l) => l.startsWith('#') || l.startsWith('- '));
   if (structLines.length > 0) {
     segments.push({
-      label: "Headings + list items",
-      text: structLines.join("\n"),
+      label: 'Headings + list items',
+      text: structLines.join('\n'),
     });
   }
 
   // Use o200k_base as the reference encoding
   const header = [
-    "Segment".padEnd(25),
-    "Chars".padStart(8),
-    "BPE".padStart(8),
-    "Heur.".padStart(8),
-    "Error".padStart(8),
-    "Chars/Tok".padStart(10),
-  ].join("  ");
+    'Segment'.padEnd(25),
+    'Chars'.padStart(8),
+    'BPE'.padStart(8),
+    'Heur.'.padStart(8),
+    'Error'.padStart(8),
+    'Chars/Tok'.padStart(10),
+  ].join('  ');
 
   console.log(header);
-  console.log("-".repeat(header.length));
+  console.log('-'.repeat(header.length));
 
   for (const seg of segments) {
-    const bpe = encode_o200k(seg.text).length;
+    const bpe = encodeO200k(seg.text).length;
     const heur = heuristicTokens(seg.text);
     const delta = heur - bpe;
-    const errorPct = bpe > 0 ? ((delta / bpe) * 100).toFixed(1) : "N/A";
-    const charsPerTok = bpe > 0 ? (seg.text.length / bpe).toFixed(2) : "N/A";
+    const errorPct = bpe > 0 ? ((delta / bpe) * 100).toFixed(1) : 'N/A';
+    const charsPerTok = bpe > 0 ? (seg.text.length / bpe).toFixed(2) : 'N/A';
 
     console.log(
       [
@@ -326,7 +320,7 @@ function segmentedAnalysis(text: string): void {
         String(heur).padStart(8),
         `${errorPct}%`.padStart(8),
         String(charsPerTok).padStart(10),
-      ].join("  ")
+      ].join('  '),
     );
   }
 }
@@ -336,62 +330,52 @@ function segmentedAnalysis(text: string): void {
 // ---------------------------------------------------------------------------
 
 function main(): void {
-  console.log("Token Estimator Comparison: ceil(chars/4) vs BPE Tokenizers");
-  console.log("============================================================");
+  console.log('Token Estimator Comparison: ceil(chars/4) vs BPE Tokenizers');
+  console.log('============================================================');
 
   const [filePath] = process.argv.slice(2);
   let promptText: string;
 
   if (filePath && existsSync(filePath)) {
-    promptText = readFileSync(filePath, "utf8");
+    promptText = readFileSync(filePath, 'utf8');
     console.log(`\nLoaded real prompt from: ${filePath}`);
   } else {
     promptText = SAMPLE_SYSTEM_PROMPT;
     if (filePath) {
       console.log(`\nFile not found: ${filePath} — using embedded sample`);
     } else {
-      console.log("\nNo file provided — using embedded sample system prompt");
+      console.log('\nNo file provided — using embedded sample system prompt');
     }
     console.log(
-      "Tip: capture a real prompt with ctx.getSystemPrompt() and pass it as an argument."
+      'Tip: capture a real prompt with ctx.getSystemPrompt() and pass it as an argument.',
     );
   }
 
   // Full prompt comparison
-  compare("Full System Prompt", promptText);
+  compare('Full System Prompt', promptText);
 
   // Segmented analysis
   segmentedAnalysis(promptText);
 
   // Recommendation
-  console.log(`\n${"=".repeat(72)}`);
-  console.log("  Recommendation");
-  console.log(`${"=".repeat(72)}\n`);
+  console.log(`\n${'='.repeat(72)}`);
+  console.log('  Recommendation');
+  console.log(`${'='.repeat(72)}\n`);
 
-  const bpe_o200k = encode_o200k(promptText).length;
+  const bpeO200k = encodeO200k(promptText).length;
   const heur = heuristicTokens(promptText);
-  const errorPct = Math.abs(((heur - bpe_o200k) / bpe_o200k) * 100);
+  const errorPct = Math.abs(((heur - bpeO200k) / bpeO200k) * 100);
 
   if (errorPct < 10) {
-    console.log(
-      `  The heuristic is within ${errorPct.toFixed(1)}% of o200k_base BPE.`
-    );
-    console.log("  For a budget visualization tool, this may be acceptable.");
+    console.log(`  The heuristic is within ${errorPct.toFixed(1)}% of o200k_base BPE.`);
+    console.log('  For a budget visualization tool, this may be acceptable.');
   } else {
-    console.log(
-      `  The heuristic deviates ${errorPct.toFixed(1)}% from o200k_base BPE.`
-    );
-    console.log(
-      "  Consider switching to gpt-tokenizer for more accurate estimates."
-    );
+    console.log(`  The heuristic deviates ${errorPct.toFixed(1)}% from o200k_base BPE.`);
+    console.log('  Consider switching to gpt-tokenizer for more accurate estimates.');
   }
 
-  console.log(
-    `  Note: pi serves multiple models (Claude, Gemini, GPT). No single BPE`
-  );
-  console.log(
-    `  encoding is exact for all. o200k_base is a strong default for modern models.`
-  );
+  console.log(`  Note: pi serves multiple models (Claude, Gemini, GPT). No single BPE`);
+  console.log(`  encoding is exact for all. o200k_base is a strong default for modern models.`);
   console.log();
 }
 

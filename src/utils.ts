@@ -1,4 +1,18 @@
-import type { BarSegment, FilterItem } from "./types.js";
+import type { BarSegment, FilterItem } from './types.js';
+
+/** Return whether an opaque value is a non-null, non-array object. */
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** Return an array item or fail when the caller's index invariant is broken. */
+export function getRequiredItem<T>(items: readonly T[], index: number): T {
+  const item = items[index];
+  if (item === undefined) {
+    throw new Error('Expected an item at the requested index');
+  }
+  return item;
+}
 
 /**
  * Score a query against text using fuzzy matching.
@@ -19,7 +33,7 @@ function fuzzyScore(query: string, text: string): number {
   let consecutiveBonus = 0;
 
   for (let i = 0; i < lowerText.length && queryIndex < lowerQuery.length; i++) {
-    if (lowerText[i] === lowerQuery[queryIndex]) {
+    if (lowerText.charAt(i) === lowerQuery.charAt(queryIndex)) {
       score += 10 + consecutiveBonus;
       consecutiveBonus += 5;
       queryIndex++;
@@ -35,10 +49,7 @@ function fuzzyScore(query: string, text: string): number {
  * Filter and sort items by fuzzy match against their label.
  * Returns all items (unmodified order) when query is empty.
  */
-export function fuzzyFilter<T extends FilterItem>(
-  items: T[],
-  query: string
-): T[] {
+export function fuzzyFilter<T extends FilterItem>(items: T[], query: string): T[] {
   if (!query.trim()) {
     return items;
   }
@@ -57,7 +68,7 @@ export function fuzzyFilter<T extends FilterItem>(
  */
 export function buildBarSegments(
   sections: { label: string; tokens: number }[],
-  barWidth: number
+  barWidth: number,
 ): BarSegment[] {
   if (sections.length === 0) {
     return [];
@@ -88,25 +99,33 @@ export function buildBarSegments(
 
   if (diff > 0) {
     // Distribute extra to segments with largest fractional parts
-    const fractionals = raw.map((w, i) => ({ index: i, frac: w - widths[i] }));
+    const fractionals = raw.map((w, i) => ({
+      index: i,
+      frac: w - getRequiredItem(widths, i),
+    }));
     fractionals.sort((a, b) => b.frac - a.frac);
     for (let i = 0; i < diff; i++) {
-      widths[fractionals[i % fractionals.length].index]++;
+      const { index } = getRequiredItem(fractionals, i % fractionals.length);
+      widths[index] = getRequiredItem(widths, index) + 1;
     }
   } else if (diff < 0) {
     // Steal from largest segments
     for (let i = 0; i < -diff; i++) {
       let maxIdx = 0;
       for (let j = 1; j < widths.length; j++) {
-        if (widths[j] > widths[maxIdx]) {
+        if (getRequiredItem(widths, j) > getRequiredItem(widths, maxIdx)) {
           maxIdx = j;
         }
       }
-      if (widths[maxIdx] > 1) {
-        widths[maxIdx]--;
+      const maxWidth = getRequiredItem(widths, maxIdx);
+      if (maxWidth > 1) {
+        widths[maxIdx] = maxWidth - 1;
       }
     }
   }
 
-  return sections.map((s, i) => ({ label: s.label, width: widths[i] }));
+  return sections.map((s, i) => ({
+    label: s.label,
+    width: getRequiredItem(widths, i),
+  }));
 }

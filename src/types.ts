@@ -1,5 +1,6 @@
-import type { DisableMode, ToolEnvelope } from "./enums.js";
+import type { DisableMode, ToolEnvelope } from './enums.js';
 
+/** One model-facing skill catalog entry parsed from the system prompt. */
 export interface SkillEntry {
   name: string;
   description: string;
@@ -8,16 +9,19 @@ export interface SkillEntry {
   tokens: number;
 }
 
+/** Minimal row shape accepted by fuzzy filtering. */
 export interface FilterItem {
   label: string;
   tokens: number;
 }
 
+/** One labeled width allocation in the token-budget bar. */
 export interface BarSegment {
   label: string;
   width: number;
 }
 
+/** Serialized token cost for one active or inactive tool definition. */
 export interface ToolEntry {
   name: string;
   chars: number;
@@ -25,13 +29,15 @@ export interface ToolEntry {
   content: string;
 }
 
-export interface ToolSectionData {
+/** Active, inactive, and provider-specific tool-definition costs. */
+interface ToolSectionData {
   active: ToolEntry[];
   inactive: ToolEntry[];
   variants?: ToolEntry[];
   countedEnvelope?: ToolEnvelope;
 }
 
+/** One measured Budget Section and its optional drill-down data. */
 export interface PromptSection {
   label: string;
   chars: number;
@@ -47,6 +53,7 @@ export interface PromptSection {
   }[];
 }
 
+/** Complete Token Budget Pipeline result for one assembled prompt. */
 export interface ParsedPrompt {
   sections: PromptSection[];
   totalChars: number;
@@ -74,9 +81,7 @@ export interface TableItem {
 // Skill toggle types
 // ---------------------------------------------------------------------------
 
-// DisableMode enum is in enums.ts per factory rules
-export type { DisableMode } from "./enums.js";
-
+/** Discovered skill metadata plus its current visibility and token cost. */
 export interface SkillInfo {
   name: string;
   description: string;
@@ -87,17 +92,30 @@ export interface SkillInfo {
   hasDuplicates: boolean;
 }
 
+/** Render-ready skill row including pending-session state. */
+export interface SkillManagementRow {
+  skill: SkillInfo;
+  label: string;
+  mode: DisableMode;
+  hasChanged: boolean;
+  hasDuplicates: boolean;
+  tokens: number;
+}
+
+/** Pi settings fields used by skill discovery and visibility persistence. */
 export interface Settings {
   skills?: string[];
   packages?: unknown[];
   [key: string]: unknown;
 }
 
+/** Result emitted when the user exits a Skill Management Session. */
 export interface SkillToggleResult {
   applied: boolean;
   changes: Map<string, DisableMode>;
 }
 
+/** Observable save outcome returned to the command handler. */
 export type SkillSaveOutcome =
   | { ok: true; saved: false }
   | { ok: true; saved: true; summary: string }

@@ -20,22 +20,36 @@ stacked bar visualization, drill-down table, and fuzzy search.
 - **Planning**: For complex, multi-step tasks, create a plan and a to-do list
   before writing code.
 
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked in GitHub Issues for `Whamp/pi-token-burden`; external PRs are also a triage request surface. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the canonical triage labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context repo: read root `CONTEXT.md` and root `docs/adr/` when present. See `docs/agents/domain.md`.
+
 ## Commands
 
-| Command                 | Description                       | ~Time |
-| ----------------------- | --------------------------------- | ----- |
-| `pnpm run test`         | Run Vitest unit tests (105 tests) | <1s   |
-| `pnpm run test:e2e`     | Run e2e TUI tests (requires tmux) | ~30s  |
-| `pnpm run typecheck`    | TypeScript type checking          | ~2s   |
-| `pnpm run lint`         | Run oxlint linter                 | <1s   |
-| `pnpm run lint:fix`     | Run oxlint with auto-fix          | <1s   |
-| `pnpm run format`       | Format code with oxfmt            | <1s   |
-| `pnpm run format:check` | Check formatting without writing  | <1s   |
-| `pnpm run deadcode`     | Detect dead code with knip        | ~2s   |
-| `pnpm run duplicates`   | Detect duplicate code with jscpd  | ~1s   |
-| `pnpm run check`        | Run all checks and report summary | ~8s   |
-| `pnpm run fix`          | Auto-fix lint and formatting      | <1s   |
-| `pnpm run changelog`    | Regenerate CHANGELOG.md           | <1s   |
+| Command                 | Description                                 | ~Time |
+| ----------------------- | ------------------------------------------- | ----- |
+| `pnpm run test`         | Run Vitest unit tests (166 tests)           | ~1s   |
+| `pnpm run test:e2e`     | Run e2e TUI tests (34 tests, requires tmux) | ~30s  |
+| `pnpm run typecheck`    | TypeScript type checking                    | ~2s   |
+| `pnpm run lint`         | Run oxlint linter                           | <1s   |
+| `pnpm run lint:fix`     | Run oxlint with auto-fix                    | <1s   |
+| `pnpm run format`       | Format code with oxfmt                      | <1s   |
+| `pnpm run format:check` | Check formatting without writing            | <1s   |
+| `pnpm run deadcode`     | Detect unused exports with knip             | ~1s   |
+| `pnpm run duplicates`   | Detect duplicate code with jscpd            | ~1s   |
+| `pnpm run check`        | Run all checks and report summary           | ~8s   |
+| `pnpm run fix`          | Auto-fix lint and formatting                | <1s   |
+| `pnpm run changelog`    | Regenerate CHANGELOG.md                     | <1s   |
 
 ## File Map
 
@@ -46,8 +60,8 @@ stacked bar visualization, drill-down table, and fuzzy search.
 | `src/report-view.ts`      | TUI overlay: `BudgetOverlay` class, ANSI rendering, input       |
 | `src/utils.ts`            | `fuzzyFilter()` for search, `buildBarSegments()` for bar chart  |
 | `src/types.ts`            | Shared types: `ParsedPrompt`, `TableItem`, `PromptSection`      |
-| `src/base-trace/`         | Source tracing: attribution, extension inspector, cache         |
-| `src/*.test.ts`           | Colocated unit tests (10 files, 105 tests total)                |
+| `src/base-trace/`         | Source tracing: extraction, contribution matching, attribution  |
+| `src/**/*.test.ts`        | Colocated unit tests outside `src/e2e/` (166 tests total)       |
 | `src/e2e/tmux-harness.ts` | Tmux session helper for e2e TUI testing                         |
 | `src/e2e/*.test.ts`       | E2e TUI tests (overlay, skill-toggle, trace)                    |
 | `vitest.config.e2e.ts`    | Vitest config for e2e tests (30s timeout)                       |
@@ -62,7 +76,7 @@ index.ts ──→ parser.ts ──→ types.ts
    │              │
    ├──→ report-view.ts ──→ utils.ts ──→ types.ts
    │
-   └──→ base-trace/ ──→ attribution.ts, base-lines.ts, extension-inspector.ts, cache.ts
+   └──→ base-trace/ ──→ attribution.ts, extractBaseLines.ts, extractContributions.ts, cache.ts
 ```
 
 **Data flow:** `ctx.getSystemPrompt()` → `parseSystemPrompt()` → `ParsedPrompt`
@@ -93,15 +107,17 @@ pi-docs terminal markers. Token estimation uses BPE tokenization via `gpt-tokeni
 
 | Tool                | Config                                    | Purpose                                 |
 | ------------------- | ----------------------------------------- | --------------------------------------- |
-| oxlint + ultracite  | `.oxlintrc.json`                          | Linting with Factory rules              |
+| oxlint + tsgolint   | `.oxlintrc.json`                          | Type-aware linting + Factory rules      |
 | oxfmt               | `.oxfmtrc.jsonc`                          | Code formatting                         |
-| TypeScript          | `tsconfig.json`                           | Type checking (strict mode)             |
+| TypeScript 7        | `tsconfig.json`                           | Strict type checking                    |
 | Vitest              | `vitest.config.ts`                        | Unit testing                            |
 | husky + lint-staged | `.husky/pre-commit`, `.lintstagedrc.json` | Pre-commit hooks                        |
-| knip                | `knip.json`                               | Dead code detection                     |
+| knip 6.25+          | `knip.json`                               | Dead-export analysis for TypeScript 7   |
 | jscpd               | `.jscpd.json`                             | Duplicate code detection (1% threshold) |
-| changelogen         | `package.json` (`version` script)         | Changelog generation from commits       |
 | GitHub Actions      | `.github/workflows/check.yml`             | CI pipeline                             |
+| changelogen         | `package.json` (`version` script)         | Changelog generation from commits       |
+
+The project follows the shared [TypeScript](https://github.com/Whamp/coding-standards/blob/main/typescript.md) and [structure](https://github.com/Whamp/coding-standards/blob/main/structure.md) standards. Project opt-ins and framework exceptions are recorded in [`decisions/TypeScript Standards Adoption.md`](decisions/TypeScript%20Standards%20Adoption.md).
 
 ## Testing
 

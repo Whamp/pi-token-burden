@@ -5,9 +5,11 @@
     "moduleResolution": "NodeNext",
     "lib": ["ES2023"],
     "types": ["node", "vitest/globals"],
-    "outDir": "dist",
-    "rootDir": "src",
+    "rootDir": ".",
     "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "verbatimModuleSyntax": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
@@ -15,8 +17,9 @@
     "isolatedModules": true,
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "noEmit": true
   },
-  "include": ["src"],
+  "include": ["src", "scripts/**/*.ts", "vitest.config.ts", "vitest.config.e2e.ts"],
   "exclude": ["node_modules", "dist"]
 }

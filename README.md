@@ -134,8 +134,8 @@ not character-based approximations.
 git clone https://github.com/Whamp/pi-token-burden.git
 cd pi-token-burden
 pnpm install
-pnpm run test     # 153 unit tests
-pnpm run test:e2e # 33 e2e tests (requires tmux)
+pnpm run test     # 166 unit tests
+pnpm run test:e2e # 34 e2e tests (requires tmux)
 pnpm run check    # lint, typecheck, format, dead code, duplicates, tests
 ```
 

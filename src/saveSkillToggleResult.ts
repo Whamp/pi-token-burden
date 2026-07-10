@@ -1,5 +1,5 @@
-import { DisableMode } from "./enums.js";
-import type { SkillSaveOutcome, SkillToggleResult } from "./types.js";
+import { DisableMode } from './enums.js';
+import type { SkillSaveOutcome, SkillToggleResult } from './types.js';
 
 type PersistSkillChanges = (changes: Map<string, DisableMode>) => void;
 
@@ -11,9 +11,9 @@ function summarizeSkillChanges(changes: Map<string, DisableMode>): string {
   };
 
   for (const mode of changes.values()) {
-    if (mode === DisableMode.Enabled) {
+    if (mode === DisableMode.ENABLED) {
       counts.enabled += 1;
-    } else if (mode === DisableMode.Hidden) {
+    } else if (mode === DisableMode.HIDDEN) {
       counts.hidden += 1;
     } else {
       counts.disabled += 1;
@@ -31,12 +31,13 @@ function summarizeSkillChanges(changes: Map<string, DisableMode>): string {
     parts.push(`${counts.disabled} disabled`);
   }
 
-  return parts.join(", ");
+  return parts.join(', ');
 }
 
+/** Persist applied skill changes and return a user-facing save outcome. */
 export function saveSkillToggleResult(
   result: SkillToggleResult,
-  persist: PersistSkillChanges
+  persist: PersistSkillChanges,
 ): SkillSaveOutcome {
   if (!result.applied || result.changes.size === 0) {
     return { ok: true, saved: false };

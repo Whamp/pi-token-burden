@@ -6,21 +6,50 @@
  *   2. SKILL.md frontmatter — `disable-model-invocation: true` for Hidden skills
  */
 
-import * as fs from "node:fs";
-import * as os from "node:os";
-import * as path from "node:path";
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 
-import { DisableMode } from "./enums.js";
-import type { Settings, SkillInfo } from "./types.js";
+import { DisableMode } from './enums.js';
+import type { Settings, SkillInfo } from './types.js';
+import { isRecord } from './utils.js';
 
 // ---------------------------------------------------------------------------
 // Settings file I/O
 // ---------------------------------------------------------------------------
 
+function decodeSettings(value: unknown): Settings {
+  if (!isRecord(value)) {
+    return {};
+  }
+
+  const settings: Settings = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (key === 'skills') {
+      if (Array.isArray(entry) && entry.every((item) => typeof item === 'string')) {
+        settings.skills = entry;
+      }
+      continue;
+    }
+
+    if (key === 'packages') {
+      if (Array.isArray(entry)) {
+        settings.packages = entry;
+      }
+      continue;
+    }
+
+    settings[key] = entry;
+  }
+  return settings;
+}
+
+/** Load and validate known Pi settings fields while preserving extension keys. */
 export function loadSettings(settingsPath: string): Settings {
   try {
     if (fs.existsSync(settingsPath)) {
-      return JSON.parse(fs.readFileSync(settingsPath, "utf8"));
+      const parsed: unknown = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+      return decodeSettings(parsed);
     }
   } catch {
     // Ignore
@@ -28,6 +57,7 @@ export function loadSettings(settingsPath: string): Settings {
   return {};
 }
 
+/** Persist Pi settings as formatted JSON, creating the parent directory. */
 export function saveSettings(settings: Settings, settingsPath: string): void {
   const dir = path.dirname(settingsPath);
   if (!fs.existsSync(dir)) {
@@ -40,34 +70,31 @@ export function saveSettings(settings: Settings, settingsPath: string): void {
 // Frontmatter manipulation
 // ---------------------------------------------------------------------------
 
-export function setFrontmatterField(
-  content: string,
-  key: string,
-  value: string
-): string {
-  if (!content.startsWith("---")) {
+/** Set or create one scalar field in a skill's YAML frontmatter. */
+export function setFrontmatterField(content: string, key: string, value: string): string {
+  if (!content.startsWith('---')) {
     return `---\n${key}: ${value}\n---\n${content}`;
   }
 
-  const endIndex = content.indexOf("\n---", 3);
+  const endIndex = content.indexOf('\n---', 3);
   if (endIndex === -1) {
     return `---\n${key}: ${value}\n---\n${content}`;
   }
 
   const frontmatter = content.slice(4, endIndex);
   const rest = content.slice(endIndex + 4);
-  const lines = frontmatter.split("\n");
+  const lines = frontmatter.split('\n');
 
   let found = false;
-  for (let i = 0; i < lines.length; i++) {
-    const colonIndex = lines[i].indexOf(":");
+  for (const [index, line] of lines.entries()) {
+    const colonIndex = line.indexOf(':');
     if (colonIndex === -1) {
       continue;
     }
 
-    const lineKey = lines[i].slice(0, colonIndex).trim();
+    const lineKey = line.slice(0, colonIndex).trim();
     if (lineKey === key) {
-      lines[i] = `${key}: ${value}`;
+      lines[index] = `${key}: ${value}`;
       found = true;
       break;
     }
@@ -77,25 +104,26 @@ export function setFrontmatterField(
     lines.push(`${key}: ${value}`);
   }
 
-  return `---\n${lines.join("\n")}\n---${rest}`;
+  return `---\n${lines.join('\n')}\n---${rest}`;
 }
 
+/** Remove one field from a skill's YAML frontmatter when present. */
 export function removeFrontmatterField(content: string, key: string): string {
-  if (!content.startsWith("---")) {
+  if (!content.startsWith('---')) {
     return content;
   }
 
-  const endIndex = content.indexOf("\n---", 3);
+  const endIndex = content.indexOf('\n---', 3);
   if (endIndex === -1) {
     return content;
   }
 
   const frontmatter = content.slice(4, endIndex);
   const rest = content.slice(endIndex + 4);
-  const lines = frontmatter.split("\n");
+  const lines = frontmatter.split('\n');
 
   const filteredLines = lines.filter((line) => {
-    const colonIndex = line.indexOf(":");
+    const colonIndex = line.indexOf(':');
     if (colonIndex === -1) {
       return true;
     }
@@ -104,7 +132,7 @@ export function removeFrontmatterField(content: string, key: string): string {
     return lineKey !== key;
   });
 
-  return `---\n${filteredLines.join("\n")}\n---${rest}`;
+  return `---\n${filteredLines.join('\n')}\n---${rest}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -113,13 +141,13 @@ export function removeFrontmatterField(content: string, key: string): string {
 
 function resolvePathFromBase(input: string, baseDir: string): string {
   const trimmed = input.trim();
-  if (trimmed === "~") {
+  if (trimmed === '~') {
     return path.normalize(os.homedir());
   }
-  if (trimmed.startsWith("~/")) {
+  if (trimmed.startsWith('~/')) {
     return path.join(os.homedir(), trimmed.slice(2));
   }
-  if (trimmed.startsWith("~")) {
+  if (trimmed.startsWith('~')) {
     return path.join(os.homedir(), trimmed.slice(1));
   }
   if (path.isAbsolute(trimmed)) {
@@ -139,21 +167,17 @@ function getSkillRelativePath(skillFilePath: string, agentDir: string): string {
   return skillDir;
 }
 
-function buildFrontmatterContent(
-  content: string,
-  disableModelInvocation: boolean
-): string {
+function buildFrontmatterContent(content: string, disableModelInvocation: boolean): string {
   return disableModelInvocation
-    ? setFrontmatterField(content, "disable-model-invocation", "true")
-    : removeFrontmatterField(content, "disable-model-invocation");
+    ? setFrontmatterField(content, 'disable-model-invocation', 'true')
+    : removeFrontmatterField(content, 'disable-model-invocation');
 }
 
 function rollbackFrontmatterWrites(
   writtenPaths: string[],
-  originalContents: Map<string, string>
+  originalContents: Map<string, string>,
 ): void {
-  for (let i = writtenPaths.length - 1; i >= 0; i--) {
-    const filePath = writtenPaths[i];
+  for (const filePath of writtenPaths.toReversed()) {
     const original = originalContents.get(filePath);
     if (original === undefined) {
       continue;
@@ -176,10 +200,9 @@ function applyChanges(
   changes: Map<string, DisableMode>,
   skillsByName: Map<string, SkillInfo>,
   settingsPath: string,
-  agentDir?: string
+  agentDir?: string,
 ): void {
-  const resolvedAgentDir =
-    agentDir ?? path.join(process.env.HOME ?? "", ".pi", "agent");
+  const resolvedAgentDir = agentDir ?? path.join(process.env.HOME ?? '', '.pi', 'agent');
   const settingsBaseDir = path.dirname(settingsPath);
 
   const settings = loadSettings(settingsPath);
@@ -197,7 +220,7 @@ function applyChanges(
       continue;
     }
 
-    if (newMode === DisableMode.Disabled) {
+    if (newMode === DisableMode.DISABLED) {
       for (const fp of skill.allPaths) {
         pathsToDisable.add(normalizeChangePath(fp));
       }
@@ -208,22 +231,22 @@ function applyChanges(
       pathsToUndisable.add(normalizeChangePath(fp));
     }
 
-    if (newMode === DisableMode.Hidden) {
+    if (newMode === DisableMode.HIDDEN) {
       frontmatterUpdates.set(skill.filePath, true);
     }
 
-    if (newMode === DisableMode.Enabled) {
+    if (newMode === DisableMode.ENABLED) {
       frontmatterUpdates.set(skill.filePath, false);
     }
   }
 
   // Filter existing entries — remove disable entries for skills being re-enabled/unhidden.
   for (const entry of existingSkills) {
-    if (typeof entry !== "string") {
+    if (typeof entry !== 'string') {
       continue;
     }
 
-    if (!entry.startsWith("-")) {
+    if (!entry.startsWith('-')) {
       newSkills.push(entry);
       continue;
     }
@@ -242,8 +265,8 @@ function applyChanges(
   // Add new disable entries.
   const existingDisableDirs = new Set(
     newSkills
-      .filter((s) => s.startsWith("-"))
-      .map((s) => resolvePathFromBase(s.slice(1), settingsBaseDir))
+      .filter((s) => s.startsWith('-'))
+      .map((s) => resolvePathFromBase(s.slice(1), settingsBaseDir)),
   );
 
   for (const fp of pathsToDisable) {
@@ -263,13 +286,10 @@ function applyChanges(
   // Apply frontmatter updates first. If this fails, settings are left untouched.
   try {
     for (const [filePath, disableModelInvocation] of frontmatterUpdates) {
-      const originalContent = fs.readFileSync(filePath, "utf8");
+      const originalContent = fs.readFileSync(filePath, 'utf8');
       originalContents.set(filePath, originalContent);
 
-      const newContent = buildFrontmatterContent(
-        originalContent,
-        disableModelInvocation
-      );
+      const newContent = buildFrontmatterContent(originalContent, disableModelInvocation);
 
       if (newContent !== originalContent) {
         fs.writeFileSync(filePath, newContent);
@@ -297,6 +317,7 @@ function applyChanges(
   }
 }
 
+/** Persist Skill Visibility State changes across settings and skill files. */
 export class SkillVisibilityStore {
   private readonly settingsPath: string;
   private readonly agentDir?: string;
@@ -306,10 +327,7 @@ export class SkillVisibilityStore {
     this.agentDir = agentDir;
   }
 
-  applyChanges(
-    changes: Map<string, DisableMode>,
-    skillsByName: Map<string, SkillInfo>
-  ): void {
+  applyChanges(changes: Map<string, DisableMode>, skillsByName: Map<string, SkillInfo>): void {
     applyChanges(changes, skillsByName, this.settingsPath, this.agentDir);
   }
 }

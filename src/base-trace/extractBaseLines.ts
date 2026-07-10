@@ -1,4 +1,4 @@
-import type { BaseLines } from "./types.js";
+import type { BaseLines } from './types.js';
 
 /**
  * Extract tool and guideline bullet lines from Base prompt text.
@@ -8,49 +8,49 @@ import type { BaseLines } from "./types.js";
  *   "Guidelines:" → bullet lines until blank line or "Pi documentation"
  */
 export function extractBaseLines(baseText: string): BaseLines {
-  const lines = baseText.split("\n");
+  const lines = baseText.split('\n');
   const toolLines: string[] = [];
   const guidelineLines: string[] = [];
 
-  let section: "none" | "tools" | "guidelines" = "none";
+  let section: 'none' | 'tools' | 'guidelines' = 'none';
 
   for (const line of lines) {
-    if (line.startsWith("Available tools:")) {
-      section = "tools";
+    if (line.startsWith('Available tools:')) {
+      section = 'tools';
       continue;
     }
 
-    if (line.startsWith("Guidelines:")) {
-      section = "guidelines";
+    if (line.startsWith('Guidelines:')) {
+      section = 'guidelines';
       continue;
     }
 
-    if (line.startsWith("In addition to the tools above")) {
-      section = "none";
+    if (line.startsWith('In addition to the tools above')) {
+      section = 'none';
       continue;
     }
 
-    if (line.startsWith("Pi documentation")) {
-      section = "none";
+    if (line.startsWith('Pi documentation')) {
+      section = 'none';
       continue;
     }
 
-    if (section === "tools") {
-      if (line.startsWith("- ")) {
+    if (section === 'tools') {
+      if (line.startsWith('- ')) {
         toolLines.push(line);
-      } else if (line.trim() === "") {
+      } else if (line.trim() === '') {
         if (toolLines.length > 0) {
-          section = "none";
+          section = 'none';
         }
       }
     }
 
-    if (section === "guidelines") {
-      if (line.startsWith("- ")) {
+    if (section === 'guidelines') {
+      if (line.startsWith('- ')) {
         guidelineLines.push(line);
-      } else if (line.trim() === "") {
+      } else if (line.trim() === '') {
         if (guidelineLines.length > 0) {
-          section = "none";
+          section = 'none';
         }
       }
     }

@@ -1,30 +1,19 @@
-import type {
-  ExtensionToolContribution,
-  TraceBucket,
-  TraceLineEvidence,
-} from "./types.js";
+import { getRequiredItem } from '../utils.js';
+import type { ExtensionToolContribution, TraceBucket, TraceLineEvidence } from './types.js';
 
 /** Known built-in tool names from pi core's toolDescriptions. */
-const BUILT_IN_TOOLS = new Set([
-  "read",
-  "bash",
-  "edit",
-  "write",
-  "grep",
-  "find",
-  "ls",
-]);
+const BUILT_IN_TOOLS = new Set(['read', 'bash', 'edit', 'write', 'grep', 'find', 'ls']);
 
 /** Known built-in guideline strings (trimmed, without "- " prefix). */
 const BUILT_IN_GUIDELINES = new Set([
-  "Use bash for file operations like ls, rg, find",
-  "Prefer grep/find/ls tools over bash for file exploration (faster, respects .gitignore)",
-  "Use read to examine files before editing. You must use this tool instead of cat or sed.",
-  "Use edit for precise changes (old text must match exactly)",
-  "Use write only for new files or complete rewrites",
-  "When summarizing your actions, output plain text directly - do NOT use cat or bash to display what you did",
-  "Be concise in your responses",
-  "Show file paths clearly when working with files",
+  'Use bash for file operations like ls, rg, find',
+  'Prefer grep/find/ls tools over bash for file exploration (faster, respects .gitignore)',
+  'Use read to examine files before editing. You must use this tool instead of cat or sed.',
+  'Use edit for precise changes (old text must match exactly)',
+  'Use write only for new files or complete rewrites',
+  'When summarizing your actions, output plain text directly - do NOT use cat or bash to display what you did',
+  'Be concise in your responses',
+  'Show file paths clearly when working with files',
 ]);
 
 /**
@@ -32,7 +21,7 @@ const BUILT_IN_GUIDELINES = new Set([
  * collapse all whitespace (including newlines) to single spaces, then trim.
  */
 export function normalizeSnippet(text: string): string {
-  return text.replaceAll(/\s+/g, " ").trim();
+  return text.replaceAll(/\s+/g, ' ').trim();
 }
 
 /**
@@ -41,7 +30,7 @@ export function normalizeSnippet(text: string): string {
  */
 function extractToolName(line: string): string {
   const match = line.match(/^- (\S+):/);
-  return match?.[1] ?? "";
+  return match?.[1] ?? '';
 }
 
 /**
@@ -49,7 +38,7 @@ function extractToolName(line: string): string {
  * Returns the text after "- ", trimmed.
  */
 function extractGuidelineText(line: string): string {
-  if (line.startsWith("- ")) {
+  if (line.startsWith('- ')) {
     return line.slice(2).trim();
   }
   return line.trim();
@@ -63,10 +52,10 @@ interface AttributionResult {
 /** Attribute a single line and return evidence. */
 function attributeLine(
   line: string,
-  kind: "tool-line" | "guideline-line",
+  kind: 'tool-line' | 'guideline-line',
   tokenize: (text: string) => number,
   lookupContributors: (line: string) => string[] | undefined,
-  isBuiltIn: (line: string) => boolean
+  isBuiltIn: (line: string) => boolean,
 ): TraceLineEvidence {
   const tokens = tokenize(line);
 
@@ -75,8 +64,8 @@ function attributeLine(
       line,
       tokens,
       kind,
-      contributors: ["built-in"],
-      bucket: "built-in",
+      contributors: ['built-in'],
+      bucket: 'built-in',
     };
   }
 
@@ -88,7 +77,7 @@ function attributeLine(
       tokens,
       kind,
       contributors: [...contributors],
-      bucket: "extension",
+      bucket: 'extension',
     };
   }
   if (contributors && contributors.length > 1) {
@@ -97,24 +86,24 @@ function attributeLine(
       tokens,
       kind,
       contributors: [...contributors],
-      bucket: "shared",
+      bucket: 'shared',
     };
   }
-  return { line, tokens, kind, contributors: [], bucket: "unattributed" };
+  return { line, tokens, kind, contributors: [], bucket: 'unattributed' };
 }
 
 /** Resolve the bucket id and label from an evidence item. */
 function resolveBucketId(e: TraceLineEvidence): { id: string; label: string } {
-  if (e.bucket === "built-in") {
-    return { id: "built-in", label: "Built-in/core" };
+  if (e.bucket === 'built-in') {
+    return { id: 'built-in', label: 'Built-in/core' };
   }
-  if (e.bucket === "shared") {
-    return { id: "shared", label: "Shared (multi-extension)" };
+  if (e.bucket === 'shared') {
+    return { id: 'shared', label: 'Shared (multi-extension)' };
   }
-  if (e.bucket === "unattributed") {
-    return { id: "unattributed", label: "Unattributed" };
+  if (e.bucket === 'unattributed') {
+    return { id: 'unattributed', label: 'Unattributed' };
   }
-  const [contributor] = e.contributors;
+  const contributor = getRequiredItem(e.contributors, 0);
   return { id: contributor, label: contributor };
 }
 
@@ -128,7 +117,7 @@ export function attributeBasePrompt(
   guidelineLines: string[],
   contributions: ExtensionToolContribution[],
   baseTokens: number,
-  tokenize: (text: string) => number = (t) => t.length
+  tokenize: (text: string) => number = (t) => t.length,
 ): AttributionResult {
   if (toolLines.length === 0 && guidelineLines.length === 0) {
     return { buckets: [], evidence: [] };
@@ -165,16 +154,16 @@ export function attributeBasePrompt(
     evidence.push(
       attributeLine(
         line,
-        "tool-line",
+        'tool-line',
         tokenize,
         (l) => {
           const toolName = extractToolName(l);
-          const snippetPart = l.replace(/^- \S+:\s*/, "");
+          const snippetPart = l.replace(/^- \S+:\s*/, '');
           const key = `${toolName}:${normalizeSnippet(snippetPart)}`;
           return toolSnippetMap.get(key);
         },
-        (l) => BUILT_IN_TOOLS.has(extractToolName(l))
-      )
+        (l) => BUILT_IN_TOOLS.has(extractToolName(l)),
+      ),
     );
   }
 
@@ -183,19 +172,16 @@ export function attributeBasePrompt(
     evidence.push(
       attributeLine(
         line,
-        "guideline-line",
+        'guideline-line',
         tokenize,
         (l) => guidelineMap.get(extractGuidelineText(l)),
-        (l) => BUILT_IN_GUIDELINES.has(extractGuidelineText(l))
-      )
+        (l) => BUILT_IN_GUIDELINES.has(extractGuidelineText(l)),
+      ),
     );
   }
 
   // Aggregate into buckets
-  const bucketMap = new Map<
-    string,
-    { label: string; tokens: number; lineCount: number }
-  >();
+  const bucketMap = new Map<string, { label: string; tokens: number; lineCount: number }>();
 
   for (const e of evidence) {
     const { id, label } = resolveBucketId(e);

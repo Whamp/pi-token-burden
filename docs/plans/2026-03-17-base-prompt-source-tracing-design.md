@@ -130,11 +130,10 @@ All displayed token totals must reconcile for the traced subset:
 1. `src/base-trace/types.ts`
    - trace domain types and result schema.
 
-2. `src/base-trace/extension-inspector.ts`
-   - discovers + loads extensions via exported pi APIs.
-   - extracts tool additions with source paths.
+2. `src/base-trace/extractContributions.ts`
+   - extracts tool prompt snippets and guidelines from loaded extensions.
 
-3. `src/base-trace/base-lines.ts`
+3. `src/base-trace/extractBaseLines.ts`
    - extracts Base prompt `Available tools` and `Guidelines` bullet lines from
      current prompt snapshot.
 
@@ -230,10 +229,10 @@ No fatal trace errors should break `/token-burden` overlay.
 
 ### Slice 1 — Pure attribution core
 - Add failing tests for normalization + matching + reconciliation.
-- Implement `base-lines` + `attribution` pure functions.
+- Implement `extractBaseLines` + `attribution` pure functions.
 
-### Slice 2 — Extension inspector
-- Add failing tests with mocked extension discovery/load outputs.
+### Slice 2 — Contribution extraction
+- Add failing tests with mocked loaded extension outputs.
 - Implement metadata extraction (`promptSnippet`, `promptGuidelines`, source).
 
 ### Slice 3 — Cache

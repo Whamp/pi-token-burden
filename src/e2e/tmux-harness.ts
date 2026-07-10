@@ -1,6 +1,9 @@
-import { execSync, type ExecSyncOptions } from "node:child_process";
+import { execSync, type ExecSyncOptionsWithStringEncoding } from 'node:child_process';
 
-const EXEC_OPTS: ExecSyncOptions = { encoding: "utf8", timeout: 10_000 };
+const EXEC_OPTS: ExecSyncOptionsWithStringEncoding = {
+  encoding: 'utf8',
+  timeout: 10_000,
+};
 
 interface TmuxHarnessOptions {
   /** Unique tmux session name. */
@@ -16,7 +19,7 @@ interface TmuxHarnessOptions {
   env?: Record<string, string>;
   /** Override the agent dir (sets PI_CODING_AGENT_DIR). */
   agentDir?: string;
-  /** Extra pi CLI flags. Default: --no-session --no-memory. */
+  /** Extra pi CLI flags. Defaults to the configured zai/glm-4.7 test model. */
   piFlags?: string[];
 }
 
@@ -36,12 +39,13 @@ function sleepMs(ms: number): void {
  * so tmux treats it as a string, not individual keys.
  */
 function formatTmuxKey(key: string): string {
-  if (/^[A-Z]/.test(key) || key.startsWith("C-")) {
+  if (/^[A-Z]/.test(key) || key.startsWith('C-')) {
     return key;
   }
   return shellEscape(key);
 }
 
+/** Drive an isolated Pi process through a detached tmux session. */
 export class TmuxHarness {
   readonly sessionName: string;
   private readonly width: number;
@@ -54,16 +58,17 @@ export class TmuxHarness {
     this.width = opts.width ?? 120;
     this.height = opts.height ?? 40;
     this.piFlags = opts.piFlags ?? [
-      "--no-session",
-      "--no-memory",
-      "--provider",
-      "zai",
-      "--model",
-      "glm-4.7",
+      '--no-session',
+      '--no-memory',
+      '--provider',
+      'zai',
+      '--model',
+      'glm-4.7',
     ];
     this.env = { ...opts.env };
     if (opts.agentDir) {
       this.env.PI_CODING_AGENT_DIR = opts.agentDir;
+      this.env.HOME = opts.agentDir;
     }
   }
 
@@ -74,21 +79,21 @@ export class TmuxHarness {
 
     const envPrefix = Object.entries(this.env)
       .map(([k, v]) => `${k}=${shellEscape(v)}`)
-      .join(" ");
+      .join(' ');
 
-    const flags = this.piFlags.join(" ");
-    const cmd = `${envPrefix ? `${envPrefix} ` : ""}pi -e ./src/index.ts ${flags} 2>&1`;
+    const flags = this.piFlags.join(' ');
+    const cmd = `${envPrefix ? `${envPrefix} ` : ''}pi -e ./src/index.ts ${flags} 2>&1`;
 
     execSync(
       `tmux new-session -d -s ${this.sessionName} -x ${this.width} -y ${this.height} '${cmd}'`,
-      EXEC_OPTS
+      EXEC_OPTS,
     );
   }
 
   /** Wait until capture output matches a pattern. */
   waitFor(pattern: string | RegExp, timeoutMs = 10_000): string[] {
     const deadline = Date.now() + timeoutMs;
-    const re = typeof pattern === "string" ? new RegExp(pattern) : pattern;
+    const re = typeof pattern === 'string' ? new RegExp(pattern) : pattern;
 
     while (Date.now() < deadline) {
       const lines = this.capture();
@@ -100,13 +105,18 @@ export class TmuxHarness {
 
     const finalCapture = this.capture();
     throw new Error(
-      `Timed out waiting for ${pattern} after ${timeoutMs}ms.\nScreen:\n${finalCapture.join("\n")}`
+      `Timed out waiting for ${pattern} after ${timeoutMs}ms.\nScreen:\n${finalCapture.join('\n')}`,
     );
+  }
+
+  /** Wait until Pi has rendered its initial interactive screen. */
+  waitForReady(timeoutMs = 15_000): string[] {
+    return this.waitFor(/src\/index\.ts/, timeoutMs);
   }
 
   /** Send keys to the tmux session. Inserts a brief delay after sending. */
   sendKeys(...keys: string[]): void {
-    const escaped = keys.map((k) => formatTmuxKey(k)).join(" ");
+    const escaped = keys.map((k) => formatTmuxKey(k)).join(' ');
     execSync(`tmux send-keys -t ${this.sessionName} ${escaped}`, EXEC_OPTS);
     sleepMs(150);
   }
@@ -116,8 +126,8 @@ export class TmuxHarness {
     const output = execSync(`tmux capture-pane -t ${this.sessionName} -p`, {
       ...EXEC_OPTS,
       timeout: 5000,
-    }) as string;
-    return output.split("\n");
+    });
+    return output.split('\n');
   }
 
   /** Kill the tmux session. Safe to call multiple times. */
@@ -127,10 +137,7 @@ export class TmuxHarness {
 
   private tryKill(): void {
     try {
-      execSync(
-        `tmux kill-session -t ${this.sessionName} 2>/dev/null`,
-        EXEC_OPTS
-      );
+      execSync(`tmux kill-session -t ${this.sessionName} 2>/dev/null`, EXEC_OPTS);
     } catch {
       // Session didn't exist — fine.
     }
