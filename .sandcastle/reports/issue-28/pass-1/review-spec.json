@@ -1,0 +1,14 @@
+{
+  "axis": "spec",
+  "verdict": "fail",
+  "findings": [
+    {
+      "file": "docs/sandcastle-afk-smoke.md",
+      "line": 1,
+      "severity": "high",
+      "issue": "File contains SMOKE_PENDING but final acceptance requires SMOKE_VERIFIED",
+      "requiredFix": "Replace SMOKE_PENDING with SMOKE_VERIFIED in docs/sandcastle-afk-smoke.md"
+    }
+  ],
+  "blocking": true
+}
