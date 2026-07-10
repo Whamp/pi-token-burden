@@ -260,16 +260,22 @@ export async function runResearch(
   ) {
     throw new Error('Research result or cited artifact contract was invalid');
   }
-  const committedType = await sandbox.exec(
-    `git cat-file -t ${quoteShellArgument(`HEAD:${research.artifactPath}`)}`,
+  const committedEntry = await sandbox.exec(
+    `git ls-tree -z HEAD -- ${quoteShellArgument(research.artifactPath)}`,
   );
-  if (committedType.exitCode !== 0 || committedType.stdout.trim() !== 'blob') {
+  const metadataEnd = committedEntry.stdout.indexOf('\t');
+  const metadata =
+    metadataEnd > 0 && committedEntry.stdout.endsWith('\0')
+      ? committedEntry.stdout.slice(0, metadataEnd)
+      : '';
+  const committed = /^(?:100644|100755) blob ([a-f0-9]{40})$/u.exec(metadata);
+  if (committedEntry.exitCode !== 0 || committed === null) {
     throw new Error('Research artifact is not committed at branch HEAD');
   }
-  const unchanged = await sandbox.exec(
-    `git diff --quiet HEAD -- ${quoteShellArgument(research.artifactPath)}`,
+  const worktreeBlob = await sandbox.exec(
+    `git hash-object --path=${quoteShellArgument(research.artifactPath)} -- ${quoteShellArgument(research.artifactPath)}`,
   );
-  if (unchanged.exitCode !== 0) {
+  if (worktreeBlob.exitCode !== 0 || worktreeBlob.stdout.trim() !== committed[1]) {
     throw new Error('Research artifact is not committed at branch HEAD');
   }
   return research;

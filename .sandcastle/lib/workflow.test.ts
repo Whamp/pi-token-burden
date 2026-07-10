@@ -237,13 +237,19 @@ describe('runResearch()', () => {
     const artifactPath = 'docs/research/modified.md';
     await mkdir(join(worktreePath, 'docs', 'research'), { recursive: true });
     await writeFile(join(worktreePath, artifactPath), '# Modified after commit');
-    const exec = vi
-      .fn<Sandbox['exec']>()
-      .mockImplementation(async (command) =>
-        command.startsWith('git cat-file -t ')
-          ? { exitCode: 0, stderr: '', stdout: 'blob\n' }
-          : { exitCode: 1, stderr: '', stdout: '' },
-      );
+    const exec = vi.fn<Sandbox['exec']>().mockImplementation(async (command) => {
+      if (command.startsWith('git ls-tree ')) {
+        return {
+          exitCode: 0,
+          stderr: '',
+          stdout: `100644 blob ${'a'.repeat(40)}\t${artifactPath}\0`,
+        };
+      }
+      if (command.startsWith('git hash-object ')) {
+        return { exitCode: 0, stderr: '', stdout: `${'b'.repeat(40)}\n` };
+      }
+      return { exitCode: 0, stderr: '', stdout: '' };
+    });
     const sandbox = fromPartial<Sandbox>({
       exec,
       run: vi
@@ -266,9 +272,14 @@ describe('runResearch()', () => {
     const artifactPath = "docs/research/will's-runtime.md";
     await mkdir(join(worktreePath, 'docs', 'research'), { recursive: true });
     await writeFile(join(worktreePath, artifactPath), '# Runtime');
+    const oid = 'a'.repeat(40);
     const exec = vi
       .fn<Sandbox['exec']>()
-      .mockResolvedValue({ exitCode: 0, stderr: '', stdout: 'blob\n' });
+      .mockImplementation(async (command) =>
+        command.startsWith('git ls-tree ')
+          ? { exitCode: 0, stderr: '', stdout: `100644 blob ${oid}\t${artifactPath}\0` }
+          : { exitCode: 0, stderr: '', stdout: `${oid}\n` },
+      );
     const sandbox = fromPartial<Sandbox>({
       exec,
       run: vi
@@ -282,7 +293,10 @@ describe('runResearch()', () => {
         runResearch(sandbox, fromPartial<AgentProvider>({}), ISSUE),
       ).resolves.toMatchObject({ artifactPath });
       expect(exec).toHaveBeenCalledWith(
-        `git cat-file -t 'HEAD:docs/research/will'"'"'s-runtime.md'`,
+        `git ls-tree -z HEAD -- 'docs/research/will'"'"'s-runtime.md'`,
+      );
+      expect(exec).toHaveBeenCalledWith(
+        `git hash-object --path='docs/research/will'"'"'s-runtime.md' -- 'docs/research/will'"'"'s-runtime.md'`,
       );
     } finally {
       await rm(worktreePath, { force: true, recursive: true });
