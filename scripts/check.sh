@@ -17,6 +17,7 @@ run() {
 
 run "Lint"         pnpm run lint
 run "Typecheck"    pnpm run typecheck
+run "Sandcastle TS" pnpm run typecheck:sandcastle
 run "Format"       pnpm run format:check
 run "Dead code"     pnpm run deadcode
 run "Duplicates"   pnpm run duplicates
