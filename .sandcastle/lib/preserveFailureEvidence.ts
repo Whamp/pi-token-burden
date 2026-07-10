@@ -5,7 +5,7 @@ import { join } from 'node:path';
 interface FailureEvidenceOptions {
   readonly issueNumber: number;
   readonly logsDirectory: string;
-  readonly reason: string;
+  readonly failureId: string;
   readonly worktreePath: string;
 }
 
@@ -54,7 +54,7 @@ export async function preserveFailureEvidence(options: FailureEvidenceOptions): 
   await mkdir(reportDirectory, { recursive: true });
   await writeFile(
     join(options.worktreePath, relativePath),
-    `# Sandcastle terminal failure\n\n${options.reason}\n\n## Repro evidence\n\nRaw logs are retained only on the runner host and are not copied into Git.\n\n${manifest}\n`,
+    `# Sandcastle terminal failure\n\nSandcastle workflow failed (failure ID: ${options.failureId}). Raw details are retained only on the runner host.\n\n## Repro evidence\n\nRaw logs are retained only on the runner host and are not copied into Git.\n\n${manifest}\n`,
   );
 
   return relativePath;

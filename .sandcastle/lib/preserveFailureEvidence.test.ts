@@ -25,13 +25,13 @@ describe('preserveFailureEvidence()', () => {
       const relativePath = await preserveFailureEvidence({
         issueNumber: 42,
         logsDirectory,
-        reason: 'Reviewer output contract failed',
+        failureId: 'abcdef012345',
         worktreePath,
       });
 
       expect(relativePath).toBe('.sandcastle/reports/issue-42/failure.md');
       const report = await readFile(join(worktreePath, relativePath), 'utf8');
-      expect(report).toContain('Reviewer output contract failed');
+      expect(report).toContain('Sandcastle workflow failed (failure ID: abcdef012345)');
       expect(report).toContain('Raw logs are retained only on the runner host');
       expect(report).toContain('.sandcastle/logs/sandcastle-issue-42-implement.log');
       expect(report).toContain('sha256');

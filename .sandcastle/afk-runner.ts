@@ -20,6 +20,7 @@ import {
 } from './lib/github.js';
 import { logError, logInfo } from './lib/logger.js';
 import { preserveFailureEvidence } from './lib/preserveFailureEvidence.js';
+import { recordFailure } from './lib/recordFailure.js';
 import type { GitHubExecutor, RoutedIssue } from './lib/types.js';
 import { runImplementation, runResearch } from './lib/workflow.js';
 
@@ -30,6 +31,26 @@ const DEFAULT_REPOSITORY = 'Whamp/pi-token-burden';
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+async function recordIssueFailure(issueNumber: number, reason: string) {
+  try {
+    return await recordFailure({
+      issueNumber,
+      logsDirectory: resolve('.sandcastle', 'logs'),
+      reason,
+    });
+  } catch (error) {
+    logError('Failed to retain raw Sandcastle failure reason', {
+      error: errorMessage(error),
+      issueNumber,
+    });
+    return {
+      failureId: 'unavailable',
+      safeReason:
+        'Sandcastle workflow failed. Raw failure retention also failed; inspect runner stderr.',
+    };
+  }
 }
 
 function loadRunnerEnvironment(): void {
@@ -183,12 +204,12 @@ async function preserveFailureReport(
   sandbox: Sandbox,
   repository: string,
   issueNumber: number,
-  reason: string,
+  failureId: string,
 ): Promise<string> {
   const relative = await preserveFailureEvidence({
+    failureId,
     issueNumber,
     logsDirectory: resolve('.sandcastle', 'logs'),
-    reason,
     worktreePath: sandbox.worktreePath,
   });
   const commit = await sandbox.exec(
@@ -256,7 +277,7 @@ async function processSelection(
     }
     await unassignIssue(execute, repository, issueNumber);
   } catch (error) {
-    const reason = errorMessage(error);
+    const failure = await recordIssueFailure(issueNumber, errorMessage(error));
     let report = 'No branch report was available because sandbox setup did not complete.';
     if (sandbox !== undefined) {
       try {
@@ -264,17 +285,18 @@ async function processSelection(
           sandbox,
           repository,
           issueNumber,
-          reason,
+          failure.failureId,
         )}`;
       } catch (reportError) {
-        report = `Failure report publication also failed: ${errorMessage(reportError)}`;
+        const reportFailure = await recordIssueFailure(issueNumber, errorMessage(reportError));
+        report = `Failure report publication also failed. ${reportFailure.safeReason}`;
       }
     }
     await escalateIssue(
       execute,
       repository,
       issueNumber,
-      `Sandcastle AFK stopped and needs human attention.\n\n${reason}\n\n${report}`,
+      `Sandcastle AFK stopped and needs human attention.\n\n${failure.safeReason}\n\n${report}`,
     );
   } finally {
     if (sandbox !== undefined) {
