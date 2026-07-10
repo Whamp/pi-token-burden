@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 
@@ -113,6 +114,18 @@ async function repairReviewOutput(
   return repairedResult;
 }
 
+function safeValidationReport(validation: ValidationResult): object {
+  const summarize = (result: ValidationResult['check']) => ({
+    outputBytes: Buffer.byteLength(result.output),
+    outputSha256: createHash('sha256').update(result.output).digest('hex'),
+    passed: result.passed,
+  });
+  return {
+    check: summarize(validation.check),
+    testE2E: summarize(validation.testE2E),
+  };
+}
+
 async function persistPassReports(
   sandbox: Sandbox,
   issueNumber: number,
@@ -130,7 +143,10 @@ async function persistPassReports(
       `${JSON.stringify(standards, undefined, 2)}\n`,
     ),
     writeFile(join(directory, 'review-spec.json'), `${JSON.stringify(spec, undefined, 2)}\n`),
-    writeFile(join(directory, 'validation.json'), `${JSON.stringify(validation, undefined, 2)}\n`),
+    writeFile(
+      join(directory, 'validation.json'),
+      `${JSON.stringify(safeValidationReport(validation), undefined, 2)}\n`,
+    ),
     writeFile(join(directory, 'check.log'), validation.check.output),
     writeFile(join(directory, 'test-e2e.log'), validation.testE2E.output),
   ]);

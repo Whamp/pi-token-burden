@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -90,7 +90,7 @@ describe('runImplementation()', () => {
         fromPartial({
           exitCode: 0,
           stderr: '',
-          stdout: '',
+          stdout: 'GH_TOKEN=ghp_validator_secret\n',
         }),
       ),
       run: vi.fn<Sandbox['run']>().mockResolvedValue(firstWork),
@@ -115,6 +115,13 @@ describe('runImplementation()', () => {
       expect(resume).toHaveBeenCalledWith(expect.stringMatching(/- high:[\s\S]*- low:/u), {
         name: 'fix-pass-2',
       });
+      const validationReport = await readFile(
+        join(worktreePath, '.sandcastle', 'reports', 'issue-42', 'pass-2', 'validation.json'),
+        'utf8',
+      );
+      expect(validationReport).not.toContain('ghp_validator_secret');
+      expect(validationReport).toContain('outputBytes');
+      expect(validationReport).toContain('outputSha256');
     } finally {
       await rm(worktreePath, { force: true, recursive: true });
     }
