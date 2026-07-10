@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -6,7 +6,12 @@ import type { AgentProvider, Sandbox, SandboxRunResult } from '@ai-hero/sandcast
 import { fromPartial } from '@total-typescript/shoehorn';
 
 import type { IssueContext } from './types.js';
-import { runImplementation, parseResearchResult, parseReviewResult } from './workflow.js';
+import {
+  runImplementation,
+  runResearch,
+  parseResearchResult,
+  parseReviewResult,
+} from './workflow.js';
 
 function implementationOutput(attempt: number): string {
   return `<implementationResult>${JSON.stringify({
@@ -22,6 +27,18 @@ function implementationOutput(attempt: number): string {
       testE2E: { logPath: 'runner-owned', reasonIfSkipped: '', status: 'pass' },
     },
   })}</implementationResult>`;
+}
+
+function researchOutput(artifactPath: string): string {
+  return `<researchResult>${JSON.stringify({
+    artifactPath,
+    automationGaps: [],
+    axis: 'research',
+    decisions: ['Use Docker'],
+    evidence: [{ claim: 'The API supports Docker', source: 'https://example.com' }],
+    openQuestions: [],
+    summary: 'Runtime contract',
+  })}</researchResult>`;
 }
 
 const ISSUE: IssueContext = {
@@ -150,6 +167,98 @@ describe('runImplementation()', () => {
       expect(resume).toHaveBeenCalledWith(expect.stringContaining('<implementationResult>'), {
         name: 'implementation-output-1',
       });
+    } finally {
+      await rm(worktreePath, { force: true, recursive: true });
+    }
+  });
+});
+
+describe('runResearch()', () => {
+  it('rejects a cited artifact that escapes docs/research', async () => {
+    const worktreePath = await mkdtemp(join(tmpdir(), 'sandcastle-research-'));
+    await writeFile(join(worktreePath, 'outside.md'), '# Outside');
+    const stdout = researchOutput('docs/research/../../outside.md');
+    const sandbox = fromPartial<Sandbox>({
+      run: vi.fn().mockResolvedValue(fromPartial<SandboxRunResult>({ stdout })),
+      worktreePath,
+    });
+
+    try {
+      await expect(runResearch(sandbox, fromPartial<AgentProvider>({}), ISSUE)).rejects.toThrow(
+        'Research result or cited artifact contract was invalid',
+      );
+    } finally {
+      await rm(worktreePath, { force: true, recursive: true });
+    }
+  });
+
+  it('rejects an artifact that is not a committed blob at HEAD', async () => {
+    const worktreePath = await mkdtemp(join(tmpdir(), 'sandcastle-research-'));
+    const artifactPath = 'docs/research/runtime.md';
+    await mkdir(join(worktreePath, 'docs', 'research'), { recursive: true });
+    await writeFile(join(worktreePath, artifactPath), '# Runtime');
+    const stdout = researchOutput(artifactPath);
+    const sandbox = fromPartial<Sandbox>({
+      exec: vi.fn().mockResolvedValue({ exitCode: 1, stderr: 'not found', stdout: '' }),
+      run: vi.fn().mockResolvedValue(fromPartial<SandboxRunResult>({ stdout })),
+      worktreePath,
+    });
+
+    try {
+      await expect(runResearch(sandbox, fromPartial<AgentProvider>({}), ISSUE)).rejects.toThrow(
+        'Research artifact is not committed at branch HEAD',
+      );
+    } finally {
+      await rm(worktreePath, { force: true, recursive: true });
+    }
+  });
+
+  it('accepts a regular Markdown artifact committed as a blob', async () => {
+    const worktreePath = await mkdtemp(join(tmpdir(), 'sandcastle-research-'));
+    const artifactPath = "docs/research/will's-runtime.md";
+    await mkdir(join(worktreePath, 'docs', 'research'), { recursive: true });
+    await writeFile(join(worktreePath, artifactPath), '# Runtime');
+    const exec = vi
+      .fn<Sandbox['exec']>()
+      .mockResolvedValue({ exitCode: 0, stderr: '', stdout: 'blob\n' });
+    const sandbox = fromPartial<Sandbox>({
+      exec,
+      run: vi
+        .fn()
+        .mockResolvedValue(fromPartial<SandboxRunResult>({ stdout: researchOutput(artifactPath) })),
+      worktreePath,
+    });
+
+    try {
+      await expect(
+        runResearch(sandbox, fromPartial<AgentProvider>({}), ISSUE),
+      ).resolves.toMatchObject({ artifactPath });
+      expect(exec).toHaveBeenCalledWith(
+        `git cat-file -t 'HEAD:docs/research/will'"'"'s-runtime.md'`,
+      );
+    } finally {
+      await rm(worktreePath, { force: true, recursive: true });
+    }
+  });
+
+  it('rejects a directory whose name ends in .md', async () => {
+    const worktreePath = await mkdtemp(join(tmpdir(), 'sandcastle-research-'));
+    const artifactPath = 'docs/research/not-a-file.md';
+    await mkdir(join(worktreePath, artifactPath), { recursive: true });
+    const exec = vi.fn<Sandbox['exec']>();
+    const sandbox = fromPartial<Sandbox>({
+      exec,
+      run: vi
+        .fn()
+        .mockResolvedValue(fromPartial<SandboxRunResult>({ stdout: researchOutput(artifactPath) })),
+      worktreePath,
+    });
+
+    try {
+      await expect(runResearch(sandbox, fromPartial<AgentProvider>({}), ISSUE)).rejects.toThrow(
+        'Research result or cited artifact contract was invalid',
+      );
+      expect(exec).not.toHaveBeenCalled();
     } finally {
       await rm(worktreePath, { force: true, recursive: true });
     }

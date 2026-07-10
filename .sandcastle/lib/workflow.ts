@@ -1,5 +1,5 @@
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { join, resolve, sep } from 'node:path';
 
 import type { AgentProvider, Sandbox, SandboxRunResult } from '@ai-hero/sandcastle';
 
@@ -173,6 +173,26 @@ function findingsText(
   return findings.join('\n') || 'No findings.';
 }
 
+function quoteShellArgument(value: string): string {
+  return `'${value.replaceAll("'", `'"'"'`)}'`;
+}
+
+async function researchArtifactIsValid(
+  worktreePath: string,
+  artifactPath: string,
+): Promise<boolean> {
+  const researchRoot = resolve(worktreePath, 'docs', 'research');
+  const candidate = resolve(worktreePath, artifactPath);
+  if (!candidate.startsWith(`${researchRoot}${sep}`) || !candidate.endsWith('.md')) {
+    return false;
+  }
+  try {
+    return (await stat(candidate)).isFile();
+  } catch {
+    return false;
+  }
+}
+
 /** Execute a research ticket and verify its cited Markdown artifact exists. */
 export async function runResearch(
   sandbox: Sandbox,
@@ -203,13 +223,17 @@ export async function runResearch(
   }
   if (
     research === undefined ||
-    !research.artifactPath.startsWith('docs/research/') ||
-    !research.artifactPath.endsWith('.md') ||
-    research.evidence.length === 0
+    research.evidence.length === 0 ||
+    !(await researchArtifactIsValid(sandbox.worktreePath, research.artifactPath))
   ) {
     throw new Error('Research result or cited artifact contract was invalid');
   }
-  await stat(join(sandbox.worktreePath, research.artifactPath));
+  const committedType = await sandbox.exec(
+    `git cat-file -t ${quoteShellArgument(`HEAD:${research.artifactPath}`)}`,
+  );
+  if (committedType.exitCode !== 0 || committedType.stdout.trim() !== 'blob') {
+    throw new Error('Research artifact is not committed at branch HEAD');
+  }
   return research;
 }
 
