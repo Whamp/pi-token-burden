@@ -7,6 +7,7 @@ import { pathToFileURL } from 'node:url';
 import { createSandbox, pi, type PiOptions, type Sandbox } from '@ai-hero/sandcastle';
 import { docker } from '@ai-hero/sandcastle/sandboxes/docker';
 
+import { durableGitHubUrl } from './lib/durableGitHubUrl.js';
 import { IssueRoute } from './lib/enums.js';
 import {
   claimIssue,
@@ -119,11 +120,16 @@ async function createIssueSandbox(selection: RoutedIssue, repository: string): P
   return sandbox;
 }
 
-async function pushBranch(sandbox: Sandbox): Promise<void> {
+async function pushBranch(sandbox: Sandbox): Promise<string> {
   const push = await sandbox.exec(`git push --set-upstream origin ${sandbox.branch}`);
   if (push.exitCode !== 0) {
     throw new Error(`Branch push failed: ${push.stderr}`);
   }
+  const head = await sandbox.exec('git rev-parse HEAD');
+  if (head.exitCode !== 0) {
+    throw new Error(`Pushed commit resolution failed: ${head.stderr}`);
+  }
+  return head.stdout.trim();
 }
 
 async function commitReports(sandbox: Sandbox, issueNumber: number): Promise<void> {
@@ -144,8 +150,13 @@ async function publishImplementation(
   summary: string,
 ): Promise<void> {
   await commitReports(sandbox, selection.issue.number);
-  await pushBranch(sandbox);
-  const reportsUrl = `https://github.com/${repository}/tree/${sandbox.branch}/${reportsPath}`;
+  const commit = await pushBranch(sandbox);
+  const reportsUrl = durableGitHubUrl({
+    commit,
+    kind: 'tree',
+    path: reportsPath,
+    repository,
+  });
   const pullRequestUrl = await ensurePullRequest(
     execute,
     repository,
@@ -176,8 +187,13 @@ async function publishResearch(
   artifactPath: string,
   summary: string,
 ): Promise<void> {
-  await pushBranch(sandbox);
-  const artifactUrl = `https://github.com/${repository}/blob/${sandbox.branch}/${artifactPath}`;
+  const commit = await pushBranch(sandbox);
+  const artifactUrl = durableGitHubUrl({
+    commit,
+    kind: 'blob',
+    path: artifactPath,
+    repository,
+  });
   const pullRequestUrl = await ensurePullRequest(
     execute,
     repository,
@@ -218,8 +234,13 @@ async function preserveFailureReport(
   if (commit.exitCode !== 0) {
     throw new Error(`Failure report commit failed: ${commit.stderr}`);
   }
-  await pushBranch(sandbox);
-  return `https://github.com/${repository}/blob/${sandbox.branch}/${relative}`;
+  const commitSha = await pushBranch(sandbox);
+  return durableGitHubUrl({
+    commit: commitSha,
+    kind: 'blob',
+    path: relative,
+    repository,
+  });
 }
 
 async function processSelection(
