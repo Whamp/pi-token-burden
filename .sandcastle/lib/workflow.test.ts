@@ -122,6 +122,18 @@ describe('runImplementation()', () => {
       expect(validationReport).not.toContain('ghp_validator_secret');
       expect(validationReport).toContain('outputBytes');
       expect(validationReport).toContain('outputSha256');
+      await expect(
+        readFile(
+          join(worktreePath, '.sandcastle', 'reports', 'issue-42', 'pass-2', 'check.log'),
+          'utf8',
+        ),
+      ).rejects.toThrow();
+      await expect(
+        readFile(
+          join(worktreePath, '.sandcastle', 'logs', 'sandcastle-issue-42-pass-2-check.log'),
+          'utf8',
+        ),
+      ).resolves.toContain('ghp_validator_secret');
     } finally {
       await rm(worktreePath, { force: true, recursive: true });
     }

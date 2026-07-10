@@ -136,7 +136,11 @@ async function persistPassReports(
 ): Promise<string> {
   const relative = `.sandcastle/reports/issue-${issueNumber}/pass-${pass}`;
   const directory = join(sandbox.worktreePath, relative);
-  await mkdir(directory, { recursive: true });
+  const logsDirectory = join(sandbox.worktreePath, '.sandcastle', 'logs');
+  await Promise.all([
+    mkdir(directory, { recursive: true }),
+    mkdir(logsDirectory, { recursive: true }),
+  ]);
   await Promise.all([
     writeFile(
       join(directory, 'review-standards.json'),
@@ -147,8 +151,14 @@ async function persistPassReports(
       join(directory, 'validation.json'),
       `${JSON.stringify(safeValidationReport(validation), undefined, 2)}\n`,
     ),
-    writeFile(join(directory, 'check.log'), validation.check.output),
-    writeFile(join(directory, 'test-e2e.log'), validation.testE2E.output),
+    writeFile(
+      join(logsDirectory, `sandcastle-issue-${issueNumber}-pass-${pass}-check.log`),
+      validation.check.output,
+    ),
+    writeFile(
+      join(logsDirectory, `sandcastle-issue-${issueNumber}-pass-${pass}-test-e2e.log`),
+      validation.testE2E.output,
+    ),
   ]);
   return relative;
 }
@@ -172,6 +182,8 @@ function findingsText(
   standards: ReviewResult,
   spec: ReviewResult,
   validation: ValidationResult,
+  issueNumber: number,
+  pass: number,
 ): string {
   const severityOrder = { high: 0, low: 2, medium: 1 };
   const findings = [...standards.findings, ...spec.findings]
@@ -181,10 +193,14 @@ function findingsText(
         `- ${finding.severity}: ${finding.file}:${finding.line} ${finding.issue}; required fix: ${finding.requiredFix}`,
     );
   if (!validation.check.passed) {
-    findings.push('- validation: pnpm run check failed; inspect check.log');
+    findings.push(
+      `- validation: pnpm run check failed; inspect .sandcastle/logs/sandcastle-issue-${issueNumber}-pass-${pass}-check.log`,
+    );
   }
   if (!validation.testE2E.passed) {
-    findings.push('- validation: pnpm run test:e2e failed; inspect test-e2e.log');
+    findings.push(
+      `- validation: pnpm run test:e2e failed; inspect .sandcastle/logs/sandcastle-issue-${issueNumber}-pass-${pass}-test-e2e.log`,
+    );
   }
   return findings.join('\n') || 'No findings.';
 }
@@ -340,7 +356,7 @@ export async function runImplementation(
       ATTEMPT: String(pass + 1),
       BASE_BRANCH: baseBranch,
       BRANCH: sandbox.branch,
-      FINDINGS: findingsText(standards, spec, validation),
+      FINDINGS: findingsText(standards, spec, validation, issue.number, pass),
       ISSUE_NUMBER: String(issue.number),
     });
     work = await requireResume(work)(fixPrompt, {
