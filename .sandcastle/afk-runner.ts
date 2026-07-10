@@ -25,7 +25,7 @@ import { runImplementation, runResearch } from './lib/workflow.js';
 
 const BASE_BRANCH = 'main';
 const DEFAULT_IMAGE = 'pi-token-burden-sandcastle:local';
-const DEFAULT_MODEL = 'anthropic/claude-sonnet-4.5';
+const DEFAULT_MODEL = 'openai-codex/gpt-5.6-sol';
 const DEFAULT_REPOSITORY = 'Whamp/pi-token-burden';
 
 function errorMessage(error: unknown): string {
