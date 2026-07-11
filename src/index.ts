@@ -1,22 +1,9 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-import { discoverAndLoadExtensions, SettingsManager } from '@mariozechner/pi-coding-agent';
 import type { ExtensionFactory } from '@mariozechner/pi-coding-agent';
 
-import { attributeBasePrompt, extractBaseLines, extractContributions } from './base-trace/index.js';
 import type { BasePromptTraceResult } from './base-trace/index.js';
-import {
-  buildToolDefinitionsSection,
-  estimateTokens,
-  parseSystemPrompt,
-  toolEnvelopeForModel,
-} from './parser.js';
-import { showReport } from './report-view.js';
-import { saveSkillToggleResult } from './saveSkillToggleResult.js';
-import { SkillVisibilityStore, loadSettings } from './skill-visibility-store.js';
-import { loadAllSkills } from './skills.js';
-import { isRecord } from './utils.js';
 
 /**
  * Resolve the agent directory, matching pi's own resolution logic:
@@ -41,6 +28,25 @@ const EXTENSION: ExtensionFactory = (pi) => {
   pi.registerCommand('token-burden', {
     description: 'Show token budget breakdown and manage skills',
     handler: async (args, ctx) => {
+      const [
+        { discoverAndLoadExtensions, SettingsManager },
+        { attributeBasePrompt, extractBaseLines, extractContributions },
+        { buildToolDefinitionsSection, estimateTokens, parseSystemPrompt, toolEnvelopeForModel },
+        { showReport },
+        { saveSkillToggleResult },
+        { SkillVisibilityStore, loadSettings },
+        { loadAllSkills },
+        { isRecord },
+      ] = await Promise.all([
+        import('@mariozechner/pi-coding-agent'),
+        import('./base-trace/index.js'),
+        import('./parser.js'),
+        import('./report-view.js'),
+        import('./saveSkillToggleResult.js'),
+        import('./skill-visibility-store.js'),
+        import('./skills.js'),
+        import('./utils.js'),
+      ]);
       const prompt = ctx.getSystemPrompt();
       const parsed = parseSystemPrompt(prompt);
 
